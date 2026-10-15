@@ -58,8 +58,4 @@ Consulta la viñeta: `vignette("bibliolab")`.
 
 ## Desarrollo
 
-Documentación: `roxygen2::roxygenise()`. Pruebas: `devtools::test()` (la suite usa
-`testthat` 3.ª edición y omite los modelos pesados si faltan los paquetes opcionales o
-con `NOT_CRAN` distinto de `true`). Comprobación completa: `R CMD check --as-cran`.
-
-Registro de cambios: [NEWS.md](NEWS.md). Licencia: MIT (ver [LICENSE.md](LICENSE.md)).
+Registro de cambios: [NEWS.md](NEWS.md). Licencia: MIT ([LICENSE.md](LICENSE.md)).
