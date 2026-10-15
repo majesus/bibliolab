@@ -1,0 +1,7 @@
+^\.github$
+^\.gitignore$
+^.*\.Rproj$
+^\.Rproj\.user$
+^codecov\.yml$
+^CITATION\.cff$
+^LICENSE\.md$

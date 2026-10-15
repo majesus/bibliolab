@@ -1,0 +1,168 @@
+---
+title: "Guía para investigadores: análisis bibliométrico y de textos con bibliolab"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Guía para investigadores}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>", eval = TRUE)
+library(bibliolab)
+have_lda <- requireNamespace("topicmodels", quietly = TRUE) && requireNamespace("slam", quietly = TRUE)
+```
+
+## Qué es y qué no es
+
+`bibliolab` ayuda a describir un corpus de documentos científicos (por ejemplo, una
+exportación de Web of Science o Scopus) y a explorar su contenido con modelos de
+texto. Está pensado para dos públicos a la vez: personas sin formación técnica, que
+usan la aplicación (`run_app()`), e investigadores que necesitan scripts
+reproducibles.
+
+Tres principios guían el diseño:
+
+1. **Todo es descriptivo o exploratorio.** Ninguna salida es una prueba confirmatoria ni
+   permite afirmar causalidad. Un modelo de temas, un mapa o una red son instrumentos
+   de lectura: su validez sustantiva depende de leer documentos y justificar etiquetas.
+2. **Las decisiones metodológicas se apoyan en diagnósticos, no los sustituyen.** La
+   herramienta compara alternativas (número de temas, estabilidad de grupos, ruido de
+   muestreo) y muestra los criterios aunque se contradigan; la decisión final es del
+   investigador.
+3. **Todo queda registrado.** Parámetros, semillas, versiones y huella de los datos
+   se guardan en la entrega y en el informe metodológico.
+
+## La aplicación
+
+```{r app, eval = FALSE}
+library(bibliolab)
+run_app()
+```
+
+La aplicación sigue cinco pasos: **Datos**, **Preparación**, **Indicadores**,
+**Modelos** y **Entrega**. Cada paso tiene una guía que explica qué hace, cuándo
+conviene usarlo, qué decisiones debes tomar y cómo interpretar el resultado.
+
+Los modelos de lematización (UDPipe) no se incluyen en el paquete y solo se descargan
+si el usuario lo solicita expresamente; se guardan en la carpeta de datos de usuario de
+R (`model_directory()`).
+
+## El mismo flujo en un script
+
+```{r flow}
+f <- system.file("extdata", "practica.csv", package = "bibliolab")
+datos <- read_biblio_csv(f, ";")                    # importación estricta
+columnas <- guess_columns(datos)                    # propuesta; revísala
+preparado <- prepare_documents(datos, columnas)     # filtros, duplicados, auditoría
+preparado$audit
+corpus <- prepare_corpus(preparado)                 # vocabulario y matriz de términos
+indicadores <- biblio_summary(preparado)
+indicadores$overview
+```
+
+`prepare_documents()` conserva los valores ausentes como `NA`: una cita ausente no es
+una cita cero. Los duplicados se detectan por DOI y, si falta, por título normalizado
+(sin acentos, mayúsculas ni puntuación); el registro de duplicados indica el criterio.
+
+## Decisiones metodológicas asistidas
+
+### Número de temas (LDA)
+
+No existe un número de temas «correcto». `lda_select_k()` ajusta varias soluciones con
+varias semillas y resume cuatro criterios que pueden discrepar:
+
+* **coherencia** (NPMI y UMass): si las palabras principales de un tema co-ocurren;
+* **diversidad**: si los temas se repiten entre sí;
+* **estabilidad** entre semillas (solapamiento de palabras principales con
+  emparejamiento óptimo);
+* **perplejidad** sobre documentos reservados, que suele mejorar al aumentar `k` y no
+  equivale a interpretabilidad (por eso no entra en el valor de compromiso).
+
+```{r kselect, eval = have_lda}
+sel <- lda_select_k(corpus, k_range = 2:5, seeds = c(1, 2), iterations = 200)
+sel$table[, c("k", "coherencia_npmi", "diversidad", "estabilidad")]
+sel$recommendation$text
+```
+
+El valor de compromiso (maximin) es un punto de partida: después hay que leer los
+temas de dos o tres candidatos y justificar la elección.
+
+### Prior de mezcla (alpha)
+
+`run_lda()` usa `alpha = 1/k` por defecto. Con el valor `50/k` de `topicmodels`, las
+proporciones por documento de textos cortos quedan dominadas por el prior. La
+documentación de la función incluye la referencia y la aplicación registra el valor.
+
+```{r lda, eval = have_lda}
+fit <- run_lda(corpus, k = 3, iterations = 300)
+fit$diagnostics$overview
+```
+
+### Estabilidad de UMAP + HDBSCAN
+
+`run_density()` es una sola ejecución. `density_sensitivity()` la repite con otras
+semillas y con otros vecinos y `minPts`, y mide el acuerdo con el índice de Rand
+ajustado y la persistencia de cada grupo. Si la estabilidad es baja, los grupos deben
+presentarse como exploratorios y apoyarse solo en los que persisten.
+
+### Ruido de muestreo en la divergencia de Jensen-Shannon
+
+La JSD con conteos finitos es sesgada al alza: dos grupos de un mismo corpus ya tienen
+una JSD positiva. `run_comparison()` compara la JSD observada con la que resulta al
+reasignar documentos entre A y B (permutación) y calcula un intervalo bootstrap.
+
+```{r jsd}
+set.seed(1)
+W <- matrix(rpois(60 * 8, 2), 60, 8)
+jsd_uncertainty(W, 1:30, 31:60, B = 100, seed = 1)[c("observed", "null_mean", "p_value")]
+```
+
+### Ejes de correspondencias y ACP frente al azar
+
+`run_ca()` y `run_pca()` calculan por permutación el porcentaje de inercia o varianza
+esperable por azar con los mismos totales. Un eje que no supera el percentil 95 no se
+interpreta como estructura.
+
+### Vocabulario
+
+`vocabulary_diagnostics()` muestra cómo cambia el vocabulario al variar la presencia
+mínima y qué términos aparecen en una gran parte de los documentos (candidatos a
+palabras vacías propias del corpus, por ejemplo *study* o *results*).
+
+```{r vocab}
+vocabulary_diagnostics(corpus, preparado)$sensitivity
+```
+
+## Interpretar con cautela
+
+* La coherencia se calcula con los mismos documentos: orienta, no valida.
+* Una concordancia entre métodos apoya una lectura, una discrepancia exige revisar
+  representaciones y supuestos; no hay un «mejor» modelo por una puntuación común.
+* Producción, citas y centralidades describen posiciones en este corpus; no miden
+  calidad ni liderazgo.
+* Los autores no se desambiguan: solo se unifican variantes de mayúsculas, acentos y
+  puntuación.
+
+## Informe metodológico y reproducibilidad
+
+```{r report}
+registro <- reproducibility_record(preparado, corpus)
+registro$software$bibliolab
+informe <- methods_report(preparado, corpus, indicadores, record = registro)
+cat(substr(informe, 1, 300))
+```
+
+La entrega de la aplicación incluye `informe_metodologico.html`, `registro_reproducibilidad.json`
+y un script `reproducir_analisis.R` que, con el paquete instalado, recalcula los
+resultados a partir de `entrada_original.rds`.
+
+## Referencias
+
+* Blei, D. M., Ng, A. Y., & Jordan, M. I. (2003). Latent Dirichlet allocation. *Journal of Machine Learning Research, 3*, 993-1022.
+* Chang, J., Boyd-Graber, J., Gerrish, S., Wang, C., & Blei, D. (2009). Reading tea leaves: How humans interpret topic models. *NIPS*.
+* Greene, D., O'Callaghan, D., & Cunningham, P. (2014). How many topics? Stability analysis for topic models. *ECML PKDD*.
+* Hubert, L., & Arabie, P. (1985). Comparing partitions. *Journal of Classification, 2*, 193-218.
+* Lin, J. (1991). Divergence measures based on the Shannon entropy. *IEEE Transactions on Information Theory, 37*, 145-151.
+* Mimno, D., Wallach, H., Talley, E., Leenders, M., & McCallum, A. (2011). Optimizing semantic coherence in topic models. *EMNLP*.
+* Wallach, H. M., Mimno, D., & McCallum, A. (2009). Rethinking LDA: Why priors matter. *NIPS*.

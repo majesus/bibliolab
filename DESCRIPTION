@@ -1,0 +1,67 @@
+Package: bibliolab
+Type: Package
+Title: Guided Bibliometric Analysis and Text Mining
+Version: 5.0.1
+Authors@R: 
+    person("Manuel J.", "Sánchez-Franco", , "majesus@us.es", role = c("aut", "cre", "cph"),
+           comment = c(ORCID = "0000-0002-8042-3550"))
+Description: A guided 'shiny' application, together with a set of functions,
+    to describe a bibliographic corpus (production, sources, authors,
+    citations, references) and to explore its text with exploratory models:
+    latent Dirichlet allocation, correspondence analysis, principal component
+    analysis, UMAP with HDBSCAN, Jensen-Shannon divergence and co-occurrence
+    networks. Decisions that change the results (number of topics, stability
+    of clusters, sampling noise of divergences, chance baselines for axes)
+    are assisted and recorded, and the analysis can be exported as a
+    reproducible bundle with a methodological report, parameters, seeds and a
+    replication script. It is designed for researchers without technical
+    training, and all computation is local.
+License: GPL (>= 3)
+Language: es
+Encoding: UTF-8
+URL: https://github.com/majesus/bibliolab
+BugReports: https://github.com/majesus/bibliolab/issues
+Depends: R (>= 4.1.0)
+Imports: 
+    DT,
+    data.table,
+    ggplot2,
+    grDevices,
+    grid,
+    htmltools,
+    jsonlite,
+    Matrix,
+    methods,
+    parallel,
+    plotly,
+    shiny,
+    stats,
+    stopwords,
+    tools,
+    utils,
+    visNetwork,
+    zip
+Suggests: 
+    cld2,
+    dbscan,
+    ggrepel,
+    igraph,
+    irlba,
+    knitr,
+    mclust,
+    mgcv,
+    pkgload,
+    readxl,
+    rmarkdown,
+    slam,
+    testthat (>= 3.0.0),
+    topicmodels,
+    udpipe,
+    uwot,
+    withr
+Config/bibliolab/App-Suggests: cld2, dbscan, ggrepel, igraph, irlba, mclust,
+    mgcv, readxl, slam, topicmodels, udpipe, uwot
+Config/testthat/edition: 3
+Roxygen: list(markdown = TRUE)
+VignetteBuilder: knitr
+RoxygenNote: 7.3.1

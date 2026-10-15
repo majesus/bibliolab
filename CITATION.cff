@@ -1,0 +1,14 @@
+cff-version: 1.2.0
+message: "Si utiliza este software, cítelo con estos metadatos."
+title: "bibliolab: análisis bibliométrico y de textos, guiado y reproducible"
+type: software
+version: 5.0.1
+date-released: 2026-10-15
+license: GPL-3.0-or-later
+repository-code: "https://github.com/majesus/bibliolab"
+authors:
+  - family-names: "Sánchez-Franco"
+    given-names: "Manuel J."
+    email: "majesus@us.es"
+    orcid: "https://orcid.org/0000-0002-8042-3550"
+    affiliation: "Universidad de Sevilla"
