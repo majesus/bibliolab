@@ -1,0 +1,13 @@
+.libPaths(c("rlib", .libPaths())); suppressMessages(library(bibliolab)); ns <- asNamespace("bibliolab")
+g <- function(n) get(n, envir = ns)
+raw <- g("read_biblio_csv")(system.file("extdata","practica.csv",package="bibliolab"), ";")
+mp <- g("guess_columns")(raw); pr <- g("prepare_documents")(raw, mp); pr$is_demo <- TRUE
+co <- g("prepare_corpus")(pr); bi <- g("biblio_summary")(pr)
+lda <- g("run_lda")(co, k=3, seed=2026, iterations=200, burnin=40, thin=5)
+ca <- g("run_ca")(co, max_terms=20, B=20, seed=2026)
+pca <- g("run_pca")(co, pr, max_terms=30, B=20, seed=2026)
+net <- tryCatch(g("run_network")(co, pr, list()), error=function(e){message("net: ",conditionMessage(e)); NULL})
+rec <- g("reproducibility_record")(pr, co, lda=lda, ca=ca, pca=pca, network=net)
+d <- "evalwork/entrega_demo"; unlink(d, recursive=TRUE)
+g("export_bundle")(d, pr, co, bi, lda=lda, ca=ca, pca=pca, network=net, raw=raw, record=rec)
+print(list.files(d))

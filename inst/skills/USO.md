@@ -1,15 +1,13 @@
 # Redacción y revisión a partir de la entrega
 
-El paquete contiene dos carpetas con SKILL.md y referencias. Mantén ambas juntas: la revisión consulta el contrato de evidencia de la redacción. La descarga de resultados también las incluye.
+Esta carpeta contiene `INTEGRIDAD_ACADEMICA.md`, que debe leerse primero, y dos skills: `bibliometria-paper` (redacción) y `bibliometria-review` (revisión). Mantenlas juntas: la revisión consulta el contrato de evidencia, los scripts y la plantilla de la redacción. La descarga de resultados de la aplicación las incluye.
 
-En Codex, coloca las dos carpetas en la ubicación de skills que utilice tu instalación o emplea su mecanismo de instalación. En Claude u otra herramienta con soporte de skills, utiliza el mecanismo de esa versión. Si ChatGPT Work u otra interfaz no dispone de instalación nativa de SKILL.md, adjunta los archivos de instrucciones y referencias junto al ZIP de resultados y pide aplicarlos como contexto. No se declara que todos los productos admitan el mismo formato de instalación.
+**Instalación.** En Claude, Codex u otra herramienta con soporte de skills, copia las dos carpetas a la ubicación de skills o usa el mecanismo de instalación de esa herramienta. Si la interfaz no admite `SKILL.md`, adjunta los archivos de instrucciones y `references/` junto al ZIP de resultados y pide aplicarlos como contexto. No se asegura que todos los productos acepten el mismo formato.
 
-Ejemplo: «Usa bibliometria-paper con estos resultados para preparar Métodos y Resultados en español. Pregunta de investigación: […]. Revista objetivo: […]. Entrega también el registro de afirmaciones y las carencias que afectan las conclusiones».
+**Scripts opcionales** (Python 3, solo biblioteca estándar; leen, no modifican): `bibliometria-paper/scripts/inventario_entrega.py RUTA` resume versión, procedencia, modelos vigentes, advertencias y pendientes declarados; `verificar_afirmaciones.py CARPETA registro.csv` recalcula cifras contra los CSV completos. Sin ejecución de código, las skills indican qué queda sin comprobar.
 
-Después: «Aplica bibliometria-review como metodólogo, auditor de reproducibilidad y abogado del diablo. Comprueba las afirmaciones centrales contra los CSV completos. Separa errores demostrados de riesgos plausibles y entrega revisiones concretas».
+**Ejemplo de redacción:** «Usa bibliometria-paper con esta entrega para preparar Métodos y Resultados en español. Pregunta: […]. Revista objetivo: […]. Entrega el registro de afirmaciones y los pendientes».
 
-Las skills son instrucciones, no un servicio automático de IA. No envían datos ni publican. Una entrega ficticia debe etiquetarse como ejercicio. La publicación necesita validación humana, fuentes verificadas y una contribución defendible.
+**Ejemplo de revisión:** «Aplica bibliometria-review como metodólogo, auditor de reproducibilidad y abogado del diablo a este borrador, con la entrega adjunta. Separa errores demostrados de riesgos plausibles».
 
-La autoría es humana. Toda asistencia requiere supervisión exhaustiva de texto, datos, referencias e interpretaciones y la declaración que exijan institución y revista. La herramienta organiza trabajo bajo responsabilidad del investigador; no redacta un paper autónomo listo para publicar.
-
-Antes de usar cualquiera de las dos skills, lee `INTEGRIDAD_ACADEMICA.md`, que se entrega junto a ellas, y adjúntalo como contexto si tu herramienta no carga la carpeta completa.
+Las skills son instrucciones, no un servicio de IA: no envían datos ni publican. La autoría es humana y toda asistencia exige supervisión exhaustiva de texto, cifras, referencias e interpretaciones, y la declaración de uso de IA que exijan institución y revista. Una entrega con datos ficticios se etiqueta como ejercicio.

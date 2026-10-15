@@ -1,5 +1,7 @@
 # bibliolab 5.0.1
 
+* Skills de redacción y revisión (v4): contrato de evidencia alineado con 5.0.x (informe metodológico, referencia nula de la JSD, selección de k, sensibilidad de UMAP/HDBSCAN), scripts de inventario y verificación de cifras contra los CSV, plantilla de registro de afirmaciones y de dictamen, y aviso de integridad académica (`inst/skills/INTEGRIDAD_ACADEMICA.md`).
+
 * Lectura: campos recomendados con cobertura e idioma de muestra, selección
   avanzada explícita y fichas con autores, DOI y fechas. Red documental Jaccard,
   comunidades Louvain y subgrafos seleccionables con parámetros reproducibles.

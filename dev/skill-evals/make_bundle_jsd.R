@@ -1,0 +1,12 @@
+.libPaths(c("rlib", .libPaths())); suppressMessages(library(bibliolab)); ns <- asNamespace("bibliolab"); g <- function(n) get(n, envir = ns)
+raw <- g("read_biblio_csv")(system.file("extdata","practica.csv",package="bibliolab"), ";")
+mp <- g("guess_columns")(raw); pr <- g("prepare_documents")(raw, mp); pr$is_demo <- TRUE
+co <- g("prepare_corpus")(pr); bi <- g("biblio_summary")(pr)
+lda <- g("run_lda")(co, k=3, seed=2026, iterations=200, burnin=40, thin=5)
+sel <- g("lda_select_k")(co, k_range=2:4, seeds=c(1,2), iterations=100)
+yrs <- range(pr$documents$year, na.rm=TRUE); mid <- floor(mean(yrs))
+cmp <- g("run_comparison")(co, pr, list(year_A_min=yrs[1], year_A_max=mid, year_B_min=mid+1, year_B_max=yrs[2], B=200, label_A="2019-2021", label_B="2022-2025"))
+rec <- g("reproducibility_record")(pr, co, lda=lda, comparison=cmp)
+d <- "bibliometria-workspace/inputs/entrega_jsd"; unlink(d, recursive=TRUE)
+g("export_bundle")(d, pr, co, bi, lda=lda, comparison=cmp, raw=raw, record=rec, lda_selection=sel)
+unlink(file.path(d,"skills"), recursive=TRUE); print(grep("jsd|seleccion", list.files(d), value=TRUE))
