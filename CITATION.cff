@@ -4,7 +4,7 @@ title: "bibliolab: análisis bibliométrico y de textos, guiado y reproducible"
 type: software
 version: 5.0.1
 date-released: 2026-10-15
-license: GPL-3.0-or-later
+license: MIT
 repository-code: "https://github.com/majesus/bibliolab"
 authors:
   - family-names: "Sánchez-Franco"

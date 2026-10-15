@@ -16,7 +16,7 @@ Description: A guided 'shiny' application, together with a set of functions,
     reproducible bundle with a methodological report, parameters, seeds and a
     replication script. It is designed for researchers without technical
     training, and all computation is local.
-License: GPL (>= 3)
+License: MIT + file LICENSE
 Language: es
 Encoding: UTF-8
 URL: https://github.com/majesus/bibliolab
