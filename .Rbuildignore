@@ -7,3 +7,6 @@
 ^LICENSE\.md$
 ^dev$
 ^bibliolab_manual\.pdf$
+^lanzar_bibliolab\.R$
+^ABRIR_BIBLIOLAB\.cmd$
+^docs$

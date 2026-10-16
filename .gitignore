@@ -5,3 +5,11 @@
 *.Rcheck/
 *.tar.gz
 vignettes/*.html
+
+# Recursos de la aplicacion: no deben ignorarse nunca (sin style.css la interfaz pierde su aspecto)
+!inst/app/www/
+!inst/app/www/*.css
+!inst/app/www/*.js
+!R/*.R
+
+docs/

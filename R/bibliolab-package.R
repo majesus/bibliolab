@@ -7,4 +7,7 @@
 #' @keywords internal
 #' @import shiny
 #' @importFrom data.table .N
+#' @importFrom Matrix sparseMatrix
+#' @importFrom stats setNames median sd aggregate
+#' @importFrom utils head tail modifyList capture.output sessionInfo
 "_PACKAGE"

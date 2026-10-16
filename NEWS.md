@@ -1,5 +1,15 @@
 # bibliolab 5.0.1
 
+* Correccion de empaquetado: se restauran `inst/app/www/style.css` (hoja de estilos
+  que enlaza `build_ui()`; sin ella la interfaz se abria sin su aspecto) y
+  `R/wiki_graph_reading.R` (define `wiki_document_graph()`, necesaria para la vista
+  documental de la lectura enlazada). Se recuperan las importaciones declaradas de
+  `Matrix`, `stats` y `utils` en `NAMESPACE`.
+* `run_app()` abre el navegador predeterminado del sistema sin depender de
+  `options(browser)` y avisa si faltan `style.css` o `app.js`. Se anade el acceso
+  `ABRIR_BIBLIOLAB.cmd` / `lanzar_bibliolab.R`, que carga el codigo de esta carpeta
+  con `pkgload` sin instalar el paquete.
+
 * Skills de redacción y revisión (v4): contrato de evidencia alineado con 5.0.x (informe metodológico, referencia nula de la JSD, selección de k, sensibilidad de UMAP/HDBSCAN), scripts de inventario y verificación de cifras contra los CSV, plantilla de registro de afirmaciones y de dictamen, y aviso de integridad académica (`inst/skills/INTEGRIDAD_ACADEMICA.md`).
 
 * Lectura: campos recomendados con cobertura e idioma de muestra, selección

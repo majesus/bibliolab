@@ -13,7 +13,10 @@ run_app(
 }
 \arguments{
 \item{launch.browser}{Si se abre el navegador al iniciar. Por defecto, en
-sesiones interactivas.}
+sesiones interactivas. Acepta \code{TRUE}/\code{FALSE} o una funcion \verb{function(url)}.
+Con \code{TRUE} se usa el navegador predeterminado del sistema (en Windows,
+\code{shell.exec()}), sin depender de \code{options(browser)}, que a veces apunta a un
+programa inexistente en otro equipo.}
 
 \item{port}{Puerto TCP; \code{NULL} deja que Shiny elija uno libre.}
 
