@@ -10,3 +10,5 @@
 ^lanzar_bibliolab\.R$
 ^ABRIR_BIBLIOLAB\.cmd$
 ^docs$
+^cran-comments\.md$
+^audit.*$

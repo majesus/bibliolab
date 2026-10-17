@@ -14,12 +14,24 @@ prepare_documents(d, mapping, config = default_config())
 \item{config}{Lista parcial de opciones; ver \code{\link[=default_config]{default_config()}}.}
 }
 \value{
-Lista con \code{documents}, \code{audit}, \code{duplicates}, \code{issues}, \code{config} y \code{mapping}.
+Lista con \code{documents}, \code{audit}, \code{duplicates} (con el criterio y el
+registro conservado), \code{ambiguous} (coincidencias no eliminadas), \code{issues},
+\code{config}, \code{mapping} e \code{input_md5} (huella del archivo leido con
+\code{\link[=read_biblio_csv]{read_biblio_csv()}}, o \code{NULL}).
 }
 \description{
 Aplica, en este orden, filtro por valor, filtro temporal, deduplicacion
 (DOI, titulo normalizado, texto normalizado) y muestreo con semilla. Los
 valores ausentes de anio o citas se conservan como \code{NA} (nunca como cero).
+}
+\details{
+La deduplicacion no elimina un registro salvo coincidencia segura.
+Dos registros son el mismo si comparten DOI. Si falta el DOI en alguno,
+coinciden en titulo normalizado (o, sin titulo, en texto normalizado), no
+tienen DOI distintos ni anios distintos y, cuando el titulo tiene menos de
+cuatro palabras (por ejemplo \code{Editorial}), coinciden ademas en anio y en
+autores o texto. Las coincidencias con evidencia contradictoria o con
+varios candidatos se conservan y se listan en \code{ambiguous}.
 }
 \examples{
 d <- read_biblio_csv(system.file("extdata", "practica.csv", package = "bibliolab"), ";")

@@ -8,6 +8,19 @@ network_shortest_path <- function(fit,from,to) {
   edges<-if(length(path)>1L)data.frame(from=head(path,-1),to=tail(path,-1)) else data.frame(from=character(),to=character())
   list(connected=TRUE,distance=distance,nodes=path,edges=edges,steps=data.frame(Paso=seq_along(path)-1L,Nodo=path))
 }
+#' Parametros por defecto de las redes
+#'
+#' Valores iniciales de [run_network()]; se modifican con una lista parcial.
+#'
+#' @return Lista con `type` (`"authors"`, `"words"`, `"sources"`, `"references"`
+#'   o `"coupling"`), `weighting` (`"full"`, `"fractional"`, `"cosine"` o
+#'   `"association"`), `min_presence`, `max_nodes` (2 a 150), `min_shared`,
+#'   `seed`, `community_method` (`"louvain"` o `"walktrap"`), `resolution`
+#'   (0,1 a 3, solo Louvain), `keyplayers_k` (1 a 10), `max_edges` (0 a 12000; 0
+#'   no limita), `remove_isolates` e `include_nodes`.
+#' @examples
+#' network_defaults()$max_nodes
+#' @export
 network_defaults <- function() list(type = "authors", weighting = "full", min_presence = 1L,
   max_nodes = 60L, min_shared = 1L, seed = 2026L, community_method = "louvain", resolution = 1, keyplayers_k = 3L, max_edges = 0L,
   remove_isolates = FALSE, include_nodes = character())
@@ -46,15 +59,19 @@ collaboration_summary <- function(prepared) {
 #'   `include_nodes` (nombres prioritarios que superan el umbral; conserva el
 #'   maximo de nodos).
 #' @return Lista con `nodes`, `edges`, `summary`, `audit`, `selection`
-#'   (cada entidad y su motivo de inclusion/exclusion), `keyplayers`, `note` y `params`.
+#'   (cada entidad y su motivo de inclusion/exclusion), `keyplayers`, `stability`
+#'   (estado `ejecutada`, `no_aplicable` o `fallida` de la repeticion de Louvain con
+#'   sus semillas efectivas), `note` y `params`.
 #' @references
 #' Blondel, V. et al. (2008). Fast unfolding of communities in large networks. J. Stat. Mech.
 #' van Eck, N. J., Waltman, L. (2009). How to normalize cooccurrence data? JASIST.
 #' @examples
 #' d <- read_biblio_csv(system.file("extdata", "practica.csv", package = "bibliolab"), ";")
 #' p <- prepare_documents(d, guess_columns(d)); cp <- prepare_corpus(p)
-#' net <- run_network(cp, p, list(type = "words", max_nodes = 15))
-#' net$summary
+#' if (requireNamespace("igraph", quietly = TRUE)) {
+#'   net <- run_network(cp, p, list(type = "words", max_nodes = 15))
+#'   net$summary
+#' }
 #' @export
 run_network <- function(corpus, prepared, params = list()) {
   if (!requireNamespace("igraph", quietly = TRUE)) abort_user("Falta el paquete igraph. Inst\u00e1lalo con install.packages(\"igraph\") para calcular redes.")
@@ -148,7 +165,7 @@ run_network <- function(corpus, prepared, params = list()) {
   audit <- data.frame(etapa = c("Entidades observadas", "Superan presencia m\u00ednima", "Nodos seleccionados", "Conexiones tras umbral"),
     cantidad = c(length(presence), length(eligible), n, e))
   audit <- rbind(audit,data.frame(etapa=c("Aislados retirados","Entidades prioritarias","Conexiones antes del l\u00edmite por peso","Conexiones omitidas por l\u00edmite gr\u00e1fico y anal\u00edtico"),cantidad=c(removed,length(priority),before_cap,before_cap-e)))
-  list(nodes = nodes, edges = edges, summary = summary, audit = audit, selection=selection, params = p, keyplayers = players, note = paste(note,
+  list(nodes = nodes, edges = edges, summary = summary, audit = audit, selection=selection, params = p, keyplayers = players, stability = metrics$stability, note = paste(note,
     "Densidad, centralidades y comunidades describen SOLO estos nodos y conexiones. Intermediaci\u00f3n y centralidad arm\u00f3nica usan saltos sin pesos; fuerza y comunidades usan el peso elegido. Roles topologicos exploratorios; no calidad o liderazgo demostrado.",if(isTRUE(p$remove_isolates)) paste(removed,"aislados retirados despu\u00e9s de filtrar conexiones; m\u00e9tricas recalculadas.") else "Aislados conservados.","Posiciones: disposici\u00f3n visual, no distancia sem\u00e1ntica.",
     if(p$max_edges>0) paste("Se conservan hasta",p$max_edges,"conexiones de mayor peso; se omitieron",before_cap-e,". El filtro cambia m\u00e9tricas y comunidades: contrasta otros l\u00edmites. No selecciona relaciones estad\u00edsticamente significativas.") else "Sin l\u00edmite adicional de conexiones por peso."),
     collaboration = if (p$type == "authors") collaboration_summary(prepared) else NULL)
@@ -193,7 +210,7 @@ network_metrics <- function(nodes,edges,p) {
   communities <- if (e) with_seed(p$seed, if(p$community_method=="walktrap") igraph::cluster_walktrap(g, weights=edges$weight) else igraph::cluster_louvain(g, weights = edges$weight, resolution=p$resolution)) else NULL
   nodes$comunidad <- if (e) as.integer(igraph::membership(communities)) else rep(0L, n)
   modularity <- if (e) igraph::modularity(communities) else NA_real_
-  stability <- if (e && p$community_method == "louvain") community_stability(g, edges$weight, "louvain", p$resolution, B = 20L, seed = p$seed) else list(ari = NA_real_)
+  stability <- community_stability(g, edges$weight, p$community_method, p$resolution, B = 20L, seed = p$seed)
   layout <- if (n == 1) matrix(c(0, 0), 1) else if (!e) igraph::layout_in_circle(g) else with_seed(p$seed, igraph::layout_with_fr(g, weights = edges$weight, niter = 600))
   nodes$x <- layout[, 1]; nodes$y <- layout[, 2]
   nodes$nucleo_k <- as.numeric(igraph::coreness(g))
@@ -208,7 +225,7 @@ network_metrics <- function(nodes,edges,p) {
     valor = c(n, e, if (n > 1) 2 * e / (n * (n - 1)) else NA, components$no, sum(nodes$grado == 0), if(n) mean(nodes$grado) else NA,
       if (sum(nodes$grado * (nodes$grado - 1)) > 0) igraph::transitivity(g, type = "global") else NA,
       if (e) length(unique(nodes$comunidad)) else NA, modularity, stability$ari))
-  list(nodes=nodes,summary=summary,keyplayers=players)
+  list(nodes=nodes,summary=summary,keyplayers=players,stability=stability)
 }
 
 #' Subgrafo inducido de una red
@@ -240,7 +257,7 @@ extract_subgraph <- function(parent, method="ego", focus="", order=1L, selection
   nodes$grado_origen<-parent$nodes$grado[match(nodes$name,parent$nodes$name)]
   edges<-parent$edges[parent$edges$from %in% chosen & parent$edges$to %in% chosen,,drop=FALSE]
   p<-parent$params;metrics<-network_metrics(nodes,edges,p)
-  list(nodes=metrics$nodes,edges=edges,summary=metrics$summary,keyplayers=metrics$keyplayers,params=p,
+  list(nodes=metrics$nodes,edges=edges,summary=metrics$summary,keyplayers=metrics$keyplayers,stability=metrics$stability,params=p,
     extraction=list(method=method,focus=focus,order=order,nodes=nodes$name,parent_params=parent$params,parent_nodes=nrow(parent$nodes),parent_edges=nrow(parent$edges)),
     audit=data.frame(etapa=c("Nodos en red de origen","Nodos del subgrafo","Conexiones internas"),cantidad=c(nrow(parent$nodes),nrow(nodes),nrow(edges))),
     note="Subgrafo inducido: conserva todas las conexiones de la red de origen entre los nodos elegidos y sus pesos originales. Presencia documental sigue referida al corpus original. Grado, densidad, centralidades, componentes y comunidades se recalculan en el subgrafo; comunidad_origen y grado_origen permiten comparar. Las posiciones son visuales.",collaboration=NULL)

@@ -4,17 +4,23 @@
 \alias{download_language_model}
 \title{Descarga y verifica un modelo UDPipe}
 \usage{
-download_language_model(language, directory = model_directory())
+download_language_model(language, directory = model_directory(), force = FALSE)
 }
 \arguments{
 \item{language}{Codigo \code{es}, \code{en}, \code{fr}, \code{de}, \code{it} o \code{pt}.}
 
 \item{directory}{Carpeta de destino.}
+
+\item{force}{Si \code{TRUE}, descarga de nuevo aunque el modelo local sea utilizable.}
 }
 \value{
 Ruta del archivo del modelo.
 }
 \description{
-Solo debe invocarse por decision del usuario (requiere conexion). Guarda el
-modelo en \code{\link[=model_directory]{model_directory()}} y comprueba que se puede cargar.
+Solo debe invocarse por decision del usuario (requiere conexion). El modelo se
+descarga a una carpeta temporal, se comprueba que corresponde al idioma pedido y
+que UDPipe puede cargarlo, y solo entonces se publica en \code{\link[=model_directory]{model_directory()}}. Un
+modelo ya presente se reutiliza unicamente si tambien se puede cargar: si esta
+danado (por ejemplo, una descarga interrumpida), se sustituye por una descarga
+nueva en lugar de devolverse como valido.
 }

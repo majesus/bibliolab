@@ -6,7 +6,9 @@ density_settings <- reactive(list(params = list(representation = input$density_r
   epochs = as.numeric(input$umap_epochs %||% 300), weighting=input$density_weighting %||% "tfidf", bm25_k1=input$density_k1 %||% 1.2, bm25_b=input$density_b %||% .75),
   file = if (identical(input$density_rep, "vectors")) input$vectors_file$datapath %||% "" else "",
   id = if (identical(input$density_rep, "vectors")) input$vector_id %||% "doc_id" else "",
-  model = if (identical(input$density_rep, "vectors")) input$embedding_model %||% "" else ""))
+  model = if (identical(input$density_rep, "vectors")) input$embedding_model %||% "" else "",
+  vectors_md5 = if (identical(input$density_rep, "vectors") && nzchar(input$vectors_file$datapath %||% "") && file.exists(input$vectors_file$datapath)) unname(tools::md5sum(input$vectors_file$datapath)) else "",
+  corpus = if (!is.null(rv$corpus)) corpus_fingerprint(rv$corpus) else ""))
 density_current <- reactive({ current(); if (is.null(rv$density) || !identical(rv$density_signature, density_settings())) return(NULL); rv$density })
 observeEvent(input$run_density, task("Representando documentos y calculando UMAP / HDBSCAN…", {
   if (is.null(rv$prepared) || stale()) abort_user("Prepara un corpus vigente antes de calcular UMAP y HDBSCAN.")
@@ -17,7 +19,6 @@ observeEvent(input$run_density, task("Representando documentos y calculando UMAP
     vectors <- read_document_vectors(s$file, rv$prepared, s$id)
   }
   fit <- run_density(rv$corpus, rv$prepared, s$params, vectors, s$model)
-  fit$input_vectors <- vectors
   rv$density <- fit; rv$density_signature <- s
   showNotification(paste("Análisis completado:", sum(fit$summary$grupo > 0), "grupos;", sum(fit$assignments$grupo == 0), "documentos sin asignar."), type = "message", duration = 7)
 }))
@@ -95,7 +96,7 @@ observeEvent(input$download_model, task("Descargando y verificando modelo de idi
 output$model_inventory <- renderUI({
   rv$models_revision
   langs<-required_languages();all<-names(language_models())
-  HTML(html_table(data.frame(Idioma=unname(language_labels()[all]),Necesario=ifelse(all %in% langs,"Sí / según la asignación actual","No para esta selección"),Estado=vapply(all,function(x) if(is.null(model_file(x))) "Pendiente de descargar" else "Modelo local disponible",""))))
+  HTML(html_table(data.frame(Idioma=unname(language_labels()[all]),Necesario=ifelse(all %in% langs,"Sí / según la asignación actual","No para esta selección"),Estado=vapply(all,function(x){f<-model_file(x);if(is.null(f)) "Pendiente de descargar" else if(!model_usable(f)) "Modelo local dañado: vuelve a descargarlo" else "Modelo local disponible"},""))))
 })
 
 output$models_needed<-renderUI({langs<-required_languages();tags$p(class="chart-caption",if(length(langs)) paste("Necesitas:",paste(language_labels()[langs],collapse=", "),". El botón descarga solo los que aún no están preparados.") else "No se han identificado idiomas. Abre Asignar o revisar idiomas en Normalización antes de descargar.")})

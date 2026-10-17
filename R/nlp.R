@@ -39,29 +39,64 @@ model_file <- function(language, directory = model_directory()) {
   files <- files[startsWith(basename(files), paste0(language_models()[[language]], "-"))]
   if (!length(files)) NULL else sort(files)[1]
 }
+.model_validation_cache <- new.env(parent = emptyenv())
+# Un modelo es utilizable solo si UDPipe puede cargarlo. El resultado se recuerda por ruta, tamano y fecha.
+model_usable <- function(path) {
+  if (!is.character(path) || length(path) != 1L || !file.exists(path)) return(FALSE)
+  size <- file.size(path)
+  if (is.na(size) || size <= 0) return(FALSE)
+  key <- paste(normalizePath(path, winslash = "/"), size, as.numeric(file.mtime(path)))
+  hit <- .model_validation_cache[[key]]
+  if (!is.null(hit)) return(hit)
+  # udpipe_load_model() no falla con un archivo danado: devuelve un objeto cuyo puntero es nulo.
+  # Por eso se exige un puntero valido y una anotacion minima que produzca filas.
+  ok <- tryCatch({
+    model <- suppressWarnings(udpipe::udpipe_load_model(path))
+    valid <- inherits(model, "udpipe_model") && !identical(model$model, methods::new("externalptr"))
+    valid && nrow(as.data.frame(suppressWarnings(udpipe::udpipe_annotate(model, x = "Hola mundo.", doc_id = "d")))) > 0L
+  }, error = function(e) FALSE)
+  .model_validation_cache[[key]] <- ok
+  ok
+}
 #' Descarga y verifica un modelo UDPipe
 #'
-#' Solo debe invocarse por decision del usuario (requiere conexion). Guarda el
-#' modelo en [model_directory()] y comprueba que se puede cargar.
+#' Solo debe invocarse por decision del usuario (requiere conexion). El modelo se
+#' descarga a una carpeta temporal, se comprueba que corresponde al idioma pedido y
+#' que UDPipe puede cargarlo, y solo entonces se publica en [model_directory()]. Un
+#' modelo ya presente se reutiliza unicamente si tambien se puede cargar: si esta
+#' danado (por ejemplo, una descarga interrumpida), se sustituye por una descarga
+#' nueva en lugar de devolverse como valido.
 #'
 #' @param language Codigo `es`, `en`, `fr`, `de`, `it` o `pt`.
 #' @param directory Carpeta de destino.
+#' @param force Si `TRUE`, descarga de nuevo aunque el modelo local sea utilizable.
 #' @return Ruta del archivo del modelo.
 #' @export
-download_language_model <- function(language, directory = model_directory()) {
+download_language_model <- function(language, directory = model_directory(), force = FALSE) {
   if (!requireNamespace("udpipe", quietly = TRUE)) abort_user("Falta el paquete udpipe. Inst\u00e1lalo con install.packages(\"udpipe\").")
-  if (!language %in% names(language_models())) abort_user("Selecciona uno de los seis idiomas disponibles.")
+  if (!is.character(language) || length(language) != 1L || !language %in% names(language_models())) abort_user("Selecciona uno de los seis idiomas disponibles.")
   existing <- model_file(language, directory)
-  if (!is.null(existing)) return(existing)
+  if (!is.null(existing) && !isTRUE(force) && model_usable(existing)) return(existing)
+  old <- getOption("timeout"); options(timeout = max(300, old)); on.exit(options(timeout = old), add = TRUE)
+  staging <- tempfile("bibliolab-modelo-"); dir.create(staging)
+  on.exit(unlink(staging, recursive = TRUE), add = TRUE)
+  info <- tryCatch(udpipe::udpipe_download_model(language = unname(language_models()[language]), model_dir = staging,
+    udpipe_model_repo = "jwijffels/udpipe.models.ud.2.5"), error = function(e) NULL)
+  if (is.null(info) || !nrow(info) || isTRUE(info$download_failed[1]) || !file.exists(info$file_model[1]))
+    abort_user("No se ha podido descargar el modelo. Comprueba la conexi\u00f3n y vuelve a intentarlo; el corpus y los modelos locales no se han modificado.")
+  downloaded <- info$file_model[1]
+  if (!startsWith(basename(downloaded), paste0(language_models()[[language]], "-")))
+    abort_user("El archivo descargado no corresponde al idioma solicitado. No se ha instalado.")
+  if (!model_usable(downloaded)) abort_user("El archivo descargado no se puede cargar como modelo UDPipe. No se ha instalado; vuelve a intentarlo.")
   dir.create(directory, recursive = TRUE, showWarnings = FALSE)
-  old <- getOption("timeout"); options(timeout = max(300, old)); on.exit(options(timeout = old))
-  info <- udpipe::udpipe_download_model(language = unname(language_models()[language]), model_dir = directory,
-    udpipe_model_repo = "jwijffels/udpipe.models.ud.2.5")
-  if (!nrow(info) || !file.exists(info$file_model[1]) || isTRUE(info$download_failed[1]))
-    abort_user("No se ha podido descargar el modelo. Comprueba la conexi\u00f3n y vuelve a intentarlo; el corpus no se ha modificado.")
-  # Comprobar que el archivo descargado es realmente un modelo que se puede cargar.
-  udpipe::udpipe_load_model(info$file_model[1])
-  normalizePath(info$file_model[1], winslash = "/")
+  target <- file.path(directory, basename(downloaded))
+  if (!file.copy(downloaded, target, overwrite = TRUE)) abort_user("No se puede escribir el modelo en la carpeta de modelos.")
+  if (!model_usable(target)) { unlink(target); abort_user("La copia del modelo no se puede cargar. No se ha instalado.") }
+  # Retirar solo los restos danados de ese mismo idioma; nunca otros archivos de la carpeta.
+  stale <- list.files(directory, pattern = "\\.udpipe$", full.names = TRUE)
+  stale <- stale[startsWith(basename(stale), paste0(language_models()[[language]], "-")) & normalizePath(stale, winslash = "/") != normalizePath(target, winslash = "/")]
+  for (f in stale) if (!model_usable(f)) unlink(f)
+  normalizePath(target, winslash = "/")
 }
 normalize_language <- function(x) {
   key <- normalize_key(x)
@@ -87,6 +122,8 @@ annotate_corpus_units <- function(units, documents, cfg, stops, pool=NULL, progr
   if (cfg$pos_filter && (!length(cfg$pos_keep) || any(!cfg$pos_keep %in% c("NOUN", "PROPN", "ADJ", "VERB", "ADV"))))
     abort_user("Selecciona al menos una categor\u00eda gramatical admitida.")
   files <- setNames(lapply(unique(languages[!is.na(languages)]), model_file), unique(languages[!is.na(languages)]))
+  damaged <- names(files)[vapply(files, function(f) !is.null(f) && !model_usable(f), logical(1))]
+  if (length(damaged)) abort_user(paste0("El modelo local de ", paste(language_labels()[damaged], collapse = ", "), " est\u00e1 da\u00f1ado y UDPipe no puede cargarlo. Vuelve a descargarlo desde Preparar modelos necesarios, o ejecuta download_language_model('", damaged[1], "', force = TRUE). Carpeta consultada: ", model_directory(), "."))
   missing <- names(files)[vapply(files, is.null, logical(1))]
   if (length(missing)) abort_user(paste0("El idioma est\u00e1 seleccionado, pero falta descargar el modelo de ", paste(language_labels()[missing], collapse = ", "), ". No has preparado mal el archivo: seleccionar una lengua no instala su analizador. En 02 / Normalizaci\u00f3n ling\u00fc\u00edstica abre Preparar modelos necesarios y pulsa Descargar todos los modelos necesarios. Cuando aparezca Modelo local disponible, cierra el di\u00e1logo y pulsa Preparar corpus. Si solo necesitas palabras sin lemas ni categor\u00edas, desmarca esas dos opciones. Carpeta consultada: ", model_directory(), "."))
   # Limite explicito antes del paso de anotacion mas costoso.

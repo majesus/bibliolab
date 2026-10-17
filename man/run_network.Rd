@@ -18,7 +18,9 @@ maximo de nodos).}
 }
 \value{
 Lista con \code{nodes}, \code{edges}, \code{summary}, \code{audit}, \code{selection}
-(cada entidad y su motivo de inclusion/exclusion), \code{keyplayers}, \code{note} y \code{params}.
+(cada entidad y su motivo de inclusion/exclusion), \code{keyplayers}, \code{stability}
+(estado \code{ejecutada}, \code{no_aplicable} o \code{fallida} de la repeticion de Louvain con
+sus semillas efectivas), \code{note} y \code{params}.
 }
 \description{
 Construye una red no dirigida de coautoria, copresencia de palabras,
@@ -30,8 +32,10 @@ estabilidad entre semillas.
 \examples{
 d <- read_biblio_csv(system.file("extdata", "practica.csv", package = "bibliolab"), ";")
 p <- prepare_documents(d, guess_columns(d)); cp <- prepare_corpus(p)
-net <- run_network(cp, p, list(type = "words", max_nodes = 15))
-net$summary
+if (requireNamespace("igraph", quietly = TRUE)) {
+  net <- run_network(cp, p, list(type = "words", max_nodes = 15))
+  net$summary
+}
 }
 \references{
 Blondel, V. et al. (2008). Fast unfolding of communities in large networks. J. Stat. Mech.

@@ -1,6 +1,6 @@
 test_that("biblio_check_dependencies describe los paquetes opcionales", {
   d <- biblio_check_dependencies()
-  expect_named(d, c("paquete", "instalado", "habilita", "instruccion"))
+  expect_named(d, c("paquete", "instalado", "habilita", "funciones", "instruccion"))
   expect_true(all(c("topicmodels", "uwot", "udpipe") %in% d$paquete))
   expect_type(d$instalado, "logical")
   expect_true(all(nzchar(d$instruccion[!d$instalado])))

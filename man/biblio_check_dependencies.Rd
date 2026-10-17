@@ -7,7 +7,8 @@
 biblio_check_dependencies()
 }
 \value{
-\code{data.frame} con \code{paquete}, \code{instalado}, \code{habilita} e \code{instruccion}.
+\code{data.frame} con \code{paquete}, \code{instalado}, \code{habilita}, \code{funciones}
+(funciones o pantallas afectadas) e \code{instruccion}.
 }
 \description{
 Algunas funciones dependen de paquetes en \code{Suggests}. Esta funcion indica

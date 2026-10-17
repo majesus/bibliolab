@@ -40,6 +40,19 @@ jsd_shift <- function(a, b) {
   list(jsd = total, distancia = sqrt(total), terms = d)
 }
 
+#' Parametros por defecto de las comparaciones
+#'
+#' Valores iniciales de [run_comparison()]; se modifican con una lista parcial.
+#'
+#' @return Lista con `mode` (`"year"`, `"metadata"`, `"density"` o `"lda"`),
+#'   `weighting` (`"tokens"` o `"documents"`), las etiquetas `label_A` y `label_B`,
+#'   los periodos `year_A_min`, `year_A_max`, `year_B_min`, `year_B_max`, las
+#'   categorias `category_A`, `category_B` y `category_column`, `max_groups` (2 a
+#'   30 grupos en la matriz), `uncertainty` (si se estima la referencia nula y el
+#'   intervalo), `B` (50 a 5000 permutaciones y remuestreos) y `seed`.
+#' @examples
+#' comparison_defaults()$B
+#' @export
 comparison_defaults <- function() list(mode = "year", weighting = "tokens", label_A = "A", label_B = "B",
   year_A_min = 2019, year_A_max = 2022, year_B_min = 2023, year_B_max = 2026,
   category_A = "", category_B = "", category_column = "", max_groups = 25L,
@@ -96,9 +109,12 @@ run_comparison <- function(corpus, prepared, params = list(), grouping = NULL) {
   colnames(weighted) <- colnames(m); rownames(weighted) <- rownames(m)
   aggregate_dist <- function(ix) setNames(as.numeric(Matrix::colSums(weighted[ix, , drop = FALSE])), colnames(m))
   fit <- jsd_shift(aggregate_dist(ia), aggregate_dist(ib))
-  uncertainty <- NULL
-  if (isTRUE(p$uncertainty) && sum(ia) >= 2L && sum(ib) >= 2L)
-    uncertainty <- tryCatch(jsd_uncertainty(weighted, ia, ib, B = p$B, seed = p$seed), error = function(e) NULL)
+  uncertainty <- NULL; uncertainty_status <- if (isTRUE(p$uncertainty)) "no_aplicable" else "no_solicitada"; uncertainty_cause <- ""
+  if (isTRUE(p$uncertainty) && (sum(ia) < 2L || sum(ib) < 2L)) uncertainty_cause <- "Cada grupo necesita al menos dos documentos."
+  if (isTRUE(p$uncertainty) && sum(ia) >= 2L && sum(ib) >= 2L) {
+    uncertainty <- tryCatch(jsd_uncertainty(weighted, ia, ib, B = p$B, seed = p$seed), error = function(e) { uncertainty_cause <<- conditionMessage(e); NULL })
+    uncertainty_status <- if (is.null(uncertainty)) "fallida" else "ejecutada"
+  }
   sizes <- table(values[nzchar(values)])
   eligible <- if (p$mode == "year") names(sort(sizes)) else names(sizes)[order(-as.numeric(sizes), names(sizes))]
   if (p$mode == "year") eligible <- names(sizes)[order(as.numeric(names(sizes)))]
@@ -116,12 +132,14 @@ run_comparison <- function(corpus, prepared, params = list(), grouping = NULL) {
       s <- jsd_shift(yearly[[i]], yearly[[i+1L]]); a <- as.numeric(eligible[i]); b <- as.numeric(eligible[i+1L])
       ya <- values == eligible[i]; yb <- values == eligible[i+1L]
       null_mean <- NA_real_; null_p <- NA_real_
+      state <- if (!isTRUE(p$uncertainty)) "no solicitada" else "no aplicable: menos de dos documentos en un a\u00f1o"
       if (isTRUE(p$uncertainty) && sum(ya) >= 2L && sum(yb) >= 2L) {
-        u <- tryCatch(jsd_uncertainty(weighted, ya, yb, B = min(p$B, 200L), seed = p$seed + i), error = function(e) NULL)
-        if (!is.null(u)) { null_mean <- u$null_mean; null_p <- u$p_value }
+        cause <- ""
+        u <- tryCatch(jsd_uncertainty(weighted, ya, yb, B = min(p$B, 200L), seed = derive_seed(p$seed, i)), error = function(e) { cause <<- conditionMessage(e); NULL })
+        if (!is.null(u)) { null_mean <- u$null_mean; null_p <- u$p_value; state <- "ejecutada" } else state <- paste0("fallida: ", cause)
       }
       data.frame(ano_A = a, ano_B = b, consecutivo = b-a == 1, documentos_A = as.integer(sizes[i]), documentos_B = as.integer(sizes[i+1L]), jsd_bits = s$jsd, distancia = s$distancia,
-        jsd_nula_media = null_mean, exceso_sobre_nula = s$jsd - null_mean, p_permutacion = null_p)
+        jsd_nula_media = null_mean, exceso_sobre_nula = s$jsd - null_mean, p_permutacion = null_p, incertidumbre = state)
     }))
   }
   audit <- data.frame(indicador = c("Documentos preparados", "Con vocabulario retenido", "Documentos de A", "Documentos de B", "Tokens retenidos en A", "Tokens retenidos en B", "Documentos fuera de A y B", "Categor\u00edas observadas", "Categor\u00edas en matriz", "Sin categor\u00eda o a\u00f1o v\u00e1lido"),
@@ -137,8 +155,8 @@ run_comparison <- function(corpus, prepared, params = list(), grouping = NULL) {
     issues <- c(issues, sprintf("Referencia nula (permutaci\u00f3n de documentos entre A y B, B = %d): JSD esperada %.4f bits; exceso observado %.4f; p = %.3f. El intervalo bootstrap al %d%% es [%.4f, %.4f].",
       uncertainty$B, uncertainty$null_mean, uncertainty$excess, uncertainty$p_value, round(100 * uncertainty$conf), uncertainty$ci[1], uncertainty$ci[2]))
     if (uncertainty$p_value > 0.05) issues <- c(issues, "La JSD observada no supera claramente lo esperable al reasignar documentos entre A y B: la diferencia l\u00e9xica puede ser ruido de muestreo.")
-  } else if (isTRUE(p$uncertainty)) issues <- c(issues, "No se pudo estimar la incertidumbre: cada grupo necesita al menos dos documentos.")
-  list(jsd = fit$jsd, distancia = fit$distancia, uncertainty = uncertainty, terms = fit$terms, matrix = pairs, coverage = coverage, temporal = time,
+  } else if (isTRUE(p$uncertainty)) issues <- c(issues, paste0("No se pudo estimar la incertidumbre (", uncertainty_status, "): ", uncertainty_cause))
+  list(jsd = fit$jsd, distancia = fit$distancia, uncertainty = uncertainty, uncertainty_status = uncertainty_status, uncertainty_cause = uncertainty_cause, terms = fit$terms, matrix = pairs, coverage = coverage, temporal = time,
     audit = audit, issues = issues, params = p, grouping = grouping,
     documents = data.frame(doc_id = doc$doc_id, grupo = ifelse(ia, "A", ifelse(ib, "B", "Fuera de A/B"))),
     ran_at = format(Sys.time(), "%Y-%m-%d %H:%M:%S %Z"))

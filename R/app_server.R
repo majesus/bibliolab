@@ -129,6 +129,7 @@ app_server <- function(input, output, session) {
     if(identical(input$lemma_language,"column")) cp$processing<-rbind(attr(language_estimates(),"processing"),cp$processing)
     b <- biblio_summary(p); p$model_info <- cp$models
     rv$comparison <- NULL; rv$comparison_signature <- NULL; rv$pca <- NULL; rv$pca_signature <- NULL; rv$network <- NULL; rv$network_signature <- NULL; rv$prepared <- p; rv$corpus <- cp; rv$bib <- b; rv$signature <- s; rv$lda <- NULL; rv$ca <- NULL; rv$density <- NULL; rv$density_signature <- NULL
+    rv$kselect <- NULL; rv$kselect_signature <- NULL; rv$dsens <- NULL; rv$dsens_signature <- NULL
     showNotification("Corpus preparado. Revisa la auditor\u00eda y explora los resultados.", type = "message", duration = 6)
   }))
   observeEvent(input$run_lda, task("Calculando temas LDA\u2026", {
@@ -284,7 +285,7 @@ app_server <- function(input, output, session) {
     content = function(file) { p <- current(); writeLines(enc2utf8(report_html(p, rv$corpus, rv$bib, lda_current(), ca_current(), density_export_current(), network_current(), comparison_current(), pca_current(),subgraph_current())), file, useBytes = TRUE) })
   output$download_zip <- downloadHandler(filename = "resultados_bibliometria_v5.zip", contentType = "application/zip", content = function(file) {
     p <- current(); lda <- lda_current(); ca <- ca_current(); density <- density_export_current(); network <- network_current(); comparison <- comparison_current(); pca <- pca_current();subgraph<-subgraph_current()
-    dir <- tempfile("bibliometria_"); dir.create(dir)
+    dir <- tempfile("bibliometria_")
     on.exit(unlink(dir, recursive = TRUE))
     prompt <- tryCatch(prompt_ready(), error = function(e) NULL)
     export_corpus<-rv$corpus;export_corpus$term_view<-list(metric=input$token_rank_metric %||% "frecuencia",status=input$token_rank_status %||% "all",n=input$token_rank_n %||% 12,compare_states=TRUE,tfidf_metric=token_display_metric(),terms=token_view()$termino);export_corpus$gram_view<-list(n=as.integer(input$gram_order %||% 2),indicador=input$gram_metric %||% "documentos",presencia_minima=input$gram_min_df %||% 1)
@@ -325,6 +326,7 @@ app_server <- function(input, output, session) {
     for (nm in names(graphs)) ggplot2::ggsave(file.path(dir,paste0(nm,".pdf")),plot=graphs[[nm]],width=11,
       height=if(nm=="temas_lda") max(6,ceiling(lda$params$k/2)*2.8) else 7,
       device=if(capabilities("cairo")) grDevices::cairo_pdf else grDevices::pdf,bg="white")
+    write_bundle_manifest(dir)
     zip::zipr(file, files = list.files(dir, full.names = TRUE), include_directories = TRUE)
   })
   transitions <- c(to_prepare = "prepare", to_explore = "explore", to_models = "models", to_export = "export")

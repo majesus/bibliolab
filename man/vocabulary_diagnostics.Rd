@@ -26,6 +26,13 @@ una gran parte de los documentos (candidatos a palabras vacias propias del
 corpus, que decide el investigador) y que documentos quedan con muy pocas
 palabras. No modifica el corpus.
 }
+\details{
+Cada fila de \code{sensitivity} repite la seleccion efectiva del corpus
+con otra presencia minima y los mismos criterios restantes (frecuencia,
+TF-IDF, entropia, presencia maxima, orden y maximo de terminos), por lo que
+la fila \code{actual} coincide con el vocabulario retenido. \code{terminos_solo_presencia}
+cuenta los terminos que cumplen unicamente la presencia minima.
+}
 \examples{
 d <- read_biblio_csv(system.file("extdata", "practica.csv", package = "bibliolab"), ";")
 p <- prepare_documents(d, guess_columns(d))

@@ -8,7 +8,8 @@ run_app(
   launch.browser = interactive(),
   port = NULL,
   model_dir = NULL,
-  max_upload_mb = 100
+  max_upload_mb = 100,
+  install_missing = FALSE
 )
 }
 \arguments{
@@ -25,6 +26,10 @@ programa inexistente en otro equipo.}
 
 \item{max_upload_mb}{Tamano maximo de archivo importado, en megabytes
 (entre 1 y 500; 100 por defecto).}
+
+\item{install_missing}{Si \code{TRUE}, ofrece instalar los paquetes opcionales
+ausentes (solo en sesiones interactivas y con confirmacion). Por defecto
+\code{FALSE}: no se instala ni se modifica ninguna biblioteca.}
 }
 \value{
 Se invoca por su efecto; devuelve \code{invisible(NULL)} al cerrar la app.
@@ -40,11 +45,13 @@ La aplicacion escucha exclusivamente en \verb{127.0.0.1} (el propio
 equipo), incluso si la opcion global \code{shiny.host} indica otra direccion.
 No necesita aceptar conexiones entrantes desde otros equipos. Las descargas
 de modelos de idioma se realizan por una accion explicita del usuario.
-Antes de abrir, comprueba y carga los paquetes de todos los analisis. Si
-faltan paquetes de analisis, intenta instalarlos desde CRAN en una biblioteca
-del usuario (binarios en Windows). Si no completa la preparacion, no abre
-una interfaz con tecnicas pendientes. Esta comprobacion solo se ejecuta al
-llamar a \code{run_app()}, nunca al cargar el paquete.
+Antes de abrir, valida los argumentos y comprueba los paquetes. Los paquetes
+de \code{Imports} son necesarios; los opcionales (consulta
+\code{\link[=biblio_check_dependencies]{biblio_check_dependencies()}}) solo deshabilitan su capacidad: si faltan, se
+avisa de que tecnicas quedan fuera y la aplicacion se abre con el resto.
+\code{run_app()} nunca instala paquetes por su cuenta. Con \code{install_missing = TRUE},
+en una sesion interactiva y tras una confirmacion explicita, instala los
+opcionales ausentes desde CRAN en la biblioteca de usuario.
 }
 \examples{
 if (interactive()) {

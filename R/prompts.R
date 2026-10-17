@@ -126,6 +126,11 @@ evidence_bundle <- function(prepared, corpus, bibliography, lda = NULL, ca = NUL
     distancia=comparison$distancia, auditoria=comparison$audit, cobertura=comparison$coverage, terminos=pack(comparison$terms),
     matriz=pack(comparison$matrix), temporal=comparison$temporal, advertencias=comparison$issues)
   if (!is.null(pca)) evidence$acp <- list(parametros=pca$params, dimensiones=pca$dimensions, documentos=pack(pca$documents), variables=pack(pca$terms), exclusiones=pca$excluded)
+  # Los diagnosticos de decision se conservan aunque no haya un modelo final vigente.
+  if (!is.null(lda_selection)) evidence$seleccion_k <- list(tabla = lda_selection$table, criterios = lda_selection$recommendation$summary,
+    compromiso = lda_selection$recommendation$compromise, lectura = lda_selection$recommendation$text, parametros = lda_selection$params, ejecuciones = lda_selection$runs)
+  if (!is.null(density_sens)) evidence$sensibilidad_densidad <- list(parametros = density_sens$params, resumen = density_sens$summary,
+    persistencia_grupos = density_sens$cluster_stability, ejecuciones = density_sens$runs, lectura = density_sens$reading)
   if(exists("model_comparison_table",mode="function")) evidence$resumen_modelos<-model_comparison_table(lda,density,pca,ca)
   if(!is.null(subgraph)) evidence$subgrafo<-list(seleccion=subgraph$extraction,definicion=subgraph$note,indicadores=subgraph$summary,nodos=pack(subgraph$nodes),conexiones=pack(subgraph$edges))
   if(!is.null(lda) && exists("lda_yearly",mode="function")) evidence$lda$prevalencia_anual<-pack(lda_yearly(lda,prepared))

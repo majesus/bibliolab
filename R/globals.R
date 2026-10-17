@@ -12,8 +12,8 @@ utils::globalVariables(c(
   "jsd_cumulative_graph", "jsd_graph", "jsd_matrix_graph", "jsd_time_graph", "keywords_graph",
   "kselect_current", "label", "language_estimates", "language_route", "lda_heatmap_graph",
   "lda_display_documents", "lda_time_graph", "lectura", "make_network_graph", "network_current", "network_graph",
-  "pair", "pca_current", "pca_documents_graph", "pca_terms_graph", "pca_variance_graph",
+  "pair", "pca_axes", "pca_current", "pca_documents_graph", "pca_terms_graph", "pca_variance_graph",
   "posicion", "proporcion", "proporcion_media", "segmento", "shift_pct", "subgraph_current",
-  "superior", "tema", "tema_label", "termino", "token_bars_graph", "token_graph", "token_view",
+  "superior", "tema", "tema_label", "termino", "token_bars_graph", "token_display_metric", "token_graph", "token_view",
   "total", "type", "valor", "wiki_export_current", "x", "xend", "y", "yend"
 ))

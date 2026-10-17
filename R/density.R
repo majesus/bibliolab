@@ -1,5 +1,23 @@
 # Pipeline de temas por densidad, integramente en R.
 # Representacion lexical LSA o vectores externos; no se ejecuta BERT en esta app.
+#' Parametros por defecto de UMAP + HDBSCAN
+#'
+#' Valores iniciales de [run_density()] y [density_sensitivity()]. Se modifican con
+#' una lista parcial en el argumento `params`.
+#'
+#' @return Lista con:
+#' * `representation`: `"lexical"` (TF-IDF o BM25 + LSA) o `"vectors"` (vectores importados).
+#' * `weighting`: `"tfidf"` o `"bm25"`, solo con representacion lexical; `bm25_k1` y `bm25_b` son sus constantes.
+#' * `lsa_dims`: dimensiones LSA (2 a 100).
+#' * `neighbors`: vecinos de UMAP (2 a 100; menos que los documentos retenidos).
+#' * `cluster_dims`: dimensiones del UMAP donde se agrupa (2 a 10).
+#' * `min_dist`: distancia minima de UMAP (0 a 0,99).
+#' * `min_pts`: `minPts` de HDBSCAN (2 a 500; menos que los documentos retenidos).
+#' * `epochs`: epocas de UMAP (100 a 1000).
+#' * `seed`: semilla de UMAP (1 a `.Machine$integer.max`).
+#' @examples
+#' str(density_defaults())
+#' @export
 density_defaults <- function() list(representation = "lexical", lsa_dims = 30L, neighbors = 10L,
   cluster_dims = 5L, min_dist = 0, min_pts = 5L, seed = 2026L, epochs = 300L, weighting = "tfidf", bm25_k1 = 1.2, bm25_b = .75)
 density_display <- function(fit, max_groups = 20L) {
@@ -28,6 +46,30 @@ document_counts <- function(corpus, prepared) {
   out <- out[, Matrix::colSums(out) > 0, drop = FALSE]
   out
 }
+#' Lee vectores de documentos desde un CSV
+#'
+#' Importa representaciones calculadas fuera de R (por ejemplo, embeddings) para
+#' usarlas con `run_density(..., params = list(representation = "vectors"))`. El
+#' CSV debe tener una columna de identificador (`doc_id` u `original_id`) y al
+#' menos dos columnas numericas, cubrir todos los documentos preparados, no tener
+#' filas nulas y no superar 20 MB, 10.000 filas ni 1.024 dimensiones. Cualquier
+#' inconsistencia es un error: no se completan ni descartan filas.
+#'
+#' @param path Ruta del CSV (UTF-8, punto decimal, sin separador de miles).
+#' @param prepared Resultado de [prepare_documents()], con el que se alinean los vectores.
+#' @param id_column `"doc_id"` (por defecto) o `"original_id"`.
+#' @return Lista con `matrix` (documentos por dimensiones, filas con `doc_id`),
+#'   `md5` y `file` (huella y nombre del archivo), y `dimensions`.
+#' @examples
+#' d <- read_biblio_csv(system.file("extdata", "practica.csv", package = "bibliolab"), ";")
+#' p <- prepare_documents(d, guess_columns(d))
+#' set.seed(1)
+#' v <- data.frame(doc_id = p$documents$doc_id, matrix(stats::rnorm(nrow(p$documents) * 4), ncol = 4))
+#' f <- tempfile(fileext = ".csv")
+#' utils::write.csv(v, f, row.names = FALSE)
+#' vec <- read_document_vectors(f, p)
+#' dim(vec$matrix)
+#' @export
 read_document_vectors <- function(path, prepared, id_column = "doc_id") {
   if (!file.exists(path) || is.na(file.info(path)$size) || file.info(path)$size > 20 * 1024^2)
     abort_user("El CSV de vectores no existe o supera 20 MB.")
@@ -101,7 +143,9 @@ class_tfidf <- function(counts, clusters, top_n = 10L) {
 #' @param embedding_model Nombre/version del modelo que genero los vectores.
 #' @param display Si se calcula tambien el UMAP 2D de lectura.
 #' @return Lista con `assignments`, `summary`, `terms`, `examples`, `quality`,
-#'   `similarity`, `temporal`, `params`, `representation` e `issues`.
+#'   `similarity`, `temporal`, `params`, `representation`, `issues` e
+#'   `input_vectors` (los vectores importados si `representation = "vectors"`,
+#'   necesarios para reproducir la ejecucion; `NULL` en caso contrario).
 #' @references
 #' McInnes, L., Healy, J., Melville, J. (2018). UMAP. arXiv:1802.03426.
 #' Campello, R., Moulavi, D., Sander, J. (2013). Density-based clustering based on hierarchical density estimates. PAKDD.
@@ -109,7 +153,7 @@ class_tfidf <- function(counts, clusters, top_n = 10L) {
 #' \donttest{
 #' d <- read_biblio_csv(system.file("extdata", "practica.csv", package = "bibliolab"), ";")
 #' p <- prepare_documents(d, guess_columns(d)); cp <- prepare_corpus(p)
-#' if (all(c("uwot", "dbscan", "irlba") %in% rownames(utils::installed.packages()))) {
+#' if (all(vapply(c("uwot", "dbscan", "irlba"), requireNamespace, logical(1), quietly = TRUE))) {
 #'   fit <- run_density(cp, p, list(neighbors = 5L, min_pts = 3L))
 #'   table(fit$assignments$grupo)
 #' }
@@ -195,5 +239,7 @@ run_density <- function(corpus, prepared, params = density_defaults(), vectors =
     stringsAsFactors = FALSE)
   list(assignments = assignments, summary = summary, terms = terms, examples = examples, quality = quality,
     similarity = similarity, temporal = temporal, reduced = reduced, hierarchy = fit$hc,
-    params = p, representation = provenance, issues = issues, ran_at = format(Sys.time(), "%Y-%m-%d %H:%M:%S %Z"))
+    params = p, representation = provenance, issues = issues,
+    input_vectors = if (p$representation == "vectors") vectors else NULL,
+    ran_at = format(Sys.time(), "%Y-%m-%d %H:%M:%S %Z"))
 }

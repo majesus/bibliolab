@@ -160,17 +160,33 @@ methods_report <- function(prepared, corpus, bibliography, lda = NULL, ca = NULL
     chk("Convergencia aproximada de LDA", "Ejecutada", if (isTRUE(conv$converged)) paste0("Cambio relativo de log-verosimilitud ", fmt_value(conv$relative_change), " (estable)") else paste0("Cambio relativo ", fmt_value(conv$relative_change), ": considera m\u00e1s iteraciones"))
     chk("Selecci\u00f3n del n\u00famero de temas", if (is.null(lda_selection)) "No ejecutada" else "Ejecutada", if (is.null(lda_selection)) "k fijado sin comparar soluciones" else lda_selection$recommendation$text)
   }
-  if (!is.null(density)) chk("Estabilidad de UMAP + HDBSCAN", if (is.null(density_sensitivity)) "No ejecutada" else "Ejecutada",
-    if (is.null(density_sensitivity)) "Una sola ejecuci\u00f3n: no se conoce la estabilidad entre semillas ni par\u00e1metros" else density_sensitivity$reading)
-  if (!is.null(comparison)) chk("JSD frente a referencia nula", if (is.null(comparison$uncertainty)) "No ejecutada" else "Ejecutada",
-    if (is.null(comparison$uncertainty)) "Sin referencia de ruido de muestreo" else sprintf("JSD nula esperada %.4f; exceso %.4f; p de permutaci\u00f3n %.3f", comparison$uncertainty$null_mean, comparison$uncertainty$excess, comparison$uncertainty$p_value))
+  if (!is.null(density)) {
+    if (is.null(density_sensitivity)) chk("Estabilidad de UMAP + HDBSCAN", "No ejecutada", "Una sola ejecuci\u00f3n: no se conoce la estabilidad entre semillas ni par\u00e1metros")
+    else {
+      st <- density_sensitivity$runs$estado %||% rep("ejecutada", nrow(density_sensitivity$runs))
+      chk("Estabilidad de UMAP + HDBSCAN", if (all(st != "ejecutada" | seq_along(st) == 1L)) "Fallida" else "Ejecutada",
+        paste0(density_sensitivity$reading, sprintf(" Repeticiones efectivas: %d de %d.", sum(st == "ejecutada") - 1L, length(st) - 1L)))
+    }
+  }
+  if (!is.null(comparison)) {
+    ustate <- comparison$uncertainty_status %||% if (is.null(comparison$uncertainty)) "no_ejecutada" else "ejecutada"
+    chk("JSD frente a referencia nula", {lab <- unname(c(ejecutada = "Ejecutada", fallida = "Fallida", no_aplicable = "No aplicable", no_solicitada = "No ejecutada")[ustate]); if (is.na(lab)) "No ejecutada" else lab},
+      if (identical(ustate, "ejecutada")) sprintf("JSD nula esperada %.4f; exceso %.4f; p de permutaci\u00f3n %.3f (%d permutaciones v\u00e1lidas)", comparison$uncertainty$null_mean, comparison$uncertainty$excess, comparison$uncertainty$p_value, comparison$uncertainty$valid_null %||% comparison$uncertainty$B)
+      else if (nzchar(comparison$uncertainty_cause %||% "")) paste("Sin referencia de ruido de muestreo:", comparison$uncertainty_cause) else "Sin referencia de ruido de muestreo")
+  }
   for (m in list(list("Correspondencias", ca), list("ACP", pca))) if (!is.null(m[[2]])) {
     d <- m[[2]]$dimensions
     chk(paste("Ejes de", m[[1]], "frente al azar"), if (isTRUE(m[[2]]$params$baseline$computed)) "Ejecutada" else "No ejecutada",
       if (isTRUE(m[[2]]$params$baseline$computed)) paste0("Ejes por encima del percentil 95 de la permutaci\u00f3n: ", sum(d$supera_azar %in% TRUE), " de ", sum(!is.na(d$supera_azar))) else "Sin l\u00ednea base")
   }
-  if (!is.null(network) && any(grepl("Estabilidad de comunidades", network$summary$indicador)))
-    chk("Estabilidad de comunidades de la red", "Ejecutada", paste0("ARI medio ", fmt_value(network$summary$valor[grepl("Estabilidad de comunidades", network$summary$indicador)][1])))
+  if (!is.null(network)) {
+    st <- network$stability
+    if (is.null(st)) {
+      value <- network$summary$valor[grepl("Estabilidad de comunidades", network$summary$indicador)][1]
+      if (length(value) && is.finite(value)) chk("Estabilidad de comunidades de la red", "Ejecutada", paste0("ARI medio ", fmt_value(value)))
+    } else chk("Estabilidad de comunidades de la red", c(ejecutada = "Ejecutada", no_aplicable = "No aplicable", fallida = "Fallida")[[st$status]],
+      if (identical(st$status, "ejecutada")) sprintf("ARI medio %s sobre %d repeticiones de Louvain con semillas derivadas", fmt_value(st$ari), st$B) else st$reason)
+  }
   chk("Lectura de documentos y validaci\u00f3n de etiquetas", "Pendiente", "La herramienta no puede verificarla: debe hacerla el investigador y documentarla")
   add(md_table(checks), "")
   # 6. Limitaciones

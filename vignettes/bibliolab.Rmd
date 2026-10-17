@@ -46,7 +46,10 @@ conviene usarlo, qué decisiones debes tomar y cómo interpretar el resultado.
 
 Los modelos de lematización (UDPipe) no se incluyen en el paquete y solo se descargan
 si el usuario lo solicita expresamente; se guardan en la carpeta de datos de usuario de
-R (`model_directory()`).
+R (`model_directory()`) y solo se aceptan tras comprobar que UDPipe puede cargarlos y
+anotar un texto. `run_app()` no instala paquetes: los opcionales ausentes
+(`biblio_check_dependencies()`) solo deshabilitan su capacidad, y la instalación
+requiere `run_app(install_missing = TRUE)`, una sesión interactiva y confirmación.
 
 ## El mismo flujo en un script
 
@@ -62,8 +65,12 @@ indicadores$overview
 ```
 
 `prepare_documents()` conserva los valores ausentes como `NA`: una cita ausente no es
-una cita cero. Los duplicados se detectan por DOI y, si falta, por título normalizado
-(sin acentos, mayúsculas ni puntuación); el registro de duplicados indica el criterio.
+una cita cero. Un DOI idéntico identifica un duplicado. Sin DOI, el título (o el texto)
+normalizado, sin acentos, mayúsculas ni puntuación, solo basta si ningún DOI ni año
+contradice la coincidencia y, con títulos de menos de cuatro palabras (por ejemplo,
+«Editorial»), si coinciden además el año y los autores o el texto. Las coincidencias
+dudosas se conservan y se listan en `preparado$ambiguous` para su revisión; el registro
+de duplicados (`preparado$duplicates`) indica el criterio y el registro conservado.
 
 ## Decisiones metodológicas asistidas
 
@@ -76,8 +83,9 @@ varias semillas y resume cuatro criterios que pueden discrepar:
 * **diversidad**: si los temas se repiten entre sí;
 * **estabilidad** entre semillas (solapamiento de palabras principales con
   emparejamiento óptimo);
-* **perplejidad** sobre documentos reservados, que suele mejorar al aumentar `k` y no
-  equivale a interpretabilidad (por eso no entra en el valor de compromiso).
+* **perplejidad** sobre documentos completos reservados (nunca se separan las frases de
+  un mismo documento entre entrenamiento y evaluación), que suele mejorar al aumentar `k`
+  y no equivale a interpretabilidad (por eso no entra en el valor de compromiso).
 
 ```{r kselect, eval = have_lda}
 sel <- lda_select_k(corpus, k_range = 2:5, seeds = c(1, 2), iterations = 200)
@@ -155,7 +163,13 @@ cat(substr(informe, 1, 300))
 
 La entrega de la aplicación incluye `informe_metodologico.html`, `registro_reproducibilidad.json`
 y un script `reproducir_analisis.R` que, con el paquete instalado, recalcula los
-resultados a partir de `entrada_original.rds`.
+resultados a partir de `entrada_original.rds` y comprueba la huella del archivo, el
+número de documentos y las dimensiones del corpus. `export_bundle()` publica la carpeta
+de forma transaccional (rechaza un destino con archivos), registra cada archivo con su
+tamaño y MD5 en `manifiesto_archivos.csv` (`verify_bundle()` lo comprueba) y declara
+**parcial** la entrega a la que faltan insumos de reproducción, sin escribir un guion que
+no podría ejecutarse. La selección de *k* y la sensibilidad de UMAP + HDBSCAN se conservan
+con sus repeticiones y se pueden recalcular con `reproducir_diagnosticos.R`.
 
 ## Referencias
 

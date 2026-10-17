@@ -81,20 +81,65 @@ report_html <- function(prepared, corpus, bibliography, lda = NULL, ca = NULL, d
 #' registro de reproducibilidad, guion `reproducir_analisis.R` y, si se
 #' proporcionan, los resultados de cada modelo.
 #'
-#' @param directory Carpeta de destino (se crea si no existe).
+#' @param directory Carpeta de destino. Debe no existir o estar vacia: la entrega se
+#'   escribe primero en una carpeta temporal contigua y solo se publica en
+#'   `directory` cuando se ha completado, de modo que nunca se mezclan archivos de
+#'   ejecuciones distintas ni queda una entrega a medias. Una carpeta con contenido
+#'   se rechaza sin modificarla.
 #' @param prepared,corpus,bibliography Resultados de la preparacion.
 #' @param lda,ca,density,network,comparison,pca,subgraph Resultados opcionales.
 #' @param prompt Texto de prompt a guardar (opcional).
 #' @param raw `data.frame` importado original; se guarda como RDS para reproducir.
+#'   Sin `raw` la entrega es **parcial**: no se escribe `reproducir_analisis.R`, se
+#'   registra en `parametros.json` (`entrega`) y en `LEEME.txt`, y se emite un aviso.
 #' @param module_dir Ignorado (compatibilidad con V3).
 #' @param reader Cuaderno de lectura enlazada (opcional).
 #' @param record Registro de reproducibilidad; se calcula si es `NULL`.
 #' @param lda_selection,density_sens Resultados de [lda_select_k()] y [density_sensitivity()].
+#' @details Cada archivo queda registrado con su tamano y MD5 en
+#'   `manifiesto_archivos.csv`, que puede verificarse con [verify_bundle()].
+#'
+#'   La entrega es **reproducible** cuando contiene todos los insumos que necesita su
+#'   guion: `raw` (siempre), `density$input_vectors` si `run_density()` uso
+#'   `representation = "vectors"` (se guarda en `vectores_entrada.rds`) y
+#'   `comparison$grouping` si `run_comparison()` no uso `mode = "year"` (se guarda en
+#'   `grupos_jsd.rds`). Estos dos campos los devuelven [run_density()] y
+#'   [run_comparison()]: no hace falta anadirlos a mano. Si falta alguno, la entrega se
+#'   declara parcial en `parametros.json` (`entrega`), en `LEEME.txt` y con un aviso, y no
+#'   se escribe `reproducir_analisis.R` ni `reproducir_cuaderno.R`.
+#'
+#'   `lda_selection` y `density_sens` se registran en `parametros.json` y en
+#'   `evidencia_ia.json` aunque no haya modelo final, junto con las repeticiones y el
+#'   reparto reservado (`lda_seleccion_k_ejecuciones.csv`,
+#'   `lda_seleccion_k_documentos_reservados.csv`, `diagnosticos_decision.rds`); si la
+#'   entrega es reproducible, `reproducir_diagnosticos.R` recalcula esos pasos (costoso,
+#'   opcional) y los compara con lo guardado.
+#'
+#'   Las tablas CSV usan UTF-8 con BOM y punto y coma como separador; el texto que podria
+#'   interpretarse como formula en una hoja de calculo lleva un apostrofo inicial. Los
+#'   valores ausentes se escriben como celdas vacias, no como cero.
 #' @return `directory`, de forma invisible.
 #' @export
 export_bundle <- function(directory, prepared, corpus, bibliography, lda = NULL, ca = NULL, prompt = NULL, density = NULL, raw = NULL, module_dir = NULL, network = NULL, comparison = NULL, pca = NULL, subgraph=NULL,reader=NULL, record = NULL, lda_selection = NULL, density_sens = NULL) {
-  dir.create(directory, recursive = TRUE, showWarnings = FALSE)
-  tables <- list(documentos = prepared$documents, auditoria = prepared$audit, duplicados_detectados = prepared$duplicates,
+  if (!is.character(directory) || length(directory) != 1L || is.na(directory) || !nzchar(directory)) abort_user("Indica una carpeta de destino.")
+  final <- directory
+  if (file.exists(final) && !dir.exists(final)) abort_user("El destino existe y no es una carpeta. Elige una carpeta nueva.")
+  if (dir.exists(final) && length(list.files(final, all.files = TRUE, no.. = TRUE)))
+    abort_user("La carpeta de destino ya contiene archivos. Elige una carpeta nueva o vac\u00eda para no mezclar resultados de ejecuciones distintas; no se ha modificado nada.")
+  dir.create(dirname(final), recursive = TRUE, showWarnings = FALSE)
+  if (!dir.exists(dirname(final))) abort_user("No se puede crear la carpeta que contendr\u00eda la entrega.")
+  stage <- tempfile(pattern = paste0(".", basename(final), "-parcial-"), tmpdir = dirname(normalizePath(final, winslash = "/", mustWork = FALSE)))
+  if (!dir.create(stage)) abort_user("No se puede escribir junto al destino. Elige otra carpeta.")
+  published <- FALSE
+  on.exit(if (!published) unlink(stage, recursive = TRUE), add = TRUE)
+  directory <- stage
+  # Insumos que exige reproducir la entrega. Si falta alguno, la entrega se declara parcial.
+  missing_inputs <- character()
+  if (is.null(raw)) missing_inputs <- c(missing_inputs, "entrada_original.rds (argumento `raw`)")
+  if (!is.null(density) && identical(density$params$representation, "vectors") && is.null(density$input_vectors)) missing_inputs <- c(missing_inputs, "vectores_entrada.rds (`density$input_vectors`)")
+  if (!is.null(comparison) && !identical(comparison$params$mode, "year") && is.null(comparison$grouping)) missing_inputs <- c(missing_inputs, "grupos_jsd.rds (`comparison$grouping`)")
+  reproducible <- !length(missing_inputs)
+  tables <- list(documentos = prepared$documents, auditoria = prepared$audit, duplicados_detectados = prepared$duplicates, duplicados_ambiguos = prepared$ambiguous %||% data.frame(),
     unidades_textuales = corpus$units, terminos = corpus$terms, filtros_vocabulario = corpus$filter_audit,
     anotacion_linguistica = corpus$annotation, bigramas = corpus$bigrams, ngramas = corpus$ngrams %||% data.frame(),
     indicadores = bibliography$overview, evolucion_anual = bibliography$annual, fuentes = bibliography$sources,
@@ -144,9 +189,12 @@ export_bundle <- function(directory, prepared, corpus, bibliography, lda = NULL,
     red = if (!is.null(network)) list(parametros = network$params, definicion = network$note), modelos_idioma = corpus$models, densidad = if (!is.null(density)) list(parametros = density$params, representacion = density$representation, advertencias = density$issues),
     subgrafo=if(!is.null(subgraph)) subgraph$extraction, spline=if(!is.null(density$temporal_spline)) list(parametros=density$temporal_spline$params,lectura=density$temporal_spline$note),vista_terminos=corpus$term_view %||% NULL,
     vista_acp=corpus$pca_view %||% NULL,vista_ngramas=corpus$gram_view %||% NULL,vista_lda_temporal=corpus$lda_time_view %||% NULL,vista_lda_documentos=corpus$lda_document_view %||% NULL,
+    entrega = list(reproducible = reproducible, insumos_faltantes = as.list(missing_inputs)),
+    seleccion_k = if (!is.null(lda_selection)) lda_selection$params,
+    sensibilidad_densidad = if (!is.null(density_sens)) density_sens$params,
     nota_csv = "CSV UTF-8 con BOM y separador punto y coma. Texto que podr\u00eda ser f\u00f3rmula lleva un ap\u00f3strofo inicial para apertura segura en Excel.")
   jsonlite::write_json(manifest, file.path(directory, "parametros.json"), pretty = TRUE, auto_unbox = TRUE, na = "null", digits = NA)
-  if(!is.null(reader)) {
+  if(!is.null(reader) && reproducible) {
     manifest$cuaderno<-reader$index$params
     jsonlite::write_json(manifest,file.path(directory,"parametros.json"),pretty=TRUE,auto_unbox=TRUE,na="null",digits=NA)
     export_wiki_vault(file.path(directory,"cuaderno_obsidian"),reader$index,reader$notes,reader$graph,reader$view)
@@ -160,7 +208,7 @@ export_bundle <- function(directory, prepared, corpus, bibliography, lda = NULL,
   if (!is.null(raw)) saveRDS(raw, file.path(directory, "entrada_original.rds"))
   if(!is.null(prepared$language_audit)) saveRDS(prepared$language_audit,file.path(directory,"idiomas_asignacion.rds"))
   if (!is.null(density$input_vectors)) saveRDS(density$input_vectors, file.path(directory, "vectores_entrada.rds"))
-  if (exists("reproduction_script", mode = "function")) writeLines(enc2utf8(reproduction_script(prepared, lda, ca, density, network, comparison, pca, subgraph)), file.path(directory, "reproducir_analisis.R"), useBytes = TRUE)
+  if (reproducible) writeLines(enc2utf8(reproduction_script(prepared, lda, ca, density, network, comparison, pca, subgraph, corpus = corpus)), file.path(directory, "reproducir_analisis.R"), useBytes = TRUE)
   if (exists("graphics_script",mode="function")) writeLines(enc2utf8(graphics_script()),file.path(directory,"reconstruir_graficos.R"),useBytes=TRUE)
   skills_dir <- system.file("skills", package = "bibliolab")
   if (nzchar(skills_dir) && dir.exists(skills_dir)) {
@@ -179,10 +227,16 @@ export_bundle <- function(directory, prepared, corpus, bibliography, lda = NULL,
   if (!is.null(lda_selection)) {
     safe_csv(lda_selection$table, file.path(directory, "lda_seleccion_k.csv"))
     safe_csv(lda_selection$recommendation$summary, file.path(directory, "lda_seleccion_k_resumen.csv"))
+    safe_csv(lda_selection$runs, file.path(directory, "lda_seleccion_k_ejecuciones.csv"))
+    safe_csv(data.frame(doc_id = lda_selection$params$holdout_doc_ids %||% character()), file.path(directory, "lda_seleccion_k_documentos_reservados.csv"))
   }
   if (!is.null(density_sens)) {
     safe_csv(density_sens$runs, file.path(directory, "umap_hdbscan_sensibilidad.csv"))
     safe_csv(density_sens$summary, file.path(directory, "umap_hdbscan_sensibilidad_resumen.csv"))
+  }
+  if (!is.null(lda_selection) || !is.null(density_sens)) {
+    saveRDS(list(lda_selection = lda_selection, density_sens = density_sens), file.path(directory, "diagnosticos_decision.rds"))
+    if (reproducible) writeLines(enc2utf8(diagnostics_script(lda_selection, density_sens, density)), file.path(directory, "reproducir_diagnosticos.R"), useBytes = TRUE)
   }
   write_prompt_bank(file.path(directory, "banco_prompts.md"))
   if (!is.null(prompt)) writeLines(enc2utf8(prompt), file.path(directory, "prompt_seleccionado.txt"), useBytes = TRUE)
@@ -192,10 +246,67 @@ export_bundle <- function(directory, prepared, corpus, bibliography, lda = NULL,
     "documentos.csv y unidades_textuales.csv contienen texto original: revisa la privacidad antes de compartir el ZIP.",
     "evidencia_ia.json contiene tablas limitadas a 25 filas por ranking y excluye extractos originales.",
     "Las tablas de LDA, CA, subgrafo y UMAP/HDBSCAN solo se incluyen si sus resultados est\u00e1n vigentes. La spline requiere un ajuste v\u00e1lido; no se inventa si falta cobertura.",
-    "reproducir_analisis.R se ejecuta desde esta carpeta, usa entrada_original.rds y requiere el paquete bibliolab instalado (version registrada en registro_reproducibilidad.json).",
+    if (reproducible) "reproducir_analisis.R se ejecuta desde esta carpeta, usa entrada_original.rds y requiere el paquete bibliolab instalado (version registrada en registro_reproducibilidad.json)."
+    else paste0("ENTREGA PARCIAL: no incluye reproducir_analisis.R porque faltan insumos de reproduccion: ", paste(missing_inputs, collapse = "; "), "."),
+    if (reproducible && (!is.null(lda_selection) || !is.null(density_sens))) "reproducir_diagnosticos.R (opcional, costoso) repite la seleccion de k y la sensibilidad con los parametros, semillas y documentos reservados registrados y compara con diagnosticos_decision.rds.",
+    "manifiesto_archivos.csv lista cada archivo con su tamano y MD5; verify_bundle() lo comprueba.",
     "informe_metodologico.md / .html resume procedimientos, parametros, diagnosticos de validez y limitaciones. registro_reproducibilidad.json guarda versiones, semillas y huella de los datos.",
     "Los modelos UDPipe se descargan por separado y se verifica su MD5.",
     "skills contiene instrucciones de redacci\u00f3n y revisi\u00f3n; lee skills/USO.md para aplicarlas en tu herramienta.",
     "Si faltan gr\u00e1ficos, ejecuta los an\u00e1lisis correspondientes; los mapas no se calculan autom\u00e1ticamente.")), file.path(directory, "LEEME.txt"), useBytes = TRUE)
-  invisible(directory)
+  write_bundle_manifest(directory)
+  # Publicacion: la carpeta vacia previa (si existe) se sustituye por la entrega completa.
+  if (dir.exists(final)) unlink(final, recursive = TRUE)
+  if (!file.rename(stage, final)) {
+    dir.create(final, showWarnings = FALSE)
+    ok <- all(file.copy(list.files(stage, full.names = TRUE, all.files = TRUE, no.. = TRUE), final, recursive = TRUE))
+    if (!ok) { unlink(final, recursive = TRUE); abort_user("No se ha podido publicar la entrega en la carpeta de destino.") }
+  }
+  published <- TRUE
+  if (!reproducible) warning("Entrega parcial: no se escribi\u00f3 reproducir_analisis.R porque faltan ", paste(missing_inputs, collapse = "; "), ".", call. = FALSE)
+  invisible(final)
+}
+
+#' Manifiesto de archivos de una entrega
+#'
+#' `write_bundle_manifest()` registra el tamano y el MD5 de todos los archivos de
+#' una carpeta de entrega en `manifiesto_archivos.csv` (sin incluirse a si mismo).
+#' `verify_bundle()` recalcula las huellas y devuelve una tabla con el estado de
+#' cada archivo: `correcto`, `modificado`, `ausente` o `no registrado`.
+#'
+#' @param directory Carpeta de una entrega creada con [export_bundle()].
+#' @return `write_bundle_manifest()` devuelve la tabla escrita de forma invisible;
+#'   `verify_bundle()` devuelve un `data.frame` con `archivo` y `estado`.
+#' @examples
+#' d <- read_biblio_csv(system.file("extdata", "practica.csv", package = "bibliolab"), ";")
+#' p <- prepare_documents(d, guess_columns(d)); cp <- prepare_corpus(p)
+#' out <- file.path(tempdir(), "entrega-ejemplo")
+#' export_bundle(out, p, cp, biblio_summary(p), raw = d)
+#' table(verify_bundle(out)$estado)
+#' unlink(out, recursive = TRUE)
+#' @export
+write_bundle_manifest <- function(directory) {
+  files <- bundle_files(directory)
+  manifest <- data.frame(archivo = files, bytes = as.numeric(file.size(file.path(directory, files))),
+    md5 = unname(tools::md5sum(file.path(directory, files))), stringsAsFactors = FALSE)
+  utils::write.csv(manifest, file.path(directory, "manifiesto_archivos.csv"), row.names = FALSE, fileEncoding = "UTF-8")
+  invisible(manifest)
+}
+bundle_files <- function(directory) {
+  files <- list.files(directory, recursive = TRUE, all.files = TRUE, no.. = TRUE)
+  sort(setdiff(files, "manifiesto_archivos.csv"))
+}
+#' @rdname write_bundle_manifest
+#' @export
+verify_bundle <- function(directory) {
+  path <- file.path(directory, "manifiesto_archivos.csv")
+  if (!file.exists(path)) abort_user("La carpeta no contiene manifiesto_archivos.csv.")
+  recorded <- utils::read.csv(path, stringsAsFactors = FALSE, fileEncoding = "UTF-8", colClasses = "character")
+  present <- bundle_files(directory)
+  state <- vapply(recorded$archivo, function(f) {
+    full <- file.path(directory, f)
+    if (!file.exists(full)) "ausente" else if (identical(unname(tools::md5sum(full)), recorded$md5[match(f, recorded$archivo)])) "correcto" else "modificado"
+  }, "")
+  extra <- setdiff(present, recorded$archivo)
+  data.frame(archivo = c(recorded$archivo, extra), estado = c(unname(state), rep("no registrado", length(extra))), stringsAsFactors = FALSE)
 }

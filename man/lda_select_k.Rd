@@ -29,7 +29,7 @@ lda_select_k(
 
 \item{delta}{Prior de palabras por tema.}
 
-\item{holdout}{Fraccion de unidades reservada para la perplejidad (0 la desactiva).}
+\item{holdout}{Fraccion de documentos reservada para la perplejidad (0 la desactiva). Se reserva por documento: todas las frases de un documento reservado quedan fuera del entrenamiento. Solo se activa con 20 o mas documentos.}
 
 \item{top_n}{Palabras principales por tema usadas en coherencia, diversidad y estabilidad.}
 
@@ -43,7 +43,8 @@ Lista con \code{table} (resumen por k), \code{runs} (un ajuste por fila),
 Ajusta modelos LDA (Gibbs) para un rango de numeros de temas y varias semillas
 y resume, para cada k, indicadores complementarios: coherencia tematica,
 diversidad de palabras principales, estabilidad entre semillas y perplejidad
-sobre unidades reservadas. No existe un k universalmente optimo: la funcion
+sobre documentos reservados. La coherencia se calcula con co-ocurrencia
+documental. No existe un k universalmente optimo: la funcion
 devuelve los criterios por separado, senala los conflictos entre ellos y un
 valor de compromiso (maximin) solo como punto de partida.
 }

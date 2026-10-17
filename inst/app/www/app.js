@@ -150,7 +150,7 @@
       net.selectNodes([m.id]);
       net.focus(m.id, {scale: 1.15, animation: window.wikiHL.focus});
     });
-    Shiny.addCustomMessageHandler('wikiClearHighlight', function () {
+    Shiny.addCustomMessageHandler('wikiClearHighlight', function (_message) {
       var net = window.wikiHL.network();
       if (net) window.wikiHL.reset(net, false);
     });

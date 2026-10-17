@@ -7,9 +7,16 @@ test_that("prepare_documents audita cada etapa y detecta duplicados por DOI", {
 })
 
 test_that("las citas ausentes se conservan como NA", {
-  docs <- practica()$prepared$documents
+  x <- practica()
+  docs <- x$prepared$documents
   expect_equal(sum(is.na(docs$citations)), 3L)
-  expect_false(any(docs$citations == 0, na.rm = TRUE) && FALSE)
+  # Oraculo independiente: el valor original de "Cited by" convertido a numero.
+  # Las celdas vacias son NA; los ceros declarados se conservan como cero.
+  original <- suppressWarnings(as.numeric(x$raw[["Cited by"]]))
+  esperado <- original[match(docs$source_row, seq_along(original))]
+  expect_identical(is.na(docs$citations), is.na(esperado))
+  expect_equal(docs$citations[!is.na(esperado)], esperado[!is.na(esperado)])
+  expect_equal(sum(docs$citations == 0, na.rm = TRUE), sum(esperado == 0, na.rm = TRUE))
 })
 
 test_that("se puede conservar los duplicados si se desactiva la deduplicacion", {

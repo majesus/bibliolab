@@ -26,7 +26,11 @@ export_bundle(
 )
 }
 \arguments{
-\item{directory}{Carpeta de destino (se crea si no existe).}
+\item{directory}{Carpeta de destino. Debe no existir o estar vacia: la entrega se
+escribe primero en una carpeta temporal contigua y solo se publica en
+\code{directory} cuando se ha completado, de modo que nunca se mezclan archivos de
+ejecuciones distintas ni queda una entrega a medias. Una carpeta con contenido
+se rechaza sin modificarla.}
 
 \item{prepared, corpus, bibliography}{Resultados de la preparacion.}
 
@@ -34,7 +38,9 @@ export_bundle(
 
 \item{prompt}{Texto de prompt a guardar (opcional).}
 
-\item{raw}{\code{data.frame} importado original; se guarda como RDS para reproducir.}
+\item{raw}{\code{data.frame} importado original; se guarda como RDS para reproducir.
+Sin \code{raw} la entrega es \strong{parcial}: no se escribe \code{reproducir_analisis.R}, se
+registra en \code{parametros.json} (\code{entrega}) y en \code{LEEME.txt}, y se emite un aviso.}
 
 \item{module_dir}{Ignorado (compatibilidad con V3).}
 
@@ -51,4 +57,28 @@ export_bundle(
 Escribe tablas CSV, parametros, informe HTML, informe metodologico,
 registro de reproducibilidad, guion \code{reproducir_analisis.R} y, si se
 proporcionan, los resultados de cada modelo.
+}
+\details{
+Cada archivo queda registrado con su tamano y MD5 en
+\code{manifiesto_archivos.csv}, que puede verificarse con \code{\link[=verify_bundle]{verify_bundle()}}.
+
+La entrega es \strong{reproducible} cuando contiene todos los insumos que necesita su
+guion: \code{raw} (siempre), \code{density$input_vectors} si \code{run_density()} uso
+\code{representation = "vectors"} (se guarda en \code{vectores_entrada.rds}) y
+\code{comparison$grouping} si \code{run_comparison()} no uso \code{mode = "year"} (se guarda en
+\code{grupos_jsd.rds}). Estos dos campos los devuelven \code{\link[=run_density]{run_density()}} y
+\code{\link[=run_comparison]{run_comparison()}}: no hace falta anadirlos a mano. Si falta alguno, la entrega se
+declara parcial en \code{parametros.json} (\code{entrega}), en \code{LEEME.txt} y con un aviso, y no
+se escribe \code{reproducir_analisis.R} ni \code{reproducir_cuaderno.R}.
+
+\code{lda_selection} y \code{density_sens} se registran en \code{parametros.json} y en
+\code{evidencia_ia.json} aunque no haya modelo final, junto con las repeticiones y el
+reparto reservado (\code{lda_seleccion_k_ejecuciones.csv},
+\code{lda_seleccion_k_documentos_reservados.csv}, \code{diagnosticos_decision.rds}); si la
+entrega es reproducible, \code{reproducir_diagnosticos.R} recalcula esos pasos (costoso,
+opcional) y los compara con lo guardado.
+
+Las tablas CSV usan UTF-8 con BOM y punto y coma como separador; el texto que podria
+interpretarse como formula en una hoja de calculo lleva un apostrofo inicial. Los
+valores ausentes se escriben como celdas vacias, no como cero.
 }

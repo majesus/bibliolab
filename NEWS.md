@@ -1,3 +1,72 @@
+# bibliolab 5.0.2
+
+Revision a partir de la auditoria del commit b876e55. Cada punto cita su hallazgo (H01-H23).
+
+## Integridad de datos
+
+* Deduplicacion con evidencia (H02): un DOI identico es decisivo; sin DOI, titulo o texto
+  normalizado solo bastan si no hay DOI ni anio contradictorios y, con titulos de menos de
+  cuatro palabras (por ejemplo, "Editorial"), si coinciden ademas el anio y los autores o el
+  texto. `prepare_documents()` devuelve `duplicates` (con criterio y registro conservado) y
+  `ambiguous` (coincidencias no eliminadas) e `input_md5`.
+* Las claves de etiqueta (`label_key()`) conservan escrituras no latinas y combinan
+  diacriticos de forma Unicode (H03): "李 a" y "王 a" ya no colapsan.
+* `bm25_weights()` valida los valores almacenados de la matriz dispersa sin densificarla (H08).
+* La red documental aplica Benjamini-Hochberg sobre todos los pares con alguna coaparicion y
+  despues el minimo compartido como filtro descriptivo; la p ajustada ya no depende de ese
+  umbral (H09).
+* Palabras vacias por documento (`language = "by_document"`) con una lista por idioma; aborta si
+  un documento con texto no tiene idioma reconocido (H17).
+
+## Diagnosticos metodologicos
+
+* `lda_select_k()` reserva documentos completos para la perplejidad y calcula la coherencia
+  por documento (H04); restaura el generador aleatorio global (H15).
+* Semillas derivadas por rotacion dentro del rango entero (`derive_seed()`), tambien con
+  `.Machine$integer.max` (H21).
+* Estados `ejecutada` / `no_aplicable` / `fallida` con causa para la estabilidad de comunidades,
+  la incertidumbre de la JSD (por comparacion y por periodo) y la sensibilidad de UMAP/HDBSCAN (H18).
+* `jsd_rows()` y `jsd_uncertainty()` rechazan entradas improcedentes; una fila sin masa devuelve
+  `NA` y no cero.
+* La sensibilidad del vocabulario simula con los mismos filtros y el mismo maximo de terminos,
+  de modo que la fila `actual` coincide con el vocabulario efectivo (H22).
+
+## Entrega y reproducibilidad
+
+* `export_bundle()` publica de forma transaccional: escribe en una carpeta contigua y la renombra
+  al terminar; rechaza una carpeta de destino con archivos y no deja restos tras un fallo (H07).
+* Entrega parcial declarada (H06): sin `raw`, sin los vectores de entrada de `run_density()`
+  (`input_vectors`) o sin el agrupamiento de una comparacion no se escribe un guion que no podria
+  ejecutarse; `parametros.json`, `LEEME.txt` y un aviso lo registran.
+* `manifiesto_archivos.csv` (tamano y MD5) y las nuevas funciones `write_bundle_manifest()` y
+  `verify_bundle()` (H07).
+* El guion de reproduccion comprueba huella de entrada, numero de documentos y dimensiones y
+  suma del corpus, y toma los modelos de idioma del corpus (H14).
+* La seleccion de k y la sensibilidad de densidad se guardan en `parametros.json` y
+  `evidencia_ia.json` con independencia del modelo final, con sus repeticiones, el reparto
+  reservado y `reproducir_diagnosticos.R` (H20).
+* La huella del corpus (`corpus_fingerprint()`) invalida los diagnosticos de la aplicacion cuando
+  cambia el corpus aunque las dimensiones coincidan (H01).
+
+## Dependencias y modelos de idioma
+
+* `run_app()` ya no instala nada por defecto: `install_missing = TRUE` exige sesion interactiva y
+  confirmacion; los paquetes opcionales ausentes solo deshabilitan su capacidad (H12, H13).
+  `biblio_check_dependencies()` incluye la columna `funciones`. Se elimina `mclust` de `Suggests`
+  porque no se usaba.
+* `download_language_model()` descarga a una carpeta temporal, valida el idioma y la carga del
+  modelo y solo entonces lo publica; un modelo danado ya no se da por valido (H16).
+  `udpipe::udpipe_load_model()` no falla con un archivo danado (devuelve un puntero nulo), de modo
+  que la validacion exige un puntero valido y una anotacion minima.
+
+## Documentacion y compatibilidad
+
+* Se exportan y documentan `density_defaults()`, `read_document_vectors()`, `network_defaults()`
+  y `comparison_defaults()`; `default_config()` describe cada opcion, su rango y su efecto (H19).
+* Se anaden `pca_axes` y `token_display_metric` a `utils::globalVariables()` y la integracion
+  continua prueba R-devel y la version minima declarada, R 4.1.0 (H23). Se anade `cran-comments.md`.
+* Nuevas pruebas de regresion con oraculos independientes para H01-H09, H12-H18 y H20-H22.
+
 # bibliolab 5.0.1
 
 * Correccion de empaquetado: se restauran `inst/app/www/style.css` (hoja de estilos

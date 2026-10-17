@@ -1,4 +1,6 @@
-# Comprobacion del paquete en Linux, macOS y Windows con las versiones actual y anterior de R.
+# Comprobacion del paquete en Linux, macOS y Windows con las versiones actual y anterior de R,
+# con R-devel, con la version minima declarada en DESCRIPTION (R 4.1.0) y solo con las
+# dependencias duras (Imports/Depends), sin ningun paquete de Suggests.
 on:
   push:
     branches: [main, master]
@@ -12,18 +14,24 @@ permissions: read-all
 jobs:
   R-CMD-check:
     runs-on: ${{ matrix.config.os }}
-    name: ${{ matrix.config.os }} (R ${{ matrix.config.r }})
+    name: ${{ matrix.config.os }} (R ${{ matrix.config.r }}${{ matrix.config.hard_only && ', dependencias duras' || '' }})
     strategy:
       fail-fast: false
       matrix:
         config:
           - {os: ubuntu-latest,  r: 'release'}
           - {os: ubuntu-latest,  r: 'oldrel-1'}
+          - {os: ubuntu-latest,  r: 'devel', http-user-agent: 'release'}
+          - {os: ubuntu-22.04,   r: '4.1.0'}
+          - {os: ubuntu-latest,  r: 'release', hard_only: true}
           - {os: macos-latest,   r: 'release'}
           - {os: windows-latest, r: 'release'}
     env:
       GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
       R_KEEP_PKG_SOURCE: yes
+      # Con hard_only, R CMD check solo ve las dependencias declaradas como obligatorias: los
+      # ejemplos, las pruebas y la vineta deben condicionar cada paquete de Suggests.
+      _R_CHECK_DEPENDS_ONLY_: ${{ matrix.config.hard_only && 'true' || 'false' }}
     steps:
       - uses: actions/checkout@v4
       - uses: r-lib/actions/setup-pandoc@v2
@@ -36,6 +44,7 @@ jobs:
         with:
           extra-packages: any::rcmdcheck
           needs: check
+          dependencies: ${{ matrix.config.hard_only && '"hard"' || '"all"' }}
       - uses: r-lib/actions/check-r-package@v2
         with:
           upload-snapshots: true

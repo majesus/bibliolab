@@ -11,11 +11,13 @@
 #' equipo), incluso si la opcion global `shiny.host` indica otra direccion.
 #' No necesita aceptar conexiones entrantes desde otros equipos. Las descargas
 #' de modelos de idioma se realizan por una accion explicita del usuario.
-#' Antes de abrir, comprueba y carga los paquetes de todos los analisis. Si
-#' faltan paquetes de analisis, intenta instalarlos desde CRAN en una biblioteca
-#' del usuario (binarios en Windows). Si no completa la preparacion, no abre
-#' una interfaz con tecnicas pendientes. Esta comprobacion solo se ejecuta al
-#' llamar a `run_app()`, nunca al cargar el paquete.
+#' Antes de abrir, valida los argumentos y comprueba los paquetes. Los paquetes
+#' de `Imports` son necesarios; los opcionales (consulta
+#' [biblio_check_dependencies()]) solo deshabilitan su capacidad: si faltan, se
+#' avisa de que tecnicas quedan fuera y la aplicacion se abre con el resto.
+#' `run_app()` nunca instala paquetes por su cuenta. Con `install_missing = TRUE`,
+#' en una sesion interactiva y tras una confirmacion explicita, instala los
+#' opcionales ausentes desde CRAN en la biblioteca de usuario.
 #'
 #' @param launch.browser Si se abre el navegador al iniciar. Por defecto, en
 #'   sesiones interactivas. Acepta `TRUE`/`FALSE` o una funcion `function(url)`.
@@ -27,6 +29,9 @@
 #'   (opcional). Por defecto `tools::R_user_dir("bibliolab", "data")`.
 #' @param max_upload_mb Tamano maximo de archivo importado, en megabytes
 #'   (entre 1 y 500; 100 por defecto).
+#' @param install_missing Si `TRUE`, ofrece instalar los paquetes opcionales
+#'   ausentes (solo en sesiones interactivas y con confirmacion). Por defecto
+#'   `FALSE`: no se instala ni se modifica ninguna biblioteca.
 #'
 #' @return Se invoca por su efecto; devuelve `invisible(NULL)` al cerrar la app.
 #' @examples
@@ -34,13 +39,13 @@
 #'   run_app()
 #' }
 #' @export
-run_app <- function(launch.browser = interactive(), port = NULL, model_dir = NULL, max_upload_mb = 100) {
-  app_prepare_dependencies()
+run_app <- function(launch.browser = interactive(), port = NULL, model_dir = NULL, max_upload_mb = 100, install_missing = FALSE) {
+  if (!is.numeric(max_upload_mb) || length(max_upload_mb) != 1L || !is.finite(max_upload_mb) || max_upload_mb < 1 || max_upload_mb > 500)
+    stop("max_upload_mb debe estar entre 1 y 500.", call. = FALSE)
+  app_prepare_dependencies(install = isTRUE(install_missing))
   for (pkg in c("DT", "plotly", "visNetwork"))
     if (!requireNamespace(pkg, quietly = TRUE))
       stop("Falta el paquete '", pkg, "'. Instalalo con install.packages(\"", pkg, "\").", call. = FALSE)
-  if (!is.numeric(max_upload_mb) || length(max_upload_mb) != 1L || !is.finite(max_upload_mb) || max_upload_mb < 1 || max_upload_mb > 500)
-    stop("max_upload_mb debe estar entre 1 y 500.", call. = FALSE)
   www <- app_file("www")
   faltan <- setdiff(c("style.css", "app.js"), list.files(www))
   if (length(faltan))
@@ -108,7 +113,7 @@ btn_next <- function(id, label) actionButton(id, label, class = "btn-next next-s
 }
 source_app_module <- function(name, envir) {
   code <- .app_modules[[name]]
-  if (is.null(code)) abort_user(paste("No est\u00e1 disponible el m\u00f3dulo", name, ". Cierra la aplicaci\u00f3n y abre ABRIR_V5.cmd para cargar una distribuci\u00f3n completa."))
+  if (is.null(code)) abort_user(paste("No est\u00e1 disponible el m\u00f3dulo", name, ". Cierra la aplicaci\u00f3n y reinstala bibliolab desde una copia completa."))
   eval(code, envir = envir)
 }
 table_view <- function(id) DT::DTOutput(id)

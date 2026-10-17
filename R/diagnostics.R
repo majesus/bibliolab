@@ -13,17 +13,22 @@ ascii_fold <- function(x) {
   x
 }
 
-# Clave de comparacion de una etiqueta (minusculas, sin acentos ni puntuacion).
-# No hace stemming ni fusiona sinonimos: solo variantes de escritura.
+# Clave de comparacion de una etiqueta (minusculas, sin acentos latinos ni puntuacion).
+# No hace stemming ni fusiona sinonimos: solo variantes de escritura. Las letras de
+# otros alfabetos (griego, cirilico, CJK, etc.) y sus marcas combinantes se conservan,
+# de modo que "alpha \u03b1" y "alpha \u03b2", o dos autores que solo comparten una inicial
+# latina, no reciben la misma clave. Las marcas combinantes (NFD) que siguen a una
+# letra latina se eliminan para que "e\u0301" y "\u00e9" coincidan.
 label_key <- function(x, kind = c("keyword", "author", "source")) {
   kind <- match.arg(kind)
   raw <- tolower(clean_value(x))
   y <- ascii_fold(raw)
+  y <- gsub("(?<=[a-z])\\p{M}+", "", y, perl = TRUE)
   if (kind == "author") y <- gsub(".", "", y, fixed = TRUE)
-  y <- gsub("[^a-z0-9,+# ]+", " ", y)
+  y <- gsub("[^\\p{L}\\p{N}\\p{M},+# ]+", " ", y, perl = TRUE)
   if (kind != "author") y <- gsub(",", " ", y, fixed = TRUE)
   y <- trimws(gsub("[[:space:]]+", " ", y))
-  # Escrituras no latinas: conservar la etiqueta original en minusculas.
+  # Etiquetas formadas solo por simbolos: conservar la original en minusculas.
   y[!nzchar(y)] <- trimws(gsub("[[:space:]]+", " ", raw[!nzchar(y)]))
   y
 }
@@ -195,6 +200,35 @@ lda_quality_reading <- function(fit) {
       "Contrasta iteraciones y semillas; documenta estabilidad, deriva y la regla de elegir el estado de mayor verosimilitud."),stringsAsFactors=FALSE)
 }
 
+# Huella de contenido del corpus analitico: conteos, nombres de unidades y terminos, y la
+# correspondencia unidad -> documento. Dos corpus con las mismas dimensiones pero distintos
+# terminos, conteos o documentos tienen huellas distintas; se usa para decidir si un
+# diagnostico guardado sigue describiendo el corpus vigente.
+corpus_fingerprint <- function(corpus) {
+  m <- corpus$counts
+  if (is.null(m)) return("sin-matriz")
+  trip <- methods::as(m, "TsparseMatrix")
+  o <- order(trip@i, trip@j)
+  doc <- corpus$units$doc_id[match(rownames(m), corpus$units$unit_id)]
+  obj <- list(dim = dim(m), rows = rownames(m), cols = colnames(m), i = trip@i[o], j = trip@j[o], x = as.numeric(trip@x[o]), doc = doc)
+  f <- tempfile(fileext = ".rds"); on.exit(unlink(f), add = TRUE)
+  saveRDS(obj, f, version = 2, compress = FALSE)
+  unname(tools::md5sum(f))
+}
+
+# Matriz documento x termino a partir de la matriz de unidades (frases o documentos).
+# La coherencia se calcula sobre documentos completos: la co-ocurrencia declarada es documental.
+document_term_counts <- function(counts, units) {
+  if (is.null(units) || is.null(rownames(counts))) return(counts)
+  doc <- units$doc_id[match(rownames(counts), units$unit_id)]
+  if (anyNA(doc) || !anyDuplicated(doc)) return(counts)
+  f <- factor(doc, levels = unique(doc))
+  agg <- Matrix::sparseMatrix(i = as.integer(f), j = seq_along(f), x = 1, dims = c(nlevels(f), length(f)),
+    dimnames = list(levels(f), NULL))
+  out <- agg %*% counts
+  out
+}
+
 dtm_from_counts <- function(counts, rows = NULL) {
   m <- if (is.null(rows)) counts else counts[rows, , drop = FALSE]
   sm <- methods::as(m, "TsparseMatrix")
@@ -206,7 +240,8 @@ dtm_from_counts <- function(counts, rows = NULL) {
 #' Ajusta modelos LDA (Gibbs) para un rango de numeros de temas y varias semillas
 #' y resume, para cada k, indicadores complementarios: coherencia tematica,
 #' diversidad de palabras principales, estabilidad entre semillas y perplejidad
-#' sobre unidades reservadas. No existe un k universalmente optimo: la funcion
+#' sobre documentos reservados. La coherencia se calcula con co-ocurrencia
+#' documental. No existe un k universalmente optimo: la funcion
 #' devuelve los criterios por separado, senala los conflictos entre ellos y un
 #' valor de compromiso (maximin) solo como punto de partida.
 #'
@@ -216,7 +251,7 @@ dtm_from_counts <- function(counts, rows = NULL) {
 #' @param iterations Iteraciones de Gibbs por ajuste (100-2000).
 #' @param alpha Prior de mezcla por documento: `NULL` usa `1/k` en cada ajuste; un numero constante; o una funcion de `k`.
 #' @param delta Prior de palabras por tema.
-#' @param holdout Fraccion de unidades reservada para la perplejidad (0 la desactiva).
+#' @param holdout Fraccion de documentos reservada para la perplejidad (0 la desactiva). Se reserva por documento: todas las frases de un documento reservado quedan fuera del entrenamiento. Solo se activa con 20 o mas documentos.
 #' @param top_n Palabras principales por tema usadas en coherencia, diversidad y estabilidad.
 #' @param progress Funcion opcional `function(i, total)` para informar del avance.
 #'
@@ -255,9 +290,19 @@ lda_select_k <- function(corpus, k_range = 2:8, seeds = c(2026L, 2027L, 2028L), 
   check_number(top_n, "Las palabras principales", 5, 20)
   model_resource_check(m, "LDA")
   n <- nrow(m)
-  n_test <- if (holdout > 0 && n >= 20) max(2L, round(holdout * n)) else 0L
-  test <- if (n_test > 0) with_seed(min(seeds), sort(sample.int(n, n_test))) else integer()
+  # La reserva se hace por documento: todas las unidades (frases) de un documento reservado
+  # quedan fuera del entrenamiento, de modo que la perplejidad se mide en documentos nuevos.
+  unit_doc <- if (is.null(corpus$units)) rownames(m) else corpus$units$doc_id[match(rownames(m), corpus$units$unit_id)]
+  if (is.null(unit_doc) || anyNA(unit_doc)) unit_doc <- rownames(m)
+  doc_ids <- unique(unit_doc)
+  n_docs <- length(doc_ids)
+  n_test_docs <- if (holdout > 0 && n_docs >= 20) max(2L, round(holdout * n_docs)) else 0L
+  test_docs <- if (n_test_docs > 0) doc_ids[with_seed(min(seeds), sort(sample.int(n_docs, n_test_docs)))] else character()
+  test <- which(unit_doc %in% test_docs)
+  n_test <- length(test)
   train <- setdiff(seq_len(n), test)
+  if (n_test > 0 && length(train) < 6L) abort_user("La reserva deja menos de seis unidades de entrenamiento. Reduce la fraccion reservada.")
+  m_docs <- document_term_counts(m, corpus$units)
   dtm_train <- dtm_from_counts(m, train)
   dtm_test <- if (n_test > 0) dtm_from_counts(m, test) else NULL
   total <- length(k_range) * length(seeds); done <- 0L
@@ -269,9 +314,9 @@ lda_select_k <- function(corpus, k_range = 2:8, seeds = c(2026L, 2027L, 2028L), 
     fit <- gf$fit
     post <- topicmodels::posterior(fit)
     beta <- post$terms
-    coh <- topic_coherence(beta, m, top_n)
-    perp <- if (!is.null(dtm_test)) tryCatch(as.numeric(topicmodels::perplexity(fit, newdata = dtm_test,
-      control = list(seed = s, burnin = 100L, iter = as.integer(iterations), thin = 10L, alpha = a, delta = delta))), error = function(e) NA_real_) else NA_real_
+    coh <- topic_coherence(beta, m_docs, top_n)
+    perp <- if (!is.null(dtm_test)) tryCatch(with_seed(s, as.numeric(topicmodels::perplexity(fit, newdata = dtm_test,
+      control = list(seed = s, burnin = 100L, iter = as.integer(iterations), thin = 10L, alpha = a, delta = delta)))), error = function(e) NA_real_) else NA_real_
     conv <- loglik_convergence(gf$loglik)
     runs[[length(runs) + 1L]] <- data.frame(k = k, semilla = s, alpha = a, perplejidad = perp,
       coherencia_npmi = mean(coh$npmi), coherencia_umass = mean(coh$umass), diversidad = topic_diversity(beta, top_n),
@@ -305,7 +350,9 @@ lda_select_k <- function(corpus, k_range = 2:8, seeds = c(2026L, 2027L, 2028L), 
   rec <- lda_k_recommendation(summ)
   list(table = summ, runs = runs, recommendation = rec,
     params = list(k_range = k_range, seeds = seeds, iterations = as.integer(iterations), alpha = if (is.null(alpha)) "1/k" else if (is.function(alpha)) paste(deparse(body(alpha)), collapse = " ") else alpha,
-      delta = delta, holdout_units = n_test, units = n, terms = ncol(m), top_n = as.integer(top_n)),
+      delta = delta, holdout_units = n_test, holdout_documents = length(test_docs), holdout_doc_ids = test_docs,
+      holdout_fraction = holdout, holdout_unit = "documento", coherence_unit = "documento",
+      units = n, documents = n_docs, terms = ncol(m), top_n = as.integer(top_n)),
     ran_at = format(Sys.time(), "%Y-%m-%d %H:%M:%S %Z"))
 }
 
@@ -370,7 +417,7 @@ lda_k_recommendation <- function(summ) {
 #' d <- read_biblio_csv(system.file("extdata", "practica.csv", package = "bibliolab"), ";")
 #' p <- prepare_documents(d, guess_columns(d))
 #' cp <- prepare_corpus(p)
-#' if (all(c("uwot", "dbscan", "irlba") %in% rownames(utils::installed.packages()))) {
+#' if (all(vapply(c("uwot", "dbscan", "irlba"), requireNamespace, logical(1), quietly = TRUE))) {
 #'   s <- density_sensitivity(cp, p, list(neighbors = 5L, min_pts = 3L), seeds = 1:2,
 #'                            neighbors = 5L, min_pts = 3L)
 #'   s$summary
@@ -380,7 +427,7 @@ lda_k_recommendation <- function(summ) {
 density_sensitivity <- function(corpus, prepared, params = list(), seeds = NULL, neighbors = NULL, min_pts = NULL,
                                 vectors = NULL, embedding_model = "", progress = NULL) {
   p <- utils::modifyList(density_defaults(), params)
-  if (is.null(seeds)) seeds <- p$seed + 1:4
+  if (is.null(seeds)) seeds <- derive_seed(p$seed, 1:4)
   seeds <- unique(as.integer(seeds)); seeds <- seeds[seeds != as.integer(p$seed)]
   base_nb <- as.integer(p$neighbors); base_mp <- as.integer(p$min_pts)
   if (is.null(neighbors)) neighbors <- unique(pmax(2L, c(round(base_nb / 2), base_nb, base_nb * 2L)))
@@ -393,19 +440,21 @@ density_sensitivity <- function(corpus, prepared, params = list(), seeds = NULL,
   ref_label <- ref$assignments$grupo
   one <- function(tipo, s, nb, mp) {
     q <- p; q$seed <- s; q$neighbors <- nb; q$min_pts <- mp
-    out <- tryCatch(run_density(corpus, prepared, q, vectors, embedding_model, display = FALSE), error = function(e) NULL)
+    cause <- NULL
+    out <- tryCatch(run_density(corpus, prepared, q, vectors, embedding_model, display = FALSE), error = function(e) { cause <<- conditionMessage(e); NULL })
     tick()
     if (is.null(out) || !identical(out$assignments$doc_id, ref$assignments$doc_id))
       return(list(row = data.frame(tipo = tipo, semilla = s, vecinos = nb, min_pts = mp, grupos = NA_integer_, sin_asignar_pct = NA_real_,
-        ari = NA_real_, ari_asignados = NA_real_, stringsAsFactors = FALSE), labels = NULL))
+        ari = NA_real_, ari_asignados = NA_real_, estado = "fallida",
+        causa = cause %||% "Los documentos de la repetici\u00f3n no coinciden con los de la referencia.", stringsAsFactors = FALSE), labels = NULL))
     lab <- out$assignments$grupo
     both <- lab > 0 & ref_label > 0
     list(row = data.frame(tipo = tipo, semilla = s, vecinos = nb, min_pts = mp, grupos = sum(unique(lab) > 0),
       sin_asignar_pct = 100 * mean(lab == 0), ari = adjusted_rand(ref_label, lab),
-      ari_asignados = if (sum(both) > 1L) adjusted_rand(ref_label[both], lab[both]) else NA_real_, stringsAsFactors = FALSE), labels = lab)
+      ari_asignados = if (sum(both) > 1L) adjusted_rand(ref_label[both], lab[both]) else NA_real_, estado = "ejecutada", causa = "", stringsAsFactors = FALSE), labels = lab)
   }
   rows <- list(data.frame(tipo = "Referencia", semilla = as.integer(p$seed), vecinos = base_nb, min_pts = base_mp,
-    grupos = sum(unique(ref_label) > 0), sin_asignar_pct = 100 * mean(ref_label == 0), ari = 1, ari_asignados = 1, stringsAsFactors = FALSE))
+    grupos = sum(unique(ref_label) > 0), sin_asignar_pct = 100 * mean(ref_label == 0), ari = 1, ari_asignados = 1, estado = "ejecutada", causa = "", stringsAsFactors = FALSE))
   seed_labels <- list()
   for (s in seeds) { r <- one("Semilla", s, base_nb, base_mp); rows[[length(rows) + 1L]] <- r$row; if (!is.null(r$labels)) seed_labels[[length(seed_labels) + 1L]] <- r$labels }
   for (nb in neighbors) for (mp in min_pts) {
@@ -435,26 +484,52 @@ density_sensitivity <- function(corpus, prepared, params = list(), seeds = NULL,
     indicador = c("Repeticiones con otra semilla", "ARI mediano entre semillas", "ARI minimo entre semillas",
       "Repeticiones con otros vecinos / minPts", "ARI mediano al variar parametros", "ARI minimo al variar parametros",
       "Grupos en la referencia", "Documentos sin asignar en la referencia (%)", "Rango de grupos entre repeticiones",
-      "Grupos con Jaccard medio >= 0,6"),
+      "Grupos con Jaccard medio >= 0,6", "Repeticiones fallidas"),
     valor = c(nrow(sd_runs), med(sd_runs$ari), mn(sd_runs$ari), nrow(pm_runs), med(pm_runs$ari), mn(pm_runs$ari),
       sum(unique(ref_label) > 0), 100 * mean(ref_label == 0),
       if (any(is.finite(runs$grupos))) diff(range(runs$grupos, na.rm = TRUE)) else NA_real_,
-      if (nrow(cluster_stability)) sum(cluster_stability$jaccard_medio >= 0.6) else NA_real_),
+      if (nrow(cluster_stability)) sum(cluster_stability$jaccard_medio >= 0.6) else NA_real_,
+      sum(runs$estado == "fallida")),
     stringsAsFactors = FALSE)
   reading <- paste0("Estabilidad entre semillas: ", band(med(sd_runs$ari)), ". Sensibilidad a parametros: ", band(med(pm_runs$ari)),
     ". Las bandas son una convencion orientativa (Steinley, 2004) y no un contraste. ",
-    "Si la estabilidad es baja, trata los grupos como una exploracion y apoyate solo en los que persisten (tabla de persistencia).")
+    "Si la estabilidad es baja, trata los grupos como una exploracion y apoyate solo en los que persisten (tabla de persistencia).",
+    if (any(runs$estado == "fallida")) sprintf(" Atencion: %d de %d repeticiones fallaron y no entran en los resumenes; consulta la causa en la tabla de repeticiones.", sum(runs$estado == "fallida"), nrow(runs)) else "")
   list(reference = ref, runs = runs, summary = summary, cluster_stability = cluster_stability, reading = reading,
     params = list(base = p, seeds = seeds, neighbors = neighbors, min_pts = min_pts),
     ran_at = format(Sys.time(), "%Y-%m-%d %H:%M:%S %Z"))
 }
 
 # ---- Incertidumbre de la divergencia de Jensen-Shannon ----------------------
+# JSD en bits entre las filas de dos matrices de frecuencias. No oculta entradas improcedentes:
+# valores no finitos, negativos o dimensiones distintas son un error. Una fila sin masa en P o en Q
+# no define una distribucion y devuelve NA (nunca 0, que significaria igualdad exacta).
 jsd_rows <- function(P, Q) {
-  P <- P / pmax(rowSums(P), .Machine$double.eps); Q <- Q / pmax(rowSums(Q), .Machine$double.eps)
+  P <- as.matrix(P); Q <- as.matrix(Q)
+  if (!is.numeric(P) || !is.numeric(Q) || !identical(dim(P), dim(Q)) || anyNA(P) || anyNA(Q) ||
+      any(!is.finite(P)) || any(!is.finite(Q)) || any(P < 0) || any(Q < 0))
+    abort_user("La JSD necesita matrices num\u00e9ricas finitas, no negativas y de igual dimensi\u00f3n.")
+  sp <- rowSums(P); sq <- rowSums(Q)
+  valid <- sp > 0 & sq > 0
+  P <- P / ifelse(valid, sp, 1); Q <- Q / ifelse(valid, sq, 1)
   M <- (P + Q) / 2
-  part <- function(X) { r <- X * log2(X / M); r[!is.finite(r)] <- 0; r }
-  0.5 * rowSums(part(P)) + 0.5 * rowSums(part(Q))
+  part <- function(X) { r <- matrix(0, nrow(X), ncol(X)); ix <- which(X > 0); r[ix] <- X[ix] * log2(X[ix] / M[ix]); r }
+  out <- 0.5 * rowSums(part(P)) + 0.5 * rowSums(part(Q))
+  out[!valid] <- NA_real_
+  pmin(1, pmax(0, out))
+}
+
+# Convierte una seleccion de documentos (logica o de indices) en indices validos y unicos.
+jsd_index <- function(x, n, label) {
+  if (is.logical(x)) {
+    if (length(x) != n || anyNA(x)) abort_user(sprintf("La selecci\u00f3n del grupo %s debe ser un vector l\u00f3gico sin ausentes y con un valor por documento (%d).", label, n))
+    return(which(x))
+  }
+  if (!is.numeric(x) || anyNA(x) || any(!is.finite(x)) || any(x != floor(x))) abort_user(sprintf("El grupo %s debe indicarse con \u00edndices enteros de documento o un vector l\u00f3gico.", label))
+  x <- as.integer(x)
+  if (any(x < 1L | x > n)) abort_user(sprintf("El grupo %s contiene \u00edndices fuera del rango de documentos (1 a %d).", label, n))
+  if (anyDuplicated(x)) abort_user(sprintf("El grupo %s repite documentos: cada documento debe aparecer una sola vez.", label))
+  x
 }
 
 #' Incertidumbre de la JSD entre dos grupos de documentos
@@ -471,8 +546,14 @@ jsd_rows <- function(P, Q) {
 #' @param seed Semilla.
 #' @param conf Nivel del intervalo (0.5-0.99).
 #'
+#' @details Los pesos deben ser finitos y no negativos; los indices de cada grupo
+#'   (o los vectores logicos, con un valor por documento) deben ser unicos y estar
+#'   dentro del rango. Si un grupo no reune masa lexica, la JSD no esta definida y
+#'   se produce un error. Las replicas sin masa en algun grupo se excluyen y se
+#'   informan en `valid_null` y `valid_boot`.
 #' @return Lista con `observed`, `null_mean`, `null_p95`, `excess` (observada menos
-#'   media nula), `p_value` (permutacion, con correccion +1), `ci` (bootstrap) y tamanos.
+#'   media nula), `p_value` (permutacion, con correccion +1), `ci` (bootstrap),
+#'   `valid_null`, `valid_boot` y tamanos.
 #' @references
 #' Lin, J. (1991). Divergence measures based on the Shannon entropy. IEEE Trans. Inf. Theory.
 #' Gallagher, R. et al. (2021). Generalized word shift graphs. EPJ Data Science.
@@ -485,12 +566,16 @@ jsd_uncertainty <- function(weighted, in_a, in_b, B = 500L, seed = 2026L, conf =
   check_number(B, "Las permutaciones", 50, 5000)
   check_number(conf, "El nivel de confianza", 0.5, 0.99, FALSE)
   W <- weighted
-  ia <- if (is.logical(in_a)) which(in_a) else as.integer(in_a)
-  ib <- if (is.logical(in_b)) which(in_b) else as.integer(in_b)
+  if (!(is.matrix(W) || inherits(W, "Matrix")) || !(is.numeric(W) || inherits(W, "dMatrix") || inherits(W, "iMatrix")) || !nrow(W) || !ncol(W))
+    abort_user("La incertidumbre JSD necesita una matriz num\u00e9rica documento x t\u00e9rmino no vac\u00eda.")
+  values <- if (inherits(W, "sparseMatrix")) as.numeric(methods::as(methods::as(W, "generalMatrix"), "CsparseMatrix")@x) else as.numeric(as.matrix(W))
+  if (anyNA(values) || any(!is.finite(values)) || any(values < 0)) abort_user("La matriz de pesos debe contener valores finitos y no negativos.")
+  ia <- jsd_index(in_a, nrow(W), "A"); ib <- jsd_index(in_b, nrow(W), "B")
   if (length(ia) < 2L || length(ib) < 2L) abort_user("Cada grupo necesita al menos dos documentos para estimar la incertidumbre.")
   if (length(intersect(ia, ib))) abort_user("Los grupos A y B deben ser disjuntos.")
   rowsum <- function(idx, w) as.numeric(Matrix::colSums(Matrix::Diagonal(x = w) %*% W[idx, , drop = FALSE]))
   obs_a <- as.numeric(Matrix::colSums(W[ia, , drop = FALSE])); obs_b <- as.numeric(Matrix::colSums(W[ib, , drop = FALSE]))
+  if (sum(obs_a) <= 0 || sum(obs_b) <= 0) abort_user("Un grupo no tiene masa l\u00e9xica (ning\u00fan t\u00e9rmino retenido en sus documentos): la JSD no est\u00e1 definida.")
   observed <- jsd_rows(rbind(obs_a), rbind(obs_b))[[1]]
   pool <- c(ia, ib); na <- length(ia); n <- length(pool)
   Wp <- W[pool, , drop = FALSE]
@@ -512,11 +597,14 @@ jsd_uncertainty <- function(weighted, in_a, in_b, B = 500L, seed = 2026L, conf =
     list(null = null, boot = boot)
   })
   alpha <- (1 - conf) / 2
-  list(observed = observed, null_mean = mean(res$null), null_p95 = as.numeric(stats::quantile(res$null, 0.95)),
-    excess = observed - mean(res$null),
-    p_value = (1 + sum(res$null >= observed - 1e-12)) / (B + 1),
-    ci = as.numeric(stats::quantile(res$boot, c(alpha, 1 - alpha))), conf = conf,
-    B = as.integer(B), n_a = length(ia), n_b = length(ib), seed = seed,
+  # Las replicas cuyo grupo no reune masa l\u00e9xica no definen una JSD y se excluyen (se informan).
+  null <- res$null[is.finite(res$null)]; boot <- res$boot[is.finite(res$boot)]
+  if (length(null) < B / 2 || length(boot) < B / 2) abort_user("La mayor\u00eda de las r\u00e9plicas dejan un grupo sin vocabulario retenido: la incertidumbre no es estimable con estos documentos.")
+  list(observed = observed, null_mean = mean(null), null_p95 = as.numeric(stats::quantile(null, 0.95)),
+    excess = observed - mean(null),
+    p_value = (1 + sum(null >= observed - 1e-12)) / (length(null) + 1),
+    ci = as.numeric(stats::quantile(boot, c(alpha, 1 - alpha))), conf = conf,
+    B = as.integer(B), valid_null = length(null), valid_boot = length(boot), n_a = length(ia), n_b = length(ib), seed = seed,
     note = paste("Permutacion de documentos entre A y B (intercambiabilidad) y remuestreo de documentos.",
       "El intervalo bootstrap hereda el sesgo al alza del estimador; usa el exceso sobre la nula como referencia.",
       "Documentos de una misma revista o autor pueden no ser intercambiables: interpreta como descripcion, no como prueba causal."))
@@ -580,6 +668,11 @@ GENERIC_ACADEMIC_TERMS <- c("study", "studies", "paper", "article", "results", "
 #'   marca como candidato generico.
 #' @param min_terms Documentos con menos de este numero de terminos retenidos se cuentan como pobres.
 #'
+#' @details Cada fila de `sensitivity` repite la seleccion efectiva del corpus
+#'   con otra presencia minima y los mismos criterios restantes (frecuencia,
+#'   TF-IDF, entropia, presencia maxima, orden y maximo de terminos), por lo que
+#'   la fila `actual` coincide con el vocabulario retenido. `terminos_solo_presencia`
+#'   cuenta los terminos que cumplen unicamente la presencia minima.
 #' @return Lista con `sensitivity`, `generic`, `coverage`, `suggestion` y `boilerplate`.
 #' @examples
 #' d <- read_biblio_csv(system.file("extdata", "practica.csv", package = "bibliolab"), ";")
@@ -593,11 +686,16 @@ vocabulary_diagnostics <- function(corpus, prepared, generic_pct = 25, min_terms
   total_tokens <- sum(terms$frecuencia)
   grid <- sort(unique(c(1L, 2L, 3L, 5L, 10L, 20L, prepared$config$min_df)))
   grid <- grid[grid <= max(terms$documentos)]
+  cfg <- prepared$config
   sens <- do.call(rbind, lapply(grid, function(md) {
-    keep <- terms$documentos >= md
-    data.frame(presencia_minima = md, terminos = sum(keep), terminos_pct = 100 * mean(keep),
-      tokens_conservados_pct = 100 * sum(terms$frecuencia[keep]) / total_tokens,
-      actual = md == prepared$config$min_df, stringsAsFactors = FALSE)
+    # Cada fila repite la seleccion real del corpus con otra presencia minima y los mismos
+    # criterios restantes (frecuencia, TF-IDF, entropia, presencia maxima, orden y maximo de terminos).
+    alt <- cfg; alt$min_df <- md
+    kept <- terms$termino %in% vocabulary_selection(terms, alt, n_docs)$vocabulary
+    only_presence <- terms$documentos >= md
+    data.frame(presencia_minima = md, terminos = sum(kept), terminos_pct = 100 * mean(kept),
+      tokens_conservados_pct = 100 * sum(terms$frecuencia[kept]) / total_tokens,
+      terminos_solo_presencia = sum(only_presence), actual = md == cfg$min_df, stringsAsFactors = FALSE)
   }))
   hapax_pct <- 100 * mean(terms$documentos == 1)
   gen <- terms[terms$porcentaje_documentos >= generic_pct, c("termino", "documentos", "porcentaje_documentos", "frecuencia", "tfidf_medio", "incluido"), drop = FALSE]
@@ -631,11 +729,18 @@ strip_boilerplate <- function(x) {
 
 # ---- Estabilidad de comunidades --------------------------------------------
 community_stability <- function(graph, weights, method = "louvain", resolution = 1, B = 20L, seed = 2026L) {
-  if (igraph::ecount(graph) == 0L || method != "louvain") return(list(ari = NA_real_, modularity_range = c(NA_real_, NA_real_), B = 0L))
-  runs <- lapply(seq_len(B), function(b) with_seed(seed + b, igraph::cluster_louvain(graph, weights = weights, resolution = resolution)))
-  mem <- lapply(runs, igraph::membership)
-  mod <- vapply(runs, igraph::modularity, 0)
-  pairs <- utils::combn(B, 2L)
-  ari <- mean(vapply(seq_len(ncol(pairs)), function(i) adjusted_rand(mem[[pairs[1, i]]], mem[[pairs[2, i]]]), 0))
-  list(ari = ari, modularity_range = range(mod), B = B)
+  none <- function(status, reason) list(status = status, reason = reason, ari = NA_real_, modularity_range = c(NA_real_, NA_real_), B = 0L, seeds = integer())
+  if (igraph::ecount(graph) == 0L) return(none("no_aplicable", "La red no tiene conexiones: no hay comunidades que repetir."))
+  if (method != "louvain") return(none("no_aplicable", sprintf("La estabilidad entre semillas solo se eval\u00faa con Louvain; el m\u00e9todo %s no se repite.", method)))
+  if (B < 2L) return(none("no_aplicable", "Se necesitan al menos dos repeticiones."))
+  seeds <- derive_seed(seed, seq_len(B))
+  out <- tryCatch({
+    runs <- lapply(seeds, function(s) with_seed(s, igraph::cluster_louvain(graph, weights = weights, resolution = resolution)))
+    mem <- lapply(runs, igraph::membership)
+    mod <- vapply(runs, igraph::modularity, 0)
+    pairs <- utils::combn(B, 2L)
+    ari <- mean(vapply(seq_len(ncol(pairs)), function(i) adjusted_rand(mem[[pairs[1, i]]], mem[[pairs[2, i]]]), 0))
+    list(status = "ejecutada", reason = "", ari = ari, modularity_range = range(mod), B = as.integer(B), seeds = seeds)
+  }, error = function(e) none("fallida", conditionMessage(e)))
+  out
 }

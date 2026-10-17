@@ -1,8 +1,8 @@
 Package: bibliolab
 Type: Package
 Title: Guided Bibliometric Analysis and Text Mining
-Version: 5.0.1
-Date: 2026-10-16
+Version: 5.0.2
+Date: 2026-10-17
 Authors@R: 
     person("Manuel J.", "Sánchez-Franco", , "majesus@us.es", role = c("aut", "cre", "cph"),
            comment = c(ORCID = "0000-0002-8042-3550"))
@@ -49,7 +49,6 @@ Suggests:
     igraph,
     irlba,
     knitr,
-    mclust,
     mgcv,
     pkgload,
     readxl,
@@ -59,9 +58,10 @@ Suggests:
     topicmodels,
     udpipe,
     uwot,
-    withr
-Config/bibliolab/App-Suggests: cld2, dbscan, ggrepel, igraph, irlba, mclust,
-    mgcv, readxl, slam, topicmodels, udpipe, uwot
+    withr,
+    writexl
+Config/bibliolab/App-Suggests: cld2, dbscan, ggrepel, igraph, irlba, mgcv,
+    readxl, slam, topicmodels, udpipe, uwot
 Config/testthat/edition: 3
 Roxygen: list(markdown = TRUE)
 VignetteBuilder: knitr

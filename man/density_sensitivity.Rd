@@ -44,7 +44,7 @@ repeticiones. Un solo mapa no demuestra que los grupos sean reproducibles.
 d <- read_biblio_csv(system.file("extdata", "practica.csv", package = "bibliolab"), ";")
 p <- prepare_documents(d, guess_columns(d))
 cp <- prepare_corpus(p)
-if (all(c("uwot", "dbscan", "irlba") \%in\% rownames(utils::installed.packages()))) {
+if (all(vapply(c("uwot", "dbscan", "irlba"), requireNamespace, logical(1), quietly = TRUE))) {
   s <- density_sensitivity(cp, p, list(neighbors = 5L, min_pts = 3L), seeds = 1:2,
                            neighbors = 5L, min_pts = 3L)
   s$summary

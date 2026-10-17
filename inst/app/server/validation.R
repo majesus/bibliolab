@@ -5,7 +5,8 @@
 kselect_settings <- reactive(list(k_min = as.integer(input$kselect_min %||% 2L), k_max = as.integer(input$kselect_max %||% 8L),
   seeds = as.integer(input$kselect_seeds %||% 3L), iterations = as.numeric(input$iterations %||% 500),
   alpha_mode = input$lda_alpha_mode %||% "sparse", base_seed = as.integer(input$lda_seed %||% 2026L),
-  units = if (!is.null(rv$corpus$counts)) nrow(rv$corpus$counts) else 0L, terms = if (!is.null(rv$corpus$counts)) ncol(rv$corpus$counts) else 0L))
+  units = if (!is.null(rv$corpus$counts)) nrow(rv$corpus$counts) else 0L, terms = if (!is.null(rv$corpus$counts)) ncol(rv$corpus$counts) else 0L,
+  corpus = if (!is.null(rv$corpus)) corpus_fingerprint(rv$corpus) else ""))
 kselect_current <- reactive({ current(); if (is.null(rv$kselect) || !identical(rv$kselect_signature, kselect_settings())) return(NULL); rv$kselect })
 observeEvent(input$run_kselect, task("Comparando soluciones LDA con varias semillas…", {
   if (is.null(rv$prepared) || stale()) abort_user("Prepara un corpus vigente antes de comparar soluciones.")
@@ -24,8 +25,8 @@ output$kselect_state <- renderUI({
   if (is.null(f)) return(empty_help(if (is.null(rv$kselect)) "Elige el rango de k y pulsa Comparar soluciones. Con corpus grandes puede tardar un par de minutos." else "Cambió el corpus, el rango o los parámetros: vuelve a comparar."))
   r <- f$recommendation
   tagList(tags$p(class = "chart-caption", r$text),
-    tags$p(class = "hint", sprintf("%d soluciones ajustadas (%d valores de k × %d semillas); %d unidades y %d términos; %d unidades reservadas para la perplejidad.",
-      nrow(f$runs), length(f$params$k_range), length(f$params$seeds), f$params$units, f$params$terms, f$params$holdout_units)),
+    tags$p(class = "hint", sprintf("%d soluciones ajustadas (%d valores de k × %d semillas); %d unidades de %d documentos y %d términos; %d documentos (%d unidades) reservados para la perplejidad.",
+      nrow(f$runs), length(f$params$k_range), length(f$params$seeds), f$params$units, f$params$documents %||% f$params$units, f$params$terms, f$params$holdout_documents %||% f$params$holdout_units, f$params$holdout_units)),
     DT::DTOutput("kselect_best"))
 })
 output$kselect_best <- table_render(function() { f <- kselect_current(); validate(need(!is.null(f), "Compara soluciones para ver los mejores valores."))
@@ -118,7 +119,7 @@ output$dsens_summary <- table_render(function() { f <- dsens_current(); validate
 output$dsens_clusters <- table_render(function() { f <- dsens_current(); validate(need(!is.null(f), "Evalúa la estabilidad para ver los grupos."))
   d <- f$cluster_stability; names(d) <- c("Grupo", "Documentos", "Jaccard medio", "Jaccard mínimo"); d })
 output$dsens_runs <- table_render(function() { f <- dsens_current(); validate(need(!is.null(f), "Evalúa la estabilidad para ver las repeticiones."))
-  d <- f$runs; names(d) <- c("Tipo", "Semilla", "Vecinos", "minPts", "Grupos", "Sin asignar (%)", "ARI con la referencia", "ARI solo asignados"); d })
+  d <- f$runs; names(d) <- c("Tipo", "Semilla", "Vecinos", "minPts", "Grupos", "Sin asignar (%)", "ARI con la referencia", "ARI solo asignados", "Estado", "Causa"); d })
 observeEvent(input$help_stability, showModal(modalDialog(title = "Estabilidad de la agrupación / cómo interpretarla", size = "l", easyClose = TRUE,
   tags$div(class = "lesson",
     tags$p(class = "modal-lead", "UMAP incluye azar y HDBSCAN depende de minPts: dos ejecuciones razonables pueden dar agrupaciones distintas. Medirlo evita presentar como hallazgo lo que es una de varias soluciones posibles."),
@@ -138,7 +139,7 @@ observeEvent(input$vocab_diagnostics, {
   showModal(modalDialog(title = "Diagnóstico de vocabulario", size = "l", easyClose = TRUE,
     tags$p(class = "modal-lead", "Antes de modelar, comprueba qué vocabulario se está reteniendo. Esta pantalla no cambia nada: te ayuda a decidir umbrales y palabras vacías propias del corpus."),
     tags$h3("Cómo cambia el vocabulario al exigir más documentos"),
-    hint("Subir la presencia mínima elimina términos raros (a menudo erratas o nombres propios) pero también vocabulario específico; mira cuántos tokens se conservan."),
+    hint("Cada fila repite la selección real del corpus con esa presencia mínima y el resto de tus criterios (frecuencia, TF-IDF, entropía, presencia máxima y máximo de términos): la fila marcada coincide con el vocabulario retenido. Subir la presencia mínima elimina términos raros (a menudo erratas o nombres propios) pero también vocabulario específico; mira cuántos tokens se conservan."),
     DT::DTOutput("vocab_sensitivity"),
     tags$h3("Términos presentes en muchos documentos"),
     hint("Los términos muy extendidos describen el campo pero separan poco unos documentos de otros. Los marcados como genéricos académicos son candidatos a palabras vacías propias del corpus; la decisión es tuya."),
@@ -147,7 +148,7 @@ observeEvent(input$vocab_diagnostics, {
     tags$h3("Cobertura de vocabulario por documento"), DT::DTOutput("vocab_coverage"),
     footer = modalButton("Cerrar")))
 })
-output$vocab_sensitivity <- table_render(function() { d <- vocab_diag()$sensitivity; names(d) <- c("Presencia mínima (documentos)", "Términos", "Términos (%)", "Tokens conservados (%)", "Valor actual"); d })
+output$vocab_sensitivity <- table_render(function() { d <- vocab_diag()$sensitivity; names(d) <- c("Presencia mínima (documentos)", "Términos retenidos", "Términos retenidos (%)", "Tokens conservados (%)", "Términos que solo cumplen la presencia", "Valor actual"); d })
 output$vocab_generic <- table_render(function() { d <- vocab_diag()$generic; names(d) <- c("Término", "Documentos", "Documentos (%)", "Apariciones", "TF-IDF medio", "Retenido", "Genérico académico"); d })
 output$vocab_coverage <- table_render(function() { v <- vocab_diag(); d <- rbind(v$coverage, v$boilerplate); names(d) <- c("Indicador", "Valor"); d })
 output$vocab_apply <- renderUI({ s <- vocab_diag()$suggestion

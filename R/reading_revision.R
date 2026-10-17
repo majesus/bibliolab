@@ -74,10 +74,12 @@ wiki_strongest_links <- function(i,j,w,k) {
   sort(unique(long$e[stats::ave(long$e,long$node,FUN=seq_along)<=k]))
 }
 # Una red documental global distinta del entorno local. Se computan todos los pares por bloques.
-# Filtros, en este orden y todos explicitos: minimo compartido; asociacion mayor que el azar (test
-# hipergeometrico unilateral con control de la tasa de falsos descubrimientos de Benjamini-Hochberg
-# sobre los n(n-1)/2 pares posibles, si se pide `alpha`); Jaccard minimo; y las `top_k` relaciones mas
-# fuertes de cada nodo (si se pide). Los limites fallan explicitamente, sin aceptar un resultado parcial.
+# Filtros, en este orden y todos explicitos: (1) si se pide `alpha`, asociacion mayor que el azar (test
+# hipergeometrico unilateral) con control de la tasa de falsos descubrimientos de Benjamini-Hochberg sobre
+# la familia completa de n(n-1)/2 pares: todos los pares con alguna coaparicion se contrastan y el resto
+# tiene p = 1; (2) minimo compartido y (3) Jaccard minimo, como filtros descriptivos que no alteran la
+# familia ni las p ajustadas; (4) las `top_k` relaciones mas fuertes de cada nodo (si se pide). Los
+# limites fallan explicitamente, sin aceptar un resultado parcial.
 wiki_document_network <- function(index,min_shared=2L,min_similarity=.1,resolution=1,seed=2026L,shared_label="conceptos compartidos",alpha=NULL,top_k=NULL) {
   check_number(min_shared,"Conceptos compartidos",1,10000);check_number(min_similarity,"Similitud Jaccard m\u00ednima",0,1,integer=FALSE);check_number(resolution,"Resoluci\u00f3n Louvain",.1,5,integer=FALSE)
   if(!is.null(alpha))check_number(alpha,"El nivel de significaci\u00f3n (FDR)",.0001,.5,integer=FALSE)
@@ -87,7 +89,7 @@ wiki_document_network <- function(index,min_shared=2L,min_similarity=.1,resoluti
   blocks<-list()
   for(start in seq.int(1L,n,by=100L)) {
     rows<-seq.int(start,min(n,start+99L));s<-Matrix::summary(methods::as(Matrix::tcrossprod(b[rows,,drop=FALSE],b),"dgCMatrix"))
-    i<-rows[s$i];j<-s$j;keep<-i<j&s$x>=min_shared
+    i<-rows[s$i];j<-s$j;keep<-i<j&s$x>=1
     blocks[[length(blocks)+1L]]<-list(i=i[keep],j=j[keep],shared=s$x[keep])
   }
   I<-as.integer(unlist(lapply(blocks,`[[`,"i")));J<-as.integer(unlist(lapply(blocks,`[[`,"j")));SH<-as.numeric(unlist(lapply(blocks,`[[`,"shared")))
@@ -95,10 +97,12 @@ wiki_document_network <- function(index,min_shared=2L,min_similarity=.1,resoluti
   # P(X >= k) con marginales fijos; los pares sin coaparicion tienen p = 1 y no alteran los rangos de BH.
   if(length(I))padj<-stats::p.adjust(stats::phyper(SH-1,degree[I],trials-degree[I],degree[J],lower.tail=FALSE),"BH",n=pairs_total)
   significant<-if(is.null(alpha))rep(TRUE,length(I)) else padj<=alpha
-  cand<-which(significant&SIM>=min_similarity);after_filters<-length(cand)
+  # El minimo compartido, igual que Jaccard, es un filtro descriptivo posterior: la familia de BH incluye todas las coapariciones positivas.
+  reported<-SH>=min_shared
+  cand<-which(significant&reported&SIM>=min_similarity);after_filters<-length(cand)
   if(!is.null(top_k)&&length(cand))cand<-cand[wiki_strongest_links(I[cand],J[cand],SIM[cand],top_k)]
   if(length(cand)>limit)abort_user(wiki_network_limit_message(SH[cand],SIM[cand],min_shared,min_similarity,limit,shared_label))
-  stats_n<-list(units=n,pairs=pairs_total,candidates=length(I),significant=sum(significant),after_filters=after_filters,kept=length(cand))
+  stats_n<-list(units=n,pairs=pairs_total,tested=length(I),candidates=sum(reported),significant=sum(significant&reported),after_filters=after_filters,kept=length(cand))
   parts<-if(length(cand))list(data.frame(from=index$documents$key[I[cand]],to=index$documents$key[J[cand]],weight=SIM[cand],shared=SH[cand],type="Conceptos compartidos",p_adj=padj[cand],lift=SH[cand]*trials/(degree[I[cand]]*degree[J[cand]]),stringsAsFactors=FALSE)) else list()
   edges<-if(length(parts))do.call(rbind,parts) else data.frame(from=character(),to=character(),weight=numeric(),shared=numeric(),type=character(),p_adj=numeric(),lift=numeric())
   docs<-index$documents;nodes<-data.frame(id=docs$key,label=ifelse(nzchar(docs$title),docs$title,docs$doc_id),type="Documento",central=FALSE,description=paste(docs$doc_id,docs$title,docs$doi,sep=" \u00b7 "),stringsAsFactors=FALSE)

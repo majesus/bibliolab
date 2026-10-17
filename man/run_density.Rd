@@ -27,7 +27,9 @@ run_density(
 }
 \value{
 Lista con \code{assignments}, \code{summary}, \code{terms}, \code{examples}, \code{quality},
-\code{similarity}, \code{temporal}, \code{params}, \code{representation} e \code{issues}.
+\code{similarity}, \code{temporal}, \code{params}, \code{representation}, \code{issues} e
+\code{input_vectors} (los vectores importados si \code{representation = "vectors"},
+necesarios para reproducir la ejecucion; \code{NULL} en caso contrario).
 }
 \description{
 Representa los documentos (TF-IDF o BM25 + LSA, o vectores importados),
@@ -39,7 +41,7 @@ evalua su estabilidad con \code{\link[=density_sensitivity]{density_sensitivity(
 \donttest{
 d <- read_biblio_csv(system.file("extdata", "practica.csv", package = "bibliolab"), ";")
 p <- prepare_documents(d, guess_columns(d)); cp <- prepare_corpus(p)
-if (all(c("uwot", "dbscan", "irlba") \%in\% rownames(utils::installed.packages()))) {
+if (all(vapply(c("uwot", "dbscan", "irlba"), requireNamespace, logical(1), quietly = TRUE))) {
   fit <- run_density(cp, p, list(neighbors = 5L, min_pts = 3L))
   table(fit$assignments$grupo)
 }

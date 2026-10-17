@@ -19,7 +19,8 @@ jsd_uncertainty(weighted, in_a, in_b, B = 500L, seed = 2026L, conf = 0.95)
 }
 \value{
 Lista con \code{observed}, \code{null_mean}, \code{null_p95}, \code{excess} (observada menos
-media nula), \code{p_value} (permutacion, con correccion +1), \code{ci} (bootstrap) y tamanos.
+media nula), \code{p_value} (permutacion, con correccion +1), \code{ci} (bootstrap),
+\code{valid_null}, \code{valid_boot} y tamanos.
 }
 \description{
 La JSD calculada con conteos finitos es un estimador sesgado al alza: dos
@@ -27,6 +28,13 @@ muestras del mismo corpus ya presentan una JSD positiva que crece cuando hay
 pocos documentos o tokens. Esta funcion compara la JSD observada con una
 distribucion nula por permutacion de las etiquetas de grupo entre documentos,
 y estima un intervalo por remuestreo de documentos (bootstrap percentil).
+}
+\details{
+Los pesos deben ser finitos y no negativos; los indices de cada grupo
+(o los vectores logicos, con un valor por documento) deben ser unicos y estar
+dentro del rango. Si un grupo no reune masa lexica, la JSD no esta definida y
+se produce un error. Las replicas sin masa en algun grupo se excluyen y se
+informan en \code{valid_null} y \code{valid_boot}.
 }
 \examples{
 set.seed(1)

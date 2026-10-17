@@ -7,12 +7,76 @@
 default_config()
 }
 \value{
-Lista con los parametros de limpieza, filtrado y vocabulario usados
-por \code{\link[=prepare_documents]{prepare_documents()}} y \code{\link[=prepare_corpus]{prepare_corpus()}}.
+Lista con los parametros de limpieza, filtrado y vocabulario.
 }
 \description{
-Configuracion por defecto de la preparacion
+Devuelve la lista completa de opciones que consumen \code{\link[=prepare_documents]{prepare_documents()}} y
+\code{\link[=prepare_corpus]{prepare_corpus()}}. Se modifica con \code{utils::modifyList(default_config(), list(...))}
+y se pasa como argumento \code{config} de \code{\link[=prepare_documents]{prepare_documents()}}; la configuracion
+efectiva queda en \code{prepared$config} y se registra en la entrega.
 }
+\section{Documentos (prepare_documents)}{
+
+\itemize{
+\item \code{deduplicate} (logico, \code{TRUE}): elimina duplicados con evidencia compatible
+(DOI identico, o titulo/texto normalizado sin DOI, ano o autores contradictorios).
+Los casos dudosos se conservan y se listan en \code{prepared$ambiguous}.
+\item \code{year_min}, \code{year_max} (entero entre 1500 y 2200, o \code{NULL}): filtran por ano
+de publicacion; exigen una columna de ano asignada y excluyen los registros
+sin ano cuando se fija alguno de los dos limites.
+\item \code{filter_col}, \code{filter_value} (texto): conserva solo las filas cuya columna
+\code{filter_col} es igual a \code{filter_value}. \code{""} desactiva el filtro.
+\item \code{sample_pct} (numerico, 1 a 100): porcentaje de documentos de una muestra
+aleatoria reproducible con \code{seed}; 100 conserva todos.
+\item \code{seed} (entero): semilla del muestreo.
+\item \code{metadata_sep} (\code{";"} o \code{"|"}): separador de autores y palabras clave cuando
+no se fija una regla propia.
+\item \code{authors_sep}, \code{keywords_sep} (\code{NULL}, \code{"auto"}, \code{";"}, \code{"|"}, \code{","} o \code{"none"}):
+regla de separacion de cada campo. \code{NULL} usa \code{metadata_sep}; \code{"auto"} la
+detecta; la coma no se admite para autores, porque puede pertenecer al nombre.
+\item \code{reference_year} (entero): ano de referencia para validar anos y calcular
+edades de citacion; por defecto, el ano actual.
+\item \code{normalize_labels} (logico, \code{TRUE}): unifica variantes de mayusculas, acentos
+y puntuacion de autores, palabras clave y revistas (no desambigua personas).
+}
+}
+
+\section{Texto y vocabulario (prepare_corpus)}{
+
+\itemize{
+\item \code{language} (\code{"es"}, \code{"en"}, \code{"fr"}, \code{"de"}, \code{"it"}, \code{"pt"}, \code{"both"}, \code{"none"}
+o \code{"by_document"}): idioma de las palabras vacias. \code{"both"} aplica espanol e
+ingles; \code{"by_document"} usa la columna de idioma de cada documento y aborta si
+alguno con texto no tiene un idioma reconocido.
+\item \code{remove_stop} (logico): elimina palabras vacias; \code{custom_stop} (texto separado
+por comas) anade las propias.
+\item \code{min_chars}, \code{max_chars} (entero, 1 a 12 y hasta 100): longitud minima y
+maxima de los terminos.
+\item \code{remove_numbers}, \code{remove_links}, \code{remove_codes} (logico): eliminan numeros,
+enlaces y correos, y terminos que mezclan letras y digitos.
+\item \code{remove_boilerplate} (logico, \code{TRUE}): retira avisos editoriales
+(derechos de autor, licencias) antes del analisis.
+\item \code{split_sentences} (logico): una unidad textual por frase en lugar de por documento.
+\item \code{lemmatize}, \code{pos_filter} (logico): lematizacion y filtro por categoria
+gramatical con modelos UDPipe locales; \code{pos_keep} (\code{"NOUN"}, \code{"PROPN"},
+\code{"ADJ"}, \code{"VERB"}, \code{"ADV"}) fija las categorias conservadas y \code{lemma_language}
+(\code{"es"}, \code{"en"}, \code{"fr"}, \code{"de"}, \code{"it"}, \code{"pt"} o \code{"column"}) el modelo.
+\item \code{min_df} (entero, 1 a 10000): numero minimo de documentos con el termino;
+\code{min_tf} (frecuencia total minima, al menos 1); \code{max_df_pct} (1 a 100, porcentaje maximo
+de documentos); \code{min_tfidf} (TF-IDF medio minimo); \code{max_entropy} (0 a 1,
+entropia maxima entre documentos).
+\item \code{max_terms} (entero, 20 a 2500): tamano maximo del vocabulario de los modelos.
+\item \code{term_order} (\code{"frequency"}, \code{"tfidf"} o \code{"bm25"}): criterio que ordena los
+terminos elegibles antes de aplicar \code{max_terms}.
+\item \code{tfidf_stat} (\code{"mean"}, \code{"median"}, \code{"q25"}, \code{"q75"}, \code{"q90"} o
+\code{"percentile"}), \code{tfidf_scope} (\code{"all"} o \code{"present"}) y \code{tfidf_percentile}
+(0 a 100): resumen de TF-IDF usado cuando \code{term_order = "tfidf"}.
+}
+}
+
 \examples{
-names(default_config())
+cfg <- default_config()
+names(cfg)
+cfg <- utils::modifyList(cfg, list(min_df = 3L, split_sentences = TRUE))
+cfg$min_df
 }
