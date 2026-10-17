@@ -28,7 +28,11 @@ run_lda(
 
 \item{delta}{Prior de Dirichlet de las palabras por tema.}
 
-\item{burnin, thin}{Iteraciones descartadas y espaciado de las muestras.}
+\item{burnin, thin}{Iteraciones descartadas y espaciado de las muestras. \code{thin} no puede
+superar \code{iterations}; el numero de estados guardados es aproximadamente
+\code{iterations / thin} (el espaciado se aumenta si fuese necesario para no guardar mas
+de 100 estados ni superar unos 20 millones de asignaciones) y se registra en
+\code{params$thin} y \code{params$saved_states}.}
 }
 \value{
 Lista con \code{top}, \code{gamma}, \code{document_topics}, \code{prevalence}, \code{examples},

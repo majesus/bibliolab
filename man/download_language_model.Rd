@@ -24,3 +24,13 @@ modelo ya presente se reutiliza unicamente si tambien se puede cargar: si esta
 danado (por ejemplo, una descarga interrumpida), se sustituye por una descarga
 nueva en lugar de devolverse como valido.
 }
+\section{Licencia de los modelos}{
+
+El codigo de bibliolab se distribuye con licencia MIT, pero los modelos UDPipe son
+materiales externos que no se incluyen en el paquete: se descargan de
+\url{https://github.com/jwijffels/udpipe.models.ud.2.5} y se rigen por su licencia,
+\strong{CC BY-NC-SA 4.0} (atribucion, uso no comercial y compartir igual). Antes de cada
+descarga se muestra este aviso, y los modelos utilizados se registran (archivo, MD5,
+procedencia y licencia) en los parametros, el informe y el guion de reproduccion.
+}
+

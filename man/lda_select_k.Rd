@@ -25,7 +25,9 @@ lda_select_k(
 
 \item{iterations}{Iteraciones de Gibbs por ajuste (100-2000).}
 
-\item{alpha}{Prior de mezcla por documento: \code{NULL} usa \code{1/k} en cada ajuste; un numero constante; o una funcion de \code{k}.}
+\item{alpha}{Prior de mezcla por documento: \code{NULL} usa \code{1/k} en cada ajuste; un numero constante; o una funcion de \code{k}.
+Los valores efectivos para cada \code{k} se guardan en \code{params$alpha_por_k} (y la regla en \code{params$alpha_regla}), de modo que la
+entrega los reproduce aunque la funcion dependa de variables de su entorno.}
 
 \item{delta}{Prior de palabras por tema.}
 

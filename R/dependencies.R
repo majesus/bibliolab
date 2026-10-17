@@ -5,7 +5,7 @@ dependency_catalog <- function() {
   data.frame(
     paquete = c("topicmodels", "slam", "udpipe", "cld2", "uwot", "dbscan", "irlba", "mgcv", "igraph", "readxl", "ggrepel"),
     habilita = c("LDA y seleccion de k", "LDA y seleccion de k", "Lematizacion y categorias gramaticales",
-      "Estimacion automatica del idioma por documento", "UMAP", "HDBSCAN", "LSA para UMAP/HDBSCAN",
+      "Estimacion automatica del idioma por documento", "UMAP", "HDBSCAN (el paquete dbscan exige R 4.3.0 o posterior)", "LSA para UMAP/HDBSCAN",
       "Spline temporal de grupos", "Redes, comunidades y subgrafos", "Importacion de libros Excel (.xls y .xlsx)",
       "Etiquetas sin solapamiento en graficos"),
     funciones = c("run_lda(), lda_select_k()", "run_lda(), lda_select_k()",

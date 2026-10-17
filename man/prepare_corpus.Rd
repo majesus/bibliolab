@@ -13,7 +13,11 @@ prepare_corpus(prepared, progress = NULL)
 }
 \value{
 Lista con \code{units}, \code{counts}, \code{terms}, \code{ngrams}, \code{bigrams}, \code{issues},
-\code{vocabulary}, \code{models} y \code{processing}.
+\code{vocabulary}, \code{models} y \code{processing}, mas los denominadores de cada tamano:
+\code{total_tokens} (palabras tras la limpieza, antes del filtro de vocabulario),
+\code{tokens_in_model} (palabras dentro del vocabulario de los modelos),
+\code{n_active} (unidades con palabras tras la limpieza) y \code{units_in_model}
+(unidades de la matriz \code{counts}, tras retirar las que se quedan sin vocabulario).
 }
 \description{
 Tokeniza el texto (puntuacion como frontera), aplica palabras vacias, lemas

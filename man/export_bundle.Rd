@@ -71,6 +71,17 @@ guion: \code{raw} (siempre), \code{density$input_vectors} si \code{run_density()
 declara parcial en \code{parametros.json} (\code{entrega}), en \code{LEEME.txt} y con un aviso, y no
 se escribe \code{reproducir_analisis.R} ni \code{reproducir_cuaderno.R}.
 
+Antes de escribir nada se comprueba la coherencia entre los objetos: \code{raw} debe
+reproducir los documentos de \code{prepared} (mismo contenido, no solo las mismas
+dimensiones) y los modelos, la comparacion y la densidad deben proceder de las
+unidades y los documentos de \code{corpus} y \code{prepared}; si no, la funcion se detiene con
+un mensaje y no crea la carpeta. \code{parametros.json} guarda en \code{entrega$huellas} las
+huellas de contenido de la entrada, de los documentos preparados y de la matriz
+documento-termino, que \code{reproducir_analisis.R} verifica. Cuando falta el objeto que
+origino los grupos de una comparacion (\code{lda} o \code{density}), los grupos se toman de
+\code{grupos_jsd.rds} y la verificacion de origen se declara omitida en
+\code{entrega$comprobaciones_omitidas}.
+
 \code{lda_selection} y \code{density_sens} se registran en \code{parametros.json} y en
 \code{evidencia_ia.json} aunque no haya modelo final, junto con las repeticiones y el
 reparto reservado (\code{lda_seleccion_k_ejecuciones.csv},

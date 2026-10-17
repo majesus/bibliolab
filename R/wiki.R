@@ -7,7 +7,7 @@ wiki_require_matrix <- function() {
 wiki_escape_regex <- function(x) {
   vapply(strsplit(x,"",fixed=TRUE),function(chars) paste0(ifelse(chars %in% c("\\",".","^","$","|","?","*","+","(",")","[","]","{","}"),paste0("\\",chars),chars),collapse=""),"")
 }
-wiki_key <- function(x) tolower(gsub("[\\h]+"," ",trimws(enc2utf8(x)),perl=TRUE))
+wiki_key <- function(x) tolower(gsub("[\\h]+"," ",trimws(normalize_unicode(x)),perl=TRUE))
 wiki_pattern <- function(forms) {
   forms<-forms[order(-nchar(forms),forms)]
   escaped<-wiki_escape_regex(forms)
@@ -16,7 +16,7 @@ wiki_pattern <- function(forms) {
 }
 wiki_token_pattern <- function(token) paste0("(?<!\\S)(?:",wiki_escape_regex(token),")(?!\\S)")
 wiki_dictionary <- function(text) {
-  lines<-trimws(strsplit(enc2utf8(text),"\n",fixed=TRUE)[[1]]);lines<-lines[nzchar(lines)]
+  lines<-trimws(strsplit(normalize_unicode(text),"\n",fixed=TRUE)[[1]]);lines<-lines[nzchar(lines)]
   if(!length(lines)) abort_user("Escribe al menos un concepto, uno por l\u00ednea. Puedes a\u00f1adir variantes separadas por |.")
   if(any(grepl("(^[|]|[|]$|[|][\\h]*[|])",lines,perl=TRUE)))abort_user("Cada concepto y variante debe tener texto; no dejes un campo vac\u00edo junto a |.")
   if(length(lines)>WIKI_LIMITS$concepts) abort_user("El diccionario admite como m\u00e1ximo 100 conceptos por \u00edndice.")
@@ -215,7 +215,7 @@ wiki_save_note <- function(notes,scope,node,text,known) {
   if(!is.character(text)||length(text)!=1||is.na(text)||!node %in% known)abort_user("La nota no corresponde a una p\u00e1gina conocida.")
   if(nchar(text)>WIKI_LIMITS$note_chars)abort_user("La nota supera 20.000 caracteres. Divide el contenido antes de guardarlo.")
   keep<-!(notes$scope==scope&notes$node==node);next_notes<-notes[keep,,drop=FALSE]
-  if(nzchar(text)) next_notes<-rbind(next_notes,data.frame(scope=scope,node=node,text=enc2utf8(text),updated_at=format(Sys.time(),"%Y-%m-%d %H:%M:%S %Z")))
+  if(nzchar(text)) next_notes<-rbind(next_notes,data.frame(scope=scope,node=node,text=normalize_unicode(text),updated_at=format(Sys.time(),"%Y-%m-%d %H:%M:%S %Z")))
   if(sum(nchar(next_notes$text))>WIKI_LIMITS$note_total)abort_user("Las notas de esta sesi\u00f3n superan cuatro millones de caracteres. Descarga su copia antes de ampliar el cuaderno.")
   if(nrow(next_notes)>5000)abort_user("Esta sesi\u00f3n admite 5.000 notas. Conserva su copia y contin\u00faa en otra sesi\u00f3n.")
   next_notes
@@ -257,7 +257,7 @@ wiki_graph_figure <- function(g) {
     ggplot2::geom_curve(data=manual,ggplot2::aes(xend=xend,yend=yend),colour="#222222",linetype="dashed",curvature=.15,linewidth=.5,arrow=grid::arrow(length=grid::unit(2.5,"mm"),type="closed"))+
     ggplot2::geom_point(data=self,shape=1,size=9,colour="#222222",stroke=.6)+
     ggplot2::geom_point(ggplot2::aes(shape=type),fill=n$color,colour=n$color,size=3.5)+ggplot2::scale_shape_manual(values=c(Documento=21,Concepto=23),name="P\u00e1gina")+
-    ggrepel::geom_text_repel(data=labels,ggplot2::aes(label=label),seed=2026,max.overlaps=Inf,size=3.2)+ggplot2::coord_equal()+
+    label_layer(labels,ggplot2::aes(label=label),size=3.2,seed=2026,repel=list(max.overlaps=Inf))+ggplot2::coord_equal()+
     ggplot2::labs(title="Cuaderno / grafo de lectura",subtitle=paste(nrow(n),"p\u00e1ginas /",nrow(e),"relaciones \u00b7 disposici\u00f3n est\u00e1tica; hasta 50 etiquetas"),caption=if(identical(g$kind,"concepts"))"Gris continuo: coaparici\u00f3n en fichas. Discontinua con flecha: enlace expl\u00edcito en una nota. Colores: comunidades Louvain sobre Jaccard de fichas; gris sin comunidad autom\u00e1tica. Las notas no intervienen en la agrupaci\u00f3n." else if("community" %in% names(n))"Colores: comunidades Louvain del grafo Jaccard; gris: aislados. La comunidad conserva la pertenencia de la red completa. No representa citas ni temas validados." else "Gris: menci\u00f3n documental o conceptos compartidos, seg\u00fan la vista registrada. Discontinua con flecha: enlace escrito en una nota. Rojo: p\u00e1gina activa. No representa citas ni equivalencia sem\u00e1ntica.",x=NULL,y=NULL)+swiss_theme()+
     ggplot2::theme(axis.text=ggplot2::element_blank(),axis.ticks=ggplot2::element_blank(),panel.grid.major=ggplot2::element_blank(),panel.grid.minor=ggplot2::element_blank(),legend.position="bottom")
   plot

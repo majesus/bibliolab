@@ -21,6 +21,20 @@ swiss_plotly <- function(chart, x_title = "", y_title = "", equal_axes = FALSE, 
     legend = list(orientation="v",y=1,x=1.03), margin=list(l=95,r=130,t=35,b=100), ...), displaylogo = FALSE)
 }
 
+# Capa de etiquetas. Con ggrepel instalado evita solapamientos; sin el, usa ggplot2::geom_text con
+# `check_overlap` (omite la etiqueta que se solapa con otra ya dibujada) para que ninguna figura
+# dependa de un paquete opcional. `repel` son argumentos adicionales solo para ggrepel.
+pkg_available <- function(pkg) requireNamespace(pkg, quietly = TRUE)
+
+label_layer <- function(data, mapping, size = 3.5, colour = NULL, seed = 2026, repel = list()) {
+  if (pkg_available("ggrepel")) {
+    args <- c(list(data = data, mapping = mapping, size = size, seed = seed), if (!is.null(colour)) list(colour = colour), repel)
+    return(do.call(ggrepel::geom_text_repel, args))
+  }
+  args <- c(list(data = data, mapping = mapping, size = size, vjust = -0.7, check_overlap = TRUE), if (!is.null(colour)) list(colour = colour))
+  do.call(ggplot2::geom_text, args)
+}
+
 ordination_figure <- function(d, dimensions, title, label_field = "termino", circle = FALSE, max_labels = 12L) {
   axes<-attr(d,"axes") %||% c(1L,2L)
   xlab <- sprintf("Eje %d / %.1f%%",axes[1], dimensions$porcentaje[axes[1]]); ylab <- sprintf("Eje %d / %.1f%%",axes[2], dimensions$porcentaje[axes[2]])
@@ -35,8 +49,8 @@ ordination_figure <- function(d, dimensions, title, label_field = "termino", cir
   size <- if ("masa" %in% names(d)) 3 + 4*sqrt(d$masa/max(d$masa)) else rep(3, nrow(d))
   g + ggplot2::geom_point(ggplot2::aes(colour = cos2_plano), size = size, alpha = .85) +
     ggplot2::scale_colour_gradient(low = "#b7b7b7", high = "#c7281e", limits = c(0,1)) +
-    ggrepel::geom_text_repel(data = d[top, ], ggplot2::aes(label = .data[[label_field]]), size = 3.5, colour = "#222222", seed = 2026,
-      max.overlaps = Inf, max.time = 2, max.iter = 20000, force = 2, point.padding = .4, min.segment.length = 0, box.padding = .6, segment.colour = "#aaaaaa") +
+    label_layer(d[top, ], ggplot2::aes(label = .data[[label_field]]), size = 3.5, colour = "#222222", seed = 2026,
+      repel = list(max.overlaps = Inf, max.time = 2, max.iter = 20000, force = 2, point.padding = .4, min.segment.length = 0, box.padding = .6, segment.colour = "#aaaaaa")) +
     ggplot2::coord_equal() + ggplot2::labs(title = title, subtitle = if (circle) "Correlaciones de t\u00e9rminos con componentes / flechas principales" else "Coordenadas calculadas por el modelo / etiquetas de mayor contribuci\u00f3n",
       x = xlab, y = ylab, colour = "Cos\u00b2 del plano") + swiss_theme()
 }

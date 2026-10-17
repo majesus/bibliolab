@@ -1,5 +1,5 @@
 # Funciones puras: importacion, trazabilidad y analisis. No dependen de Shiny.
-BIBLIO_VERSION <- "5.0.2"
+BIBLIO_VERSION <- "5.0.3"
 BIBLIO_LIMITS <- list(bytes = 100 * 1024^2, rows = 10000L, columns = 100L,
                   text_chars = 50000L, units = 20000L, tokens = 1000000L)
 `%||%` <- function(x, y) if (is.null(x) || length(x) == 0L) y else x
@@ -39,7 +39,7 @@ with_seed <- function(seed, code) {
   on.exit(rng_restore(old))
   set.seed(as.integer(seed)); force(code)
 }
-clean_value <- function(x) { x <- as.character(x); x[is.na(x)] <- ""; trimws(enc2utf8(x)) }
+clean_value <- function(x) { x <- as.character(x); x[is.na(x)] <- ""; trimws(normalize_unicode(x)) }
 normalize_key <- function(x) tolower(gsub("\\s+", " ", clean_value(x), perl = TRUE))
 #' Lee un CSV/TSV bibliografico con validaciones estrictas
 #'
@@ -240,10 +240,19 @@ parse_numeric <- function(x, type = "citations", reference_year = as.integer(for
   else val[val < 0 | val != floor(val)] <- NA_real_
   val
 }
-# Auditoria de duplicados. Un registro solo se marca como duplicado cuando la
-# coincidencia es segura: mismo DOI, o mismo titulo (o texto, si falta el titulo)
-# sin evidencia contradictoria. Los homonimos, las versiones con otro anio y las
-# coincidencias con varios candidatos se conservan y se describen en `ambiguous`.
+# Auditoria de duplicados. Un registro solo se marca como duplicado cuando la coincidencia es
+# segura: mismo DOI, o mismo titulo (o texto, si falta el titulo) sin evidencia contradictoria. Los
+# homonimos, las versiones con otro anio y las coincidencias con varios candidatos se conservan y se
+# describen en `ambiguous`.
+#
+# La decision de identidad no depende del orden de las filas: se toma sobre el conjunto completo de
+# candidatas. (1) Los registros con el mismo DOI forman una entidad. (2) Dentro de cada grupo de
+# entidades con la misma clave de titulo (o texto) se construye el grafo de compatibilidad (ningun
+# DOI ni anio contradictorio; con titulo generico, mismo anio y mismos autores o texto). (3) Solo se
+# fusionan las entidades que tienen exactamente los mismos candidatos compatibles (gemelas del grafo):
+# si una entidad podria corresponder a varias obras incompatibles entre si, no se resuelve y se
+# conserva como ambigua. (4) La fila conservada de cada grupo es la primera del archivo; eso decide
+# que registro representa a la obra, no si dos registros son la misma obra.
 duplicate_audit <- function(docs) {
   n <- nrow(docs)
   empty_amb <- data.frame(doc_id = character(), coincide_con = character(), clave = character(), motivo = character(), stringsAsFactors = FALSE)
@@ -253,50 +262,120 @@ duplicate_audit <- function(docs) {
   year <- docs$year
   pool_key <- ifelse(nzchar(tkey), paste0("t:", tkey), ifelse(nzchar(xkey), paste0("x:", xkey), ""))
   words <- lengths(strsplit(sub("^[tx]:", "", pool_key), " ", fixed = TRUE)) * nzchar(pool_key)
-  kept <- seq_len(n); criterion <- rep("", n)
-  rep_dois <- vector("list", n); rep_year <- year
-  doi_owner <- new.env(hash = TRUE, parent = emptyenv()); pools <- new.env(hash = TRUE, parent = emptyenv())
-  amb <- list()
-  verdict <- function(i, r) {
-    if (nzchar(doi[i]) && length(rep_dois[[r]]) && !doi[i] %in% rep_dois[[r]]) return("DOI distinto")
-    if (!is.na(year[i]) && !is.na(rep_year[r]) && year[i] != rep_year[r]) return("A\u00f1o distinto")
-    if (words[i] < 4L) {
-      same_year <- !is.na(year[i]) && !is.na(rep_year[r]) && year[i] == rep_year[r]
-      same_authors <- nzchar(akey[i]) && identical(akey[i], akey[r])
-      same_text <- nzchar(xkey[i]) && identical(xkey[i], xkey[r])
+  has_doi <- nzchar(doi)
+  # (1) Entidades por DOI: cada una se identifica por su primera fila.
+  entity <- seq_len(n); entity[has_doi] <- match(doi[has_doi], doi)
+  ents <- sort(unique(entity))
+  members <- split(seq_len(n), factor(entity, levels = ents))
+  ent_has_doi <- vapply(members, function(ix) any(has_doi[ix]), TRUE)
+  set_of <- function(values, ix) unique(values[ix][!is.na(values[ix]) & nzchar(as.character(values[ix]))])
+  ent_year <- lapply(members, function(ix) unique(year[ix][!is.na(year[ix])]))
+  ent_auth <- lapply(members, set_of, values = akey)
+  ent_text <- lapply(members, set_of, values = xkey)
+  pos <- function(e) match(e, ents)
+  reason <- function(a, b, generic) {
+    pa <- pos(a); pb <- pos(b)
+    if (ent_has_doi[[pa]] && ent_has_doi[[pb]]) return("DOI distinto")
+    ya <- ent_year[[pa]]; yb <- ent_year[[pb]]
+    if (length(ya) && length(yb) && !length(intersect(ya, yb))) return("A\u00f1o distinto")
+    if (generic) {
+      same_year <- length(intersect(ya, yb)) > 0L
+      same_authors <- length(intersect(ent_auth[[pa]], ent_auth[[pb]])) > 0L
+      same_text <- length(intersect(ent_text[[pa]], ent_text[[pb]])) > 0L
       if (!(same_year && (same_authors || same_text))) return("T\u00edtulo gen\u00e9rico sin corroboraci\u00f3n")
     }
     ""
   }
-  for (i in seq_len(n)) {
-    target <- NA_integer_
-    if (nzchar(doi[i]) && !is.null(owner <- doi_owner[[doi[i]]])) {
-      target <- owner; criterion[i] <- "DOI"
-    } else if (nzchar(pool_key[i])) {
-      cand <- pools[[pool_key[i]]]
-      if (length(cand)) {
-        v <- vapply(cand, function(r) verdict(i, r), "")
-        ok <- cand[!nzchar(v)]
-        if (length(ok) == 1L) {
-          target <- ok; criterion[i] <- if (startsWith(pool_key[i], "t:")) "T\u00edtulo normalizado" else "Texto normalizado"
-        } else if (length(ok) > 1L) {
-          amb[[length(amb) + 1L]] <- data.frame(doc_id = docs$doc_id[i], coincide_con = docs$doc_id[ok[1L]], clave = pool_key[i], motivo = "Varias coincidencias posibles", stringsAsFactors = FALSE)
-        } else amb[[length(amb) + 1L]] <- data.frame(doc_id = docs$doc_id[i], coincide_con = docs$doc_id[cand[1L]], clave = pool_key[i], motivo = v[1L], stringsAsFactors = FALSE)
+  incidence <- function(lst, pe) {
+    sets <- lst[pos(pe)]; vals <- unlist(sets, use.names = FALSE)
+    if (!length(vals)) return(NULL)
+    u <- unique(vals)
+    Matrix::sparseMatrix(i = rep(seq_along(sets), lengths(sets)), j = match(vals, u), x = 1, dims = c(length(pe), length(u)))
+  }
+  overlap <- function(M, rows, m) if (is.null(M)) matrix(FALSE, length(rows), m) else as.matrix(Matrix::tcrossprod(M[rows, , drop = FALSE], M) > 0)
+  max_edges <- 5e6
+  class_of <- seq_len(n)      # fila representante del grupo final de cada entidad (indexada por fila de entidad)
+  amb <- list()
+  push_amb <- function(a, b, key, why) amb[[length(amb) + 1L]] <<- data.frame(doc_id = docs$doc_id[a], coincide_con = docs$doc_id[b], clave = key, motivo = why, stringsAsFactors = FALSE)
+  keyed <- ents[nzchar(pool_key[ents])]
+  pools <- split(keyed, pool_key[keyed])
+  for (key in names(pools)) {
+    pe <- pools[[key]]; m <- length(pe)
+    if (m < 2L) next
+    generic <- words[pe[1L]] < 4L
+    hasD <- ent_has_doi[pos(pe)]
+    hasY <- lengths(ent_year[pos(pe)]) > 0L
+    Y <- incidence(ent_year, pe); A <- incidence(ent_auth, pe); X <- incidence(ent_text, pe)
+    nb <- vector("list", m); edges <- 0; overflow <- FALSE
+    step <- max(1L, as.integer(floor(4e6 / m)))
+    for (start in seq.int(1L, m, by = step)) {
+      rows <- start:min(m, start + step - 1L)
+      oy <- overlap(Y, rows, m)
+      ok <- !outer(hasD[rows], hasD, "&") & !(outer(hasY[rows], hasY, "&") & !oy)
+      if (generic) ok <- ok & oy & (overlap(A, rows, m) | overlap(X, rows, m))
+      ok[cbind(seq_along(rows), rows)] <- FALSE
+      for (r in seq_along(rows)) nb[[rows[r]]] <- which(ok[r, ])
+      edges <- edges + sum(ok)
+      if (edges > max_edges) { overflow <- TRUE; break }
+    }
+    if (overflow) {
+      # Demasiadas candidatas con la misma clave: no se resuelve ninguna identidad.
+      for (i in seq_len(m)[-1L]) push_amb(pe[i], pe[1L], key, "Varias coincidencias posibles")
+      next
+    }
+    signature <- vapply(seq_len(m), function(i) paste(sort(c(i, nb[[i]])), collapse = ","), "")
+    cls <- match(signature, unique(signature))
+    rep_row <- vapply(split(pe, cls), min, 1L)           # primera fila de cada clase
+    class_of[pe] <- rep_row[as.character(cls)]
+    ord <- order(rep_row)
+    for (c1 in ord) {
+      mem <- which(cls == c1); outside <- setdiff(unique(unlist(nb[mem], use.names = FALSE)), mem)
+      me <- rep_row[[c1]]
+      if (length(outside)) {
+        other <- min(rep_row[as.character(unique(cls[outside]))])
+        push_amb(me, other, key, "Varias coincidencias posibles")
+      } else if (c1 != ord[1L]) {
+        other <- rep_row[[ord[1L]]]
+        push_amb(me, other, key, reason(me, other, generic))
       }
     }
-    if (is.na(target)) {
-      if (nzchar(pool_key[i])) pools[[pool_key[i]]] <- c(pools[[pool_key[i]]], i)
-      if (nzchar(doi[i])) doi_owner[[doi[i]]] <- i
-      rep_dois[[i]] <- doi[i][nzchar(doi[i])]
-    } else {
-      kept[i] <- target
-      if (nzchar(doi[i])) { doi_owner[[doi[i]]] <- target; rep_dois[[target]] <- union(rep_dois[[target]], doi[i]) }
-      if (is.na(rep_year[target])) rep_year[target] <- year[i]
-    }
   }
-  list(duplicate = kept != seq_len(n), kept = kept, criterion = criterion,
+  # (4) Fila conservada y criterio de cada registro.
+  kept <- class_of[entity]
+  criterion <- rep("", n)
+  dup <- kept != seq_len(n)
+  criterion[dup & entity != seq_len(n)] <- "DOI"
+  by_title <- dup & entity == seq_len(n)
+  criterion[by_title] <- ifelse(startsWith(pool_key[by_title], "t:"), "T\u00edtulo normalizado", "Texto normalizado")
+  list(duplicate = dup, kept = kept, criterion = criterion,
     ambiguous = if (length(amb)) do.call(rbind, amb) else empty_amb)
 }
+# Opciones logicas de `default_config()`: un ausente (NA), un vector o un tipo distinto no son
+# TRUE/FALSE y antes producian errores internos ("missing value where TRUE/FALSE needed") o
+# se aceptaban con otro comportamiento. Una clave desconocida suele ser una errata (por ejemplo
+# `deduplicar`) que dejaba el valor por defecto sin avisar.
+config_logical_options <- c("remove_stop", "remove_numbers", "remove_links", "lemmatize", "split_sentences",
+  "deduplicate", "pos_filter", "remove_codes", "normalize_labels", "remove_boilerplate")
+config_known_options <- function() c(names(default_config()), "language_overrides", "language_detection", "execution")
+
+validate_config <- function(config, cfg) {
+  if (!is.list(config)) abort_user("La configuraci\u00f3n debe ser una lista con nombres (ver default_config()).")
+  given <- names(config)
+  if (length(config) && (is.null(given) || any(!nzchar(given)))) abort_user("Todas las opciones de la configuraci\u00f3n deben tener nombre (ver default_config()).")
+  unknown <- setdiff(given, config_known_options())
+  if (length(unknown)) {
+    near <- vapply(unknown, function(u) { m <- agrep(u, config_known_options(), max.distance = 0.3, value = TRUE); if (length(m)) paste0(" (\u00bfquisiste decir `", m[1], "`?)") else "" }, "")
+    abort_user(paste0("Opciones de configuraci\u00f3n desconocidas: ", paste0("`", unknown, "`", near, collapse = ", "),
+      ". Las opciones v\u00e1lidas se listan en default_config()."))
+  }
+  for (nm in config_logical_options) {
+    v <- cfg[[nm]]
+    if (!is.logical(v) || length(v) != 1L || is.na(v))
+      abort_user(sprintf("La opci\u00f3n `%s` debe ser TRUE o FALSE, sin valores ausentes.", nm))
+  }
+  invisible(TRUE)
+}
+
 #' Construye el conjunto de documentos y su auditoria
 #'
 #' Aplica, en este orden, filtro por valor, filtro temporal, deduplicacion
@@ -305,16 +384,25 @@ duplicate_audit <- function(docs) {
 #'
 #' @param d `data.frame` de [read_biblio_csv()] o [read_biblio_file()].
 #' @param mapping Lista de columnas, normalmente de [guess_columns()].
-#' @param config Lista parcial de opciones; ver [default_config()].
+#' @param config Lista parcial de opciones; ver [default_config()]. Se rechazan
+#'   las opciones desconocidas (suelen ser erratas) y las opciones logicas que no
+#'   sean `TRUE` o `FALSE`.
 #' @details La deduplicacion no elimina un registro salvo coincidencia segura.
 #'   Dos registros son el mismo si comparten DOI. Si falta el DOI en alguno,
 #'   coinciden en titulo normalizado (o, sin titulo, en texto normalizado), no
 #'   tienen DOI distintos ni anios distintos y, cuando el titulo tiene menos de
 #'   cuatro palabras (por ejemplo `Editorial`), coinciden ademas en anio y en
-#'   autores o texto. Las coincidencias con evidencia contradictoria o con
-#'   varios candidatos se conservan y se listan en `ambiguous`.
-#' @return Lista con `documents`, `audit`, `duplicates` (con el criterio y el
-#'   registro conservado), `ambiguous` (coincidencias no eliminadas), `issues`,
+#'   autores o texto. La identidad se decide sobre el conjunto completo de
+#'   candidatos, no fila a fila: un registro sin DOI que podria corresponder a
+#'   varias obras incompatibles entre si no se fusiona con ninguna y se lista en
+#'   `ambiguous`, de modo que permutar el orden del archivo no cambia las obras
+#'   analizadas. De cada grupo se conserva la primera fila del archivo; si le
+#'   faltan el anio o el DOI y un duplicado los aporta sin contradiccion, se
+#'   completan y se registran en la columna `campos_completados` de `duplicates`.
+#'   Las coincidencias con evidencia contradictoria o con varios candidatos se
+#'   conservan y se listan en `ambiguous`.
+#' @return Lista con `documents`, `audit`, `duplicates` (con el criterio, el
+#'   registro conservado y los campos completados), `ambiguous` (coincidencias no eliminadas), `issues`,
 #'   `config`, `mapping` e `input_md5` (huella del archivo leido con
 #'   [read_biblio_csv()], o `NULL`).
 #' @examples
@@ -324,6 +412,7 @@ duplicate_audit <- function(docs) {
 #' @export
 prepare_documents <- function(d, mapping, config = default_config()) {
   cfg <- utils::modifyList(default_config(), config)
+  validate_config(config, cfg)
   if (!nzchar(mapping$text %||% "")) abort_user("Selecciona la columna de texto (resumen o t\u00edtulo).")
   check_number(cfg$sample_pct, "El porcentaje de muestra", 1, 100, FALSE)
   check_number(cfg$seed, "La semilla", 1, .Machine$integer.max)
@@ -358,10 +447,22 @@ prepare_documents <- function(d, mapping, config = default_config()) {
   dup <- duplicate_audit(docs)
   duplicates <- dup$duplicate
   duplicate_records <- docs[duplicates, , drop = FALSE]
+  completed_fields <- 0L
   if (nrow(duplicate_records)) {
     duplicate_records$criterio_duplicado <- dup$criterion[duplicates]
     duplicate_records$conservado_doc_id <- docs$doc_id[dup$kept[duplicates]]
     duplicate_records$conservado_fila <- docs$source_row[dup$kept[duplicates]]
+    # El registro conservado se elige por su posicion en el archivo, no por ser el mas completo: si le
+    # faltan el anio o el DOI y el registro retirado los tiene (sin contradiccion posible, porque solo se
+    # fusionan registros sin valores distintos), se completan y se deja constancia.
+    duplicate_records$campos_completados <- ""
+    if (cfg$deduplicate) for (j in seq_len(nrow(duplicate_records))) {
+      i <- which(duplicates)[j]; r <- dup$kept[i]; added <- character()
+      if (is.na(docs$year[r]) && !is.na(docs$year[i])) { docs$year[r] <- docs$year[i]; added <- c(added, "a\u00f1o") }
+      if (!nzchar(docs$doi[r]) && nzchar(docs$doi[i])) { docs$doi[r] <- docs$doi[i]; added <- c(added, "doi") }
+      duplicate_records$campos_completados[j] <- paste(added, collapse = "; ")
+      completed_fields <- completed_fields + length(added)
+    }
   }
   ambiguous_records <- dup$ambiguous
   if (cfg$deduplicate) docs <- docs[!duplicates, , drop = FALSE]
@@ -376,6 +477,7 @@ prepare_documents <- function(d, mapping, config = default_config()) {
   audit <- data.frame(etapa = c("Importaci\u00f3n", "Filtro por valor", "Filtro temporal", "Deduplicaci\u00f3n", "Muestra final"),
     documentos = c(rows_in, rows_filter, rows_year, rows_dedup, nrow(docs)))
   issues <- c(issues, sprintf("Duplicados detectados tras los filtros: %d. Criterio: DOI id\u00e9ntico; sin DOI en alguno de los registros, t\u00edtulo normalizado (sin acentos, may\u00fasculas ni puntuaci\u00f3n) o, si falta el t\u00edtulo, texto normalizado, siempre que no haya DOI ni a\u00f1o contradictorios y que los t\u00edtulos gen\u00e9ricos (menos de cuatro palabras) coincidan tambi\u00e9n en a\u00f1o y en autores o texto. Cada duplicado remite al registro conservado.", sum(duplicates)))
+  if (completed_fields > 0L) issues <- c(issues, sprintf("Campos completados en registros conservados a partir de duplicados (a\u00f1o o DOI ausentes en el conservado): %d. Constan en la columna campos_completados de la tabla de duplicados.", completed_fields))
   if (nrow(ambiguous_records)) issues <- c(issues, sprintf("Coincidencias de t\u00edtulo o texto no tratadas como duplicado seguro: %d registros (DOI o a\u00f1o distintos, t\u00edtulo gen\u00e9rico sin corroboraci\u00f3n o varias coincidencias posibles). Se conservan; revisa `ambiguous`.", nrow(ambiguous_records)))
   issues <- c(issues, sprintf("Corpus final: %d/%d documentos con a\u00f1o v\u00e1lido; %d/%d con citas v\u00e1lidas; %d/%d con texto no vac\u00edo.",
     sum(!is.na(docs$year)), nrow(docs), sum(!is.na(docs$citations)), nrow(docs), sum(nzchar(docs$text)), nrow(docs)))
@@ -384,15 +486,18 @@ prepare_documents <- function(d, mapping, config = default_config()) {
     input_md5 = attr(d, "source_md5", exact = TRUE))
 }
 tokenize_one <- function(text, cfg, stops) {
-  text <- tolower(enc2utf8(text))
+  # Forma canonica NFC antes de segmentar: "cafe" + U+0301 y "caf\u00e9" son la misma palabra.
+  text <- tolower(normalize_unicode(text))
   if (cfg$remove_links) text <- gsub("https?://\\S+|www\\.\\S+|[[:alnum:]._%+-]+@[[:alnum:].-]+\\.[[:alpha:]]+", ".", text, perl = TRUE)
   # Se conserva puntuacion como frontera; no se crean bigramas entre frases.
   text <- gsub("(?<!\\p{L})['\u2019]|['\u2019](?!\\p{L})", ".", text, perl = TRUE)
   parts <- strsplit(text, "(?:(?!['\u2019])[\\p{P}\\p{S}\\r\\n])+", perl = TRUE)[[1]]
   lapply(parts, function(part) {
-    words <- regmatches(part, gregexpr("[\\p{L}\\p{N}]+(?:['\u2019][\\p{L}\\p{N}]+)?", part, perl = TRUE))[[1]]
+    # Las marcas combinantes (categoria Unicode M) forman parte de la palabra: sin ellas, una letra con una
+    # marca sin forma precompuesta o las vocales dependientes de las escrituras indicas se partirian.
+    words <- regmatches(part, gregexpr("[\\p{L}\\p{N}\\p{M}]+(?:['\u2019][\\p{L}\\p{N}\\p{M}]+)?", part, perl = TRUE))[[1]]
     # Marcas vacias impiden unir vecinos artificiales al eliminar stopwords.
-    keep <- nchar(words) >= cfg$min_chars & nchar(words) <= cfg$max_chars & !words %in% stops
+    keep <- nchar(words) >= cfg$min_chars & nchar(words) <= cfg$max_chars & !words %in% stops & grepl("[\\p{L}\\p{N}]", words, perl = TRUE)
     if (cfg$remove_numbers) keep <- keep & !grepl("^\\p{N}+$", words, perl = TRUE)
     if (cfg$remove_codes) keep <- keep & !(grepl("\\p{L}", words, perl = TRUE) & grepl("\\p{N}", words, perl = TRUE))
     words[!keep] <- ""; words
@@ -426,7 +531,11 @@ vocabulary_selection <- function(term_table, cfg, n_docs) {
 #' @param prepared Resultado de [prepare_documents()].
 #' @param progress Funcion opcional `function(stage, current, total)`.
 #' @return Lista con `units`, `counts`, `terms`, `ngrams`, `bigrams`, `issues`,
-#'   `vocabulary`, `models` y `processing`.
+#'   `vocabulary`, `models` y `processing`, mas los denominadores de cada tamano:
+#'   `total_tokens` (palabras tras la limpieza, antes del filtro de vocabulario),
+#'   `tokens_in_model` (palabras dentro del vocabulario de los modelos),
+#'   `n_active` (unidades con palabras tras la limpieza) y `units_in_model`
+#'   (unidades de la matriz `counts`, tras retirar las que se quedan sin vocabulario).
 #' @examples
 #' d <- read_biblio_csv(system.file("extdata", "practica.csv", package = "bibliolab"), ";")
 #' cp <- prepare_corpus(prepare_documents(d, guess_columns(d)))
@@ -455,7 +564,7 @@ prepare_corpus <- function(prepared,progress=NULL) {
   stops <- character()
   if (cfg$remove_stop && !cfg$language %in% c("none","by_document")) stops <- unique(unlist(lapply(if (cfg$language == "both") c("es", "en") else cfg$language,
     function(lang) stopwords::stopwords(lang, source = "snowball"))))
-  custom <- trimws(tolower(strsplit(cfg$custom_stop %||% "", ",", fixed = TRUE)[[1]]))
+  custom <- trimws(tolower(normalize_unicode(strsplit(cfg$custom_stop %||% "", ",", fixed = TRUE)[[1]])))
   stops <- unique(c(stops, custom[nzchar(custom)]))
   # Idioma por documento sin anotacion linguistica: cada documento usa las palabras vacias de su idioma.
   lexical_stops <- stops; lexical_language <- rep(NA_character_, nrow(docs))
@@ -500,7 +609,7 @@ prepare_corpus <- function(prepared,progress=NULL) {
   active <- lengths(unit_tokens) > 0
   if (!any(active)) return(list(units = units, counts = NULL, terms = data.frame(), bigrams = data.frame(),
     issues = "No quedan palabras tras la limpieza. Reduce la longitud m\u00ednima o las palabras vac\u00edas; los indicadores bibliom\u00e9tricos siguen disponibles.",
-    n_active = 0L, total_tokens = 0L, vocabulary = character(), annotation = annotation, models = model_info, filter_audit = data.frame(),processing=processing_audit))
+    n_active = 0L, total_tokens = 0L, tokens_in_model = 0L, units_in_model = 0L, vocabulary = character(), annotation = annotation, models = model_info, filter_audit = data.frame(),processing=processing_audit))
   tabs <- lapply(unit_tokens[active], table)
   terms <- sort(unique(unlist(lapply(tabs, names), use.names = FALSE)))
   sparse <- Matrix::sparseMatrix(i = rep(seq_along(tabs), lengths(tabs)),
@@ -544,11 +653,13 @@ prepare_corpus <- function(prepared,progress=NULL) {
   bigrams <- data.frame(bigrama = names(pair_tab), documentos = as.integer(pair_tab), stringsAsFactors = FALSE)
   if (nrow(bigrams)) bigrams$porcentaje_documentos <- round(100 * bigrams$documentos / nrow(docs), 2)
   issues <- c(sprintf("Unidades sin palabras: %d/%d. Unidades fuera de la matriz por el filtro de vocabulario: %d.", sum(!active), nrow(units), sum(active) - nrow(counts)),
-    sprintf("Vocabulario de modelos: %d de %d t\u00e9rminos elegibles; orden: %s.", length(vocab), length(eligible), cfg$term_order))
+    sprintf("Vocabulario de modelos: %d de %d t\u00e9rminos elegibles; orden: %s.", length(vocab), length(eligible), cfg$term_order),
+    sprintf("Palabras tras la limpieza: %d; dentro del vocabulario de los modelos: %d (%.1f %%). Unidades con palabras: %d; unidades en la matriz de los modelos: %d.",
+      total_tokens, as.integer(round(sum(counts))), 100 * sum(counts) / max(1, total_tokens), sum(active), nrow(counts)))
   if (boilerplate_removed > 0L) issues <- c(issues, sprintf("Avisos finales de derechos de autor retirados del texto analizado en %d documentos (el original se conserva).", boilerplate_removed))
   ngrams <- ngram_summary(all_sequences, units$doc_id, nrow(docs))
   list(units = units, counts = counts, terms = term_table, bigrams = bigrams, ngrams = ngrams, issues = issues,
-    n_active = sum(active), total_tokens = total_tokens, vocabulary = vocab, annotation = annotation,
+    n_active = sum(active), total_tokens = total_tokens, tokens_in_model = as.integer(round(sum(counts))), units_in_model = nrow(counts), vocabulary = vocab, annotation = annotation,
     models = model_info, filter_audit = filter_audit,processing=processing_audit)
 }
 count_metadata <- function(x, sep = NULL, n_docs = length(x), kind = NULL) {
@@ -629,7 +740,11 @@ biblio_summary <- function(prepared) {
 #' @param iterations Iteraciones de Gibbs tras el burn-in (100-2000).
 #' @param alpha Prior de Dirichlet de los temas por documento; `NULL` usa `1/k`.
 #' @param delta Prior de Dirichlet de las palabras por tema.
-#' @param burnin,thin Iteraciones descartadas y espaciado de las muestras.
+#' @param burnin,thin Iteraciones descartadas y espaciado de las muestras. `thin` no puede
+#'   superar `iterations`; el numero de estados guardados es aproximadamente
+#'   `iterations / thin` (el espaciado se aumenta si fuese necesario para no guardar mas
+#'   de 100 estados ni superar unos 20 millones de asignaciones) y se registra en
+#'   `params$thin` y `params$saved_states`.
 #'
 #' @return Lista con `top`, `gamma`, `document_topics`, `prevalence`, `examples`,
 #'   `diagnostics`, `loglik`, `params`, `units`, `terms` y `ran_at`.
@@ -652,6 +767,7 @@ run_lda <- function(corpus, k = 4L, seed = 2026L, iterations = 500L, alpha = NUL
   if (is.null(alpha)) alpha <- 1 / k
   check_number(alpha, "El prior alpha", 0.001, 100, FALSE); check_number(delta, "El prior delta", 0.001, 10, FALSE)
   check_number(burnin, "El burn-in", 0, 5000); check_number(thin, "El espaciado (thin)", 1, 1000)
+  if (thin > iterations) abort_user(sprintf("El espaciado (thin = %s) no puede superar las iteraciones (%s): no se guardar\u00eda ning\u00fan estado intermedio. Reduce thin o aumenta las iteraciones.", format(thin), format(iterations)))
   m <- corpus$counts
   if (is.null(m) || nrow(m) < 3 || ncol(m) < 3) abort_user("LDA necesita al menos tres unidades con palabras y tres t\u00e9rminos. Reduce la presencia m\u00ednima.")
   if (k >= min(dim(m))) abort_user("El n\u00famero de temas debe ser menor que el n\u00famero de unidades y de t\u00e9rminos. Prueba con 2 temas.")

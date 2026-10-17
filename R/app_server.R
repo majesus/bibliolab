@@ -197,7 +197,7 @@ app_server <- function(input, output, session) {
     if (stale()) return(tags$div(class="status-bar warning",role="status","Opciones modificadas. Los resultados anteriores requieren una nueva preparaci\u00f3n. Pulsa Preparar corpus."))
     tags$div(class = "preparation-summary status-success", role="status",
     tags$strong("\u2713 Corpus preparado correctamente. Resultados vigentes."), tags$br(),
-    tags$strong(paste(nrow(rv$prepared$documents), "documentos /", length(rv$corpus$vocabulary), "t\u00e9rminos retenidos /", rv$corpus$n_active, "unidades textuales")),
+    tags$strong(paste(nrow(rv$prepared$documents), "documentos /", length(rv$corpus$vocabulary), "t\u00e9rminos en el vocabulario de los modelos /", rv$corpus$units_in_model %||% rv$corpus$n_active, "unidades en la matriz de los modelos")),
     hint("Consulta auditor\u00eda, cobertura y razones de exclusi\u00f3n en las tablas. Los originales y versiones de texto se encuentran en el visor \u00fanico.")) })
   output$metrics <- renderUI({
     p <- current(); d <- p$documents; yr <- d$year[!is.na(d$year)]; ct <- d$citations[!is.na(d$citations)]
@@ -205,7 +205,7 @@ app_server <- function(input, output, session) {
     tags$div(class = "metrics", metric(nrow(d), "Documentos", "Despu\u00e9s de filtros y muestra"),
       metric(if (length(yr)) paste(min(yr), max(yr), sep = "\u2013") else "\u2014", "Periodo registrado", paste(length(yr), "con a\u00f1o v\u00e1lido")),
       metric(if (length(ct)) format(sum(ct), big.mark = ".", decimal.mark = ",", scientific = FALSE) else "\u2014", "Citas registradas", paste(length(ct), "con citas v\u00e1lidas")),
-      metric(rv$corpus$total_tokens, "Palabras retenidas", paste(rv$corpus$n_active, "unidades con palabras")))
+      metric(rv$corpus$total_tokens, "Palabras tras la limpieza", paste(rv$corpus$tokens_in_model %||% rv$corpus$total_tokens, "dentro del vocabulario de los modelos \u00b7", rv$corpus$n_active, "unidades con palabras")))
   })
   plot_theme <- swiss_theme
   annual_graph <- reactive({ current(); d <- rv$bib$annual
@@ -293,39 +293,56 @@ app_server <- function(input, output, session) {
     export_corpus$lda_document_view<-if(!is.null(lda))list(ids=lda_display_documents()$doc_id,criterio=if(identical(input$lda_document_mode,"selected"))"Selecci\u00f3n expl\u00edcita por ID, t\u00edtulo o DOI" else "P\u00e1gina / orden de la tabla del modelo") else NULL
     export_bundle(dir, p, export_corpus, rv$bib, lda, ca, prompt, density = density, raw = rv$raw, network = network, comparison = comparison, pca = pca,subgraph=subgraph,reader=wiki_export_current(),
       lda_selection = kselect_current(), density_sens = dsens_current())
-    graphs <- list()
+    graphs <- list(); omitted <- data.frame(grafico = character(), motivo = character(), stringsAsFactors = FALSE)
+    why <- function(e) if (inherits(e, "shiny.silent.error") || !nzchar(conditionMessage(e))) "No disponible con el estado actual de la aplicaci\u00f3n." else conditionMessage(e)
+    note_omitted <- function(name, reason) omitted <<- rbind(omitted, data.frame(grafico = name, motivo = reason, stringsAsFactors = FALSE))
+    # Un gr\u00e1fico que falla no impide entregar los dem\u00e1s: se registra y se informa.
+    add_graph <- function(name, expr) { res <- tryCatch(expr, error = function(e) { note_omitted(name, why(e)); NULL }); if (!is.null(res)) graphs[[name]] <<- res; invisible(NULL) }
     if (!is.null(comparison)) {
-      graphs$jsd_shifts <- jsd_graph(); graphs$jsd_acumulada <- jsd_cumulative_graph(); graphs$jsd_matriz <- jsd_matrix_graph()
-      if (nrow(comparison$temporal)) graphs$jsd_evolucion <- jsd_time_graph()
+      add_graph("jsd_shifts", jsd_graph()); add_graph("jsd_acumulada", jsd_cumulative_graph()); add_graph("jsd_matriz", jsd_matrix_graph())
+      if (nrow(comparison$temporal)) add_graph("jsd_evolucion", jsd_time_graph())
     }
-    if (!is.null(pca)) { graphs$acp_documentos <- pca_documents_graph(); graphs$acp_variables <- pca_terms_graph(); graphs$acp_varianza <- pca_variance_graph() }
-    if (!is.null(ca)) graphs$ca_inercia <- ca_variance_graph()
-    if (!is.null(network)) graphs$red <- network_graph()
-    if(!is.null(subgraph)) graphs$subgrafo<-make_network_graph(subgraph)
-    if(nrow(token_view())) graphs$terminos_comparacion<-token_bars_graph()
-    if (nrow(rv$bib$annual)) graphs$evolucion_anual <- annual_graph()
-    if (nrow(rv$bib$sources)) graphs$fuentes <- sources_graph()
-    if (nrow(rv$corpus$terms)) graphs$palabras <- terms_graph()
-    if (nrow(gram_data())) graphs$ngramas <- bigrams_graph()
-    if (!is.null(lda)) graphs$temas_lda <- lda_graph()
-    if (!is.null(ca)) graphs$mapa_ca <- ca_graph()
-    if (!is.null(lda)) graphs$composicion_lda <- lda_heatmap_graph()
-    if(!is.null(lda) && nrow(lda_yearly(lda,p))) graphs$lda_prevalencia_anual<-lda_time_graph()
-    if (nrow(rv$bib$authors)) graphs$autores <- authors_graph()
-    if (nrow(rv$bib$keywords)) graphs$keywords <- keywords_graph()
-    if (any(!is.na(rv$prepared$documents$citations))) graphs$citas <- citations_graph()
-    if (nrow(rv$corpus$terms)) graphs$seleccion_vocabulario <- token_graph()
+    if (!is.null(pca)) { add_graph("acp_documentos", pca_documents_graph()); add_graph("acp_variables", pca_terms_graph()); add_graph("acp_varianza", pca_variance_graph()) }
+    if (!is.null(ca)) add_graph("ca_inercia", ca_variance_graph())
+    if (!is.null(network)) add_graph("red", network_graph())
+    if(!is.null(subgraph)) add_graph("subgrafo", make_network_graph(subgraph))
+    if(nrow(token_view())) add_graph("terminos_comparacion", token_bars_graph())
+    if (nrow(rv$bib$annual)) add_graph("evolucion_anual", annual_graph())
+    if (nrow(rv$bib$sources)) add_graph("fuentes", sources_graph())
+    if (nrow(rv$corpus$terms)) add_graph("palabras", terms_graph())
+    if (nrow(gram_data())) add_graph("ngramas", bigrams_graph())
+    if (!is.null(lda)) add_graph("temas_lda", lda_graph())
+    if (!is.null(ca)) add_graph("mapa_ca", ca_graph())
+    if (!is.null(lda)) add_graph("composicion_lda", lda_heatmap_graph())
+    if(!is.null(lda) && nrow(lda_yearly(lda,p))) add_graph("lda_prevalencia_anual", lda_time_graph())
+    if (nrow(rv$bib$authors)) add_graph("autores", authors_graph())
+    if (nrow(rv$bib$keywords)) add_graph("keywords", keywords_graph())
+    if (any(!is.na(rv$prepared$documents$citations))) add_graph("citas", citations_graph())
+    if (nrow(rv$corpus$terms)) add_graph("seleccion_vocabulario", token_graph())
     if (!is.null(density)) {
-      graphs$umap_hdbscan <- density_graph()
-      if (any(density$assignments$grupo > 0)) graphs$membresias <- density_membership_graph()
-      if (nrow(density$terms)) graphs$grupos_c_tfidf <- density_terms_graph()
-      if (nrow(density$similarity)) graphs$similitud_grupos <- density_similarity_graph()
-      if (nrow(density$temporal)) {graphs$evolucion_grupos<-density_stacked_graph();graphs$grupos_proporciones<-density_temporal_figure(density);if(!is.null(density$temporal_spline)) graphs$grupos_spline<-density_temporal_figure(density,"spline",density$temporal_spline)}
+      add_graph("umap_hdbscan", density_graph())
+      if (any(density$assignments$grupo > 0)) add_graph("membresias", density_membership_graph())
+      if (nrow(density$terms)) add_graph("grupos_c_tfidf", density_terms_graph())
+      if (nrow(density$similarity)) add_graph("similitud_grupos", density_similarity_graph())
+      if (nrow(density$temporal)) {add_graph("evolucion_grupos", density_stacked_graph());add_graph("grupos_proporciones", density_temporal_figure(density));if(!is.null(density$temporal_spline)) add_graph("grupos_spline", density_temporal_figure(density,"spline",density$temporal_spline))}
     }
-    for (nm in names(graphs)) ggplot2::ggsave(file.path(dir, paste0(nm, ".png")), plot = graphs[[nm]], width = 11, height = if (nm == "temas_lda") max(6, ceiling(lda$params$k / 2) * 2.8) else 7, dpi = 180, bg = "white")
-    for (nm in names(graphs)) ggplot2::ggsave(file.path(dir,paste0(nm,".pdf")),plot=graphs[[nm]],width=11,
-      height=if(nm=="temas_lda") max(6,ceiling(lda$params$k/2)*2.8) else 7,
-      device=if(capabilities("cairo")) grDevices::cairo_pdf else grDevices::pdf,bg="white")
+    for (nm in names(graphs)) {
+      alto <- if (nm == "temas_lda") max(6, ceiling(lda$params$k / 2) * 2.8) else 7
+      ok <- tryCatch({
+        ggplot2::ggsave(file.path(dir, paste0(nm, ".png")), plot = graphs[[nm]], width = 11, height = alto, dpi = 180, bg = "white")
+        ggplot2::ggsave(file.path(dir, paste0(nm, ".pdf")), plot = graphs[[nm]], width = 11, height = alto,
+          device = if (capabilities("cairo")) grDevices::cairo_pdf else grDevices::pdf, bg = "white")
+        TRUE
+      }, error = function(e) { note_omitted(nm, why(e)); FALSE })
+      if (!ok) unlink(file.path(dir, paste0(nm, c(".png", ".pdf"))))
+    }
+    if (nrow(omitted)) {
+      safe_csv(omitted, file.path(dir, "graficos_omitidos.csv"))
+      con <- file(file.path(dir, "LEEME.txt"), open = "ab")
+      writeLines(enc2utf8(c("", sprintf("GR\u00c1FICOS OMITIDOS (%d): no se pudieron construir y no est\u00e1n en esta carpeta; el motivo de cada uno est\u00e1 en graficos_omitidos.csv.", nrow(omitted)))), con, useBytes = TRUE)
+      close(con)
+      try(showNotification(sprintf("El ZIP se gener\u00f3 sin %d gr\u00e1fico(s); consulta graficos_omitidos.csv.", nrow(omitted)), type = "warning", duration = 10), silent = TRUE)
+    }
     write_bundle_manifest(dir)
     zip::zipr(file, files = list.files(dir, full.names = TRUE), include_directories = TRUE)
   })

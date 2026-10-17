@@ -1,0 +1,12 @@
+bibentry(
+  bibtype = "Manual",
+  title = "bibliolab: Guided Bibliometric Analysis and Text Mining",
+  author = person("Manuel J.", "Sánchez-Franco", email = "majesus@us.es",
+                  comment = c(ORCID = "0000-0002-8042-3550")),
+  year = sub("-.*", "", meta$Date),
+  note = paste("R package version", meta$Version),
+  url = "https://github.com/majesus/bibliolab",
+  textVersion = paste0("Sánchez-Franco, M. J. (", sub("-.*", "", meta$Date),
+                       "). bibliolab: Guided Bibliometric Analysis and Text Mining. R package version ",
+                       meta$Version, ". https://github.com/majesus/bibliolab")
+)

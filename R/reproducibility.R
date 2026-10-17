@@ -113,7 +113,7 @@ methods_report <- function(prepared, corpus, bibliography, lda = NULL, ca = NULL
         isTRUE(cfg$normalize_labels %||% TRUE), isTRUE(cfg$remove_boilerplate %||% TRUE))), "")
   if (!is.null(corpus$issues)) add(paste0("- ", corpus$issues), "")
   add(paste0("Resumen TF-IDF para ordenar: ",cfg$tfidf_stat %||% "mean","; unidades: ",cfg$tfidf_scope %||% "all","; percentil configurable: ",cfg$tfidf_percentile %||% 75,". Los percentiles usan tipo 7 de R. MAD es mediana de desviaciones absolutas sin escalar (constant = 1); los res\u00famenes globales incluyen ceros entre unidades activas. El umbral m\u00ednimo sigue usando la media global. Estos pesos seleccionan vocabulario; LDA y correspondencias usan conteos."), "")
-  if (length(corpus$models)) add("Modelos ling\u00fc\u00edsticos:", "", md_table(data.frame(idioma = names(corpus$models), archivo = vapply(corpus$models, `[[`, "", "file"), md5 = vapply(corpus$models, `[[`, "", "md5"))), "")
+  if (length(corpus$models)) add("Modelos ling\u00fc\u00edsticos:", "", md_table(data.frame(idioma = names(corpus$models), archivo = vapply(corpus$models, `[[`, "", "file"), md5 = vapply(corpus$models, `[[`, "", "md5"), licencia = vapply(corpus$models, function(m) m$licencia %||% "no registrada", ""))), "", model_license_notice(), "")
   # 3. Bibliometria
   add("## 3. Descripci\u00f3n bibliom\u00e9trica", "",
     "Los indicadores describen el corpus recuperado; los datos ausentes se excluyen de cada c\u00e1lculo y no se convierten en cero. Se informa h del corpus completo y h por autor restringido a sus publicaciones de esta b\u00fasqueda, junto con cobertura de citas. Con citas ausentes es un l\u00edmite inferior. El h por autor no representa su carrera completa y exige desambiguar identidades.", "",

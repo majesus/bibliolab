@@ -27,3 +27,16 @@ write_csv_text <- function(text, ...) {
   writeLines(text, path, useBytes = TRUE, ...)
   path
 }
+
+# Ejecuta un guion con Rscript en un proceso limpio. Las variables de entorno se pasan con
+# withr::with_envvar(): el argumento `env` de system2() antepone texto al comando en Windows y
+# hace fallar la invocacion. Se omite (no se da por buena) si bibliolab no esta instalado en las
+# bibliotecas visibles, por ejemplo al ejecutar con pkgload::load_all().
+ejecutar_rscript <- function(script, dir) {
+  instalado <- nzchar(find.package("bibliolab", lib.loc = .libPaths(), quiet = TRUE)) &&
+    file.exists(file.path(find.package("bibliolab", lib.loc = .libPaths(), quiet = TRUE), "Meta", "package.rds"))
+  if (!instalado) testthat::skip("bibliolab no esta instalado: el proceso independiente no puede cargarlo")
+  rscript <- file.path(R.home("bin"), "Rscript")
+  withr::with_envvar(c(R_LIBS = paste(.libPaths(), collapse = .Platform$path.sep), LANG = "C.UTF-8"),
+    withr::with_dir(dir, suppressWarnings(system2(rscript, shQuote(script), stdout = TRUE, stderr = TRUE))))
+}

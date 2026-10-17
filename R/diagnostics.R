@@ -116,6 +116,11 @@ jaccard <- function(a, b) {
 # ---- Coherencia, diversidad y convergencia de LDA ----------------------------
 # Coherencia por tema con co-ocurrencia documental interna (Mimno et al., 2011;
 # NPMI segun Bouma 2009 / Roeder et al., 2015). Requiere conteos documento x termino.
+#
+# Convencion NPMI: un par cuyos dos terminos aparecen en todos los documentos no tiene variacion
+# (la expresion es 0/0): no mide coocurrencia por encima de la independencia y se excluye del
+# promedio. Un tema sin ningun par informativo devuelve NA (no un valor maximo). Un par que nunca
+# coocurre vale -1 (Roeder et al., 2015). `pairs` informa de cuantos pares entraron en el promedio.
 topic_coherence <- function(beta, counts, top_n = 10L) {
   binary <- (counts > 0) * 1
   N <- nrow(binary)
@@ -128,12 +133,16 @@ topic_coherence <- function(beta, counts, top_n = 10L) {
     for (m in 2:top_n) for (l in seq_len(m - 1L)) {
       um <- um + log((co[m, l] + 1) / max(d[l], 1))
       p12 <- co[m, l] / N
-      np <- c(np, if (p12 <= 0) -1 else if (p12 >= 1) 1 else log(p12 / ((d[m] / N) * (d[l] / N))) / (-log(p12)))
+      if (p12 >= 1) next
+      np <- c(np, if (p12 <= 0) -1 else log(p12 / ((d[m] / N) * (d[l] / N))) / (-log(p12)))
     }
-    c(umass = um, npmi = mean(np))
-  }, c(umass = 0, npmi = 0))
-  list(umass = res["umass", ], npmi = res["npmi", ])
+    c(umass = um, npmi = if (length(np)) mean(np) else NA_real_, pairs = length(np))
+  }, c(umass = 0, npmi = 0, pairs = 0))
+  list(umass = res["umass", ], npmi = res["npmi", ], pairs = res["pairs", ])
 }
+
+# Media de los valores finitos; NA si no hay ninguno (por ejemplo, temas sin pares NPMI informativos).
+mean_finite <- function(x) if (any(is.finite(x))) mean(x[is.finite(x)]) else NA_real_
 
 topic_diversity <- function(beta, top_n = 10L) {
   top_n <- min(as.integer(top_n), ncol(beta))
@@ -148,6 +157,8 @@ fit_lda_gibbs <- function(dtm, k, seed, burnin = 100L, iter = 500L, thin = 10L, 
   # Cada estado guardado conserva la asignacion de cada token: se acota su numero para limitar memoria.
   max_states <- max(5L, min(100L, floor(2e7 / max(tokens, 1))))
   thin_eff <- max(as.integer(thin), as.integer(ceiling(iter / max_states)))
+  # El motor guarda estados en burnin + thin, burnin + 2 thin, ..., burnin + iter: con thin > iter no hay ninguno.
+  if (thin_eff > as.integer(iter)) stop(shiny::safeError(sprintf("El espaciado (%d) supera las iteraciones (%d): no se guardar\u00eda ning\u00fan estado.", thin_eff, as.integer(iter))))
   ctrl <- list(seed = as.integer(seed), burnin = as.integer(burnin), iter = as.integer(iter), thin = thin_eff,
     alpha = if (is.null(alpha)) 1 / k else alpha, delta = delta, best = FALSE, verbose = 0L)
   g <- with_seed(seed, topicmodels::LDA(dtm, k = as.integer(k), method = "Gibbs", control = ctrl))
@@ -172,11 +183,11 @@ lda_diagnostics <- function(beta, theta, counts, loglik = NULL, top_n = 10L) {
   top_terms <- vapply(seq_len(nrow(beta)), function(t) paste(colnames(beta)[order(beta[t, ], decreasing = TRUE)[seq_len(min(5L, ncol(beta)))]], collapse = ", "), "")
   conv <- loglik_convergence(loglik)
   topics <- data.frame(tema = seq_len(nrow(beta)), prevalencia_pct = 100 * prevalence, coherencia_umass = coh$umass,
-    coherencia_npmi = coh$npmi, palabras = top_terms, stringsAsFactors = FALSE)
+    coherencia_npmi = coh$npmi, palabras = top_terms, pares_npmi = as.integer(coh$pairs), stringsAsFactors = FALSE)
   overview <- data.frame(
     indicador = c("Coherencia NPMI media (co-ocurrencia documental interna)", "Coherencia UMass media", "Diversidad de palabras principales",
       "Proporcion media del tema dominante por unidad", "Tema menos prevalente (%)", "Cambio relativo de log-verosimilitud (2a mitad vs 1a)"),
-    valor = c(mean(coh$npmi), mean(coh$umass), topic_diversity(beta, top_n), mean(apply(theta, 1, max)), 100 * min(prevalence), conv$relative_change),
+    valor = c(mean_finite(coh$npmi), mean(coh$umass), topic_diversity(beta, top_n), mean(apply(theta, 1, max)), 100 * min(prevalence), conv$relative_change),
     stringsAsFactors = FALSE)
   list(overview = overview, topics = topics, convergence = conv)
 }
@@ -184,9 +195,11 @@ lda_diagnostics <- function(beta, theta, counts, loglik = NULL, top_n = 10L) {
 # ---- Seleccion asistida del numero de temas ---------------------------------
 lda_quality_reading <- function(fit) {
   d<-fit$diagnostics;topics<-d$topics;v<-d$overview$valor
-  best<-topics$tema[which.max(topics$coherencia_npmi)];weak<-topics$tema[which.min(topics$coherencia_npmi)]
+  informative<-any(is.finite(topics$coherencia_npmi))
+  best<-if(informative) topics$tema[which.max(topics$coherencia_npmi)] else NA_integer_;weak<-if(informative) topics$tema[which.min(topics$coherencia_npmi)] else NA_integer_
   data.frame(Aspecto=c("Coherencia NPMI","Coherencia UMass","Diversidad","Mezcla tem\u00e1tica","Tema menos prevalente","Traza del ajuste"),
-    Lectura=c(sprintf("La NPMI media es %.3f; tema %d tiene la mayor y tema %d la menor. Valores positivos describen coocurrencia superior a la independencia; no hay un corte universal de calidad.",v[1],best,weak),
+    Lectura=c(if(informative) sprintf("La NPMI media es %.3f; tema %d tiene la mayor y tema %d la menor. Valores positivos describen coocurrencia superior a la independencia; no hay un corte universal de calidad. Los pares cuyos dos t\u00e9rminos aparecen en todos los documentos no tienen variaci\u00f3n y no cuentan (columna pares_npmi).",v[1],best,weak)
+      else "La NPMI no es informativa en esta ejecuci\u00f3n: los t\u00e9rminos principales de todos los temas aparecen en todos los documentos, de modo que su coocurrencia no puede superar la esperada por independencia. No se asigna un valor m\u00e1ximo a esa ausencia de variaci\u00f3n; revisa el vocabulario (presencia m\u00e1xima) o ampl\u00eda el corpus.",
       sprintf("UMass media = %.3f. Compara valores mayores (menos negativos) solo con el mismo corpus, vocabulario y n\u00famero de palabras principales.",v[2]),
       sprintf("Diversidad = %.1f %% de posiciones de palabras principales ocupadas por palabras distintas. El resto repite t\u00e9rminos entre temas; diversidad alta no garantiza temas interpretables.",100*v[3]),
       sprintf("El tema dominante acumula, en promedio, %.1f %% de la mezcla de cada unidad. %.1f %% ser\u00eda una mezcla uniforme con k = %d. El prior alpha y la longitud de los textos tambi\u00e9n condicionan la concentraci\u00f3n.",100*v[4],100/fit$params$k,fit$params$k),
@@ -198,22 +211,6 @@ lda_quality_reading <- function(fit) {
       "Consulta las mezclas y contrasta alpha antes de interpretar cada documento como perteneciente a un \u00fanico tema.",
       "Lee sus documentos y comprueba si reaparece con otras semillas y valores cercanos de k.",
       "Contrasta iteraciones y semillas; documenta estabilidad, deriva y la regla de elegir el estado de mayor verosimilitud."),stringsAsFactors=FALSE)
-}
-
-# Huella de contenido del corpus analitico: conteos, nombres de unidades y terminos, y la
-# correspondencia unidad -> documento. Dos corpus con las mismas dimensiones pero distintos
-# terminos, conteos o documentos tienen huellas distintas; se usa para decidir si un
-# diagnostico guardado sigue describiendo el corpus vigente.
-corpus_fingerprint <- function(corpus) {
-  m <- corpus$counts
-  if (is.null(m)) return("sin-matriz")
-  trip <- methods::as(m, "TsparseMatrix")
-  o <- order(trip@i, trip@j)
-  doc <- corpus$units$doc_id[match(rownames(m), corpus$units$unit_id)]
-  obj <- list(dim = dim(m), rows = rownames(m), cols = colnames(m), i = trip@i[o], j = trip@j[o], x = as.numeric(trip@x[o]), doc = doc)
-  f <- tempfile(fileext = ".rds"); on.exit(unlink(f), add = TRUE)
-  saveRDS(obj, f, version = 2, compress = FALSE)
-  unname(tools::md5sum(f))
 }
 
 # Matriz documento x termino a partir de la matriz de unidades (frases o documentos).
@@ -250,6 +247,8 @@ dtm_from_counts <- function(counts, rows = NULL) {
 #' @param seeds Semillas de las repeticiones (al menos una; recomendadas tres).
 #' @param iterations Iteraciones de Gibbs por ajuste (100-2000).
 #' @param alpha Prior de mezcla por documento: `NULL` usa `1/k` en cada ajuste; un numero constante; o una funcion de `k`.
+#'   Los valores efectivos para cada `k` se guardan en `params$alpha_por_k` (y la regla en `params$alpha_regla`), de modo que la
+#'   entrega los reproduce aunque la funcion dependa de variables de su entorno.
 #' @param delta Prior de palabras por tema.
 #' @param holdout Fraccion de documentos reservada para la perplejidad (0 la desactiva). Se reserva por documento: todas las frases de un documento reservado quedan fuera del entrenamiento. Solo se activa con 20 o mas documentos.
 #' @param top_n Palabras principales por tema usadas en coherencia, diversidad y estabilidad.
@@ -307,8 +306,15 @@ lda_select_k <- function(corpus, k_range = 2:8, seeds = c(2026L, 2027L, 2028L), 
   dtm_test <- if (n_test > 0) dtm_from_counts(m, test) else NULL
   total <- length(k_range) * length(seeds); done <- 0L
   runs <- list(); tops <- list()
-  for (k in k_range) for (s in seeds) {
+  # Valores efectivos de alpha por k: son los que se reproducen (una funcion puede depender de su entorno).
+  alpha_for <- function(k) {
     a <- if (is.null(alpha)) 1 / k else if (is.function(alpha)) alpha(k) else alpha
+    check_number(a, sprintf("El prior alpha para k = %d", k), 0.001, 100, FALSE)
+    as.numeric(a)
+  }
+  alpha_by_k <- data.frame(k = k_range, alpha = vapply(k_range, alpha_for, 0))
+  for (k in k_range) for (s in seeds) {
+    a <- alpha_by_k$alpha[alpha_by_k$k == k]
     t0 <- proc.time()[[3]]
     gf <- fit_lda_gibbs(dtm_train, k, s, burnin = 100L, iter = as.integer(iterations), thin = 10L, alpha = a, delta = delta)
     fit <- gf$fit
@@ -319,7 +325,7 @@ lda_select_k <- function(corpus, k_range = 2:8, seeds = c(2026L, 2027L, 2028L), 
       control = list(seed = s, burnin = 100L, iter = as.integer(iterations), thin = 10L, alpha = a, delta = delta)))), error = function(e) NA_real_) else NA_real_
     conv <- loglik_convergence(gf$loglik)
     runs[[length(runs) + 1L]] <- data.frame(k = k, semilla = s, alpha = a, perplejidad = perp,
-      coherencia_npmi = mean(coh$npmi), coherencia_umass = mean(coh$umass), diversidad = topic_diversity(beta, top_n),
+      coherencia_npmi = mean_finite(coh$npmi), coherencia_umass = mean(coh$umass), diversidad = topic_diversity(beta, top_n),
       tema_minimo_pct = 100 * min(colMeans(post$topics)), cambio_loglik = conv$relative_change,
       segundos = proc.time()[[3]] - t0, stringsAsFactors = FALSE)
     tops[[paste(k, s)]] <- lapply(seq_len(k), function(t) colnames(beta)[order(beta[t, ], decreasing = TRUE)[seq_len(top_n)]])
@@ -342,14 +348,16 @@ lda_select_k <- function(corpus, k_range = 2:8, seeds = c(2026L, 2027L, 2028L), 
     r <- runs[runs$k == k_range[i], , drop = FALSE]
     sdv <- function(x) if (sum(is.finite(x)) > 1) stats::sd(x, na.rm = TRUE) else NA_real_
     data.frame(k = k_range[i], perplejidad = mean(r$perplejidad), perplejidad_de = sdv(r$perplejidad),
-      coherencia_npmi = mean(r$coherencia_npmi), coherencia_npmi_de = sdv(r$coherencia_npmi),
+      coherencia_npmi = if (all(is.finite(r$coherencia_npmi))) mean(r$coherencia_npmi) else NA_real_, coherencia_npmi_de = sdv(r$coherencia_npmi),
       coherencia_umass = mean(r$coherencia_umass), diversidad = mean(r$diversidad),
       estabilidad = stability[i], tema_minimo_pct = mean(r$tema_minimo_pct), stringsAsFactors = FALSE)
   }))
   rownames(summ) <- NULL
   rec <- lda_k_recommendation(summ)
   list(table = summ, runs = runs, recommendation = rec,
-    params = list(k_range = k_range, seeds = seeds, iterations = as.integer(iterations), alpha = if (is.null(alpha)) "1/k" else if (is.function(alpha)) paste(deparse(body(alpha)), collapse = " ") else alpha,
+    params = list(k_range = k_range, seeds = seeds, iterations = as.integer(iterations),
+      alpha = if (is.null(alpha)) "1/k" else if (is.function(alpha)) paste(deparse(body(alpha)), collapse = " ") else alpha,
+      alpha_regla = if (is.null(alpha)) "1/k" else if (is.function(alpha)) "funcion" else "constante", alpha_por_k = alpha_by_k,
       delta = delta, holdout_units = n_test, holdout_documents = length(test_docs), holdout_doc_ids = test_docs,
       holdout_fraction = holdout, holdout_unit = "documento", coherence_unit = "documento",
       units = n, documents = n_docs, terms = ncol(m), top_n = as.integer(top_n)),
@@ -379,6 +387,9 @@ lda_k_recommendation <- function(summ) {
   comp <- cbind(scale01(summ$coherencia_npmi), scale01(summ$estabilidad), scale01(summ$diversidad))
   comp <- comp[, colSums(is.finite(comp)) > 0, drop = FALSE]
   score <- if (ncol(comp)) apply(comp, 1, function(r) min(r, na.rm = TRUE)) else rep(NA_real_, nrow(summ))
+  # Un k cuya NPMI no es informativa no compite con los demas en el compromiso: omitir un criterio
+  # no puede mejorar su puntuacion.
+  if (any(is.finite(summ$coherencia_npmi))) score[!is.finite(summ$coherencia_npmi)] <- NA_real_
   summ_score <- data.frame(k = summ$k, puntuacion_compromiso = score)
   compromise <- if (any(is.finite(score))) summ$k[which.max(score)] else NA_integer_
   used <- criteria$k_mejor[criteria$columna %in% c("coherencia_npmi", "estabilidad", "diversidad")]
@@ -407,6 +418,13 @@ lda_k_recommendation <- function(summ) {
 #' @param neighbors,min_pts Valores alternativos; por defecto la mitad, el valor y el doble.
 #' @param vectors,embedding_model Vectores importados, si la representacion es `"vectors"`.
 #' @param progress Funcion opcional `function(i, total)`.
+#'
+#' @details El ARI trata el grupo «sin asignar» como una clase mas, de modo que dos
+#'   agrupaciones sin ningun grupo coinciden (ARI = 1): eso expresa la misma ausencia de
+#'   grupos, no estabilidad de grupos tematicos. Si la referencia no forma grupos, la
+#'   lectura (`reading`) lo dice, `ari_asignados` de la referencia es `NA` y no se
+#'   aplican las bandas de estabilidad. `ari_asignados` es `NA` siempre que haya menos
+#'   de dos documentos asignados en ambas agrupaciones.
 #'
 #' @return Lista con `reference`, `runs`, `summary`, `cluster_stability` y `params`.
 #' @references
@@ -454,7 +472,8 @@ density_sensitivity <- function(corpus, prepared, params = list(), seeds = NULL,
       ari_asignados = if (sum(both) > 1L) adjusted_rand(ref_label[both], lab[both]) else NA_real_, estado = "ejecutada", causa = "", stringsAsFactors = FALSE), labels = lab)
   }
   rows <- list(data.frame(tipo = "Referencia", semilla = as.integer(p$seed), vecinos = base_nb, min_pts = base_mp,
-    grupos = sum(unique(ref_label) > 0), sin_asignar_pct = 100 * mean(ref_label == 0), ari = 1, ari_asignados = 1, estado = "ejecutada", causa = "", stringsAsFactors = FALSE))
+    grupos = sum(unique(ref_label) > 0), sin_asignar_pct = 100 * mean(ref_label == 0), ari = 1,
+    ari_asignados = if (sum(ref_label > 0) > 1L) 1 else NA_real_, estado = "ejecutada", causa = "", stringsAsFactors = FALSE))
   seed_labels <- list()
   for (s in seeds) { r <- one("Semilla", s, base_nb, base_mp); rows[[length(rows) + 1L]] <- r$row; if (!is.null(r$labels)) seed_labels[[length(seed_labels) + 1L]] <- r$labels }
   for (nb in neighbors) for (mp in min_pts) {
@@ -491,9 +510,24 @@ density_sensitivity <- function(corpus, prepared, params = list(), seeds = NULL,
       if (nrow(cluster_stability)) sum(cluster_stability$jaccard_medio >= 0.6) else NA_real_,
       sum(runs$estado == "fallida")),
     stringsAsFactors = FALSE)
-  reading <- paste0("Estabilidad entre semillas: ", band(med(sd_runs$ari)), ". Sensibilidad a parametros: ", band(med(pm_runs$ari)),
+  # Sin grupos en la referencia, un ARI de 1 solo expresa que la repeticion tambien deja todos los
+  # documentos sin asignar (la particion trivial coincide consigo misma): no es estabilidad de grupos.
+  ref_groups <- sum(unique(ref_label) > 0)
+  trivial <- ref_groups == 0L
+  ok_runs <- runs$estado == "ejecutada" & runs$tipo != "Referencia"
+  reading <- if (trivial) paste0(
+    "La agrupaci\u00f3n de referencia no contiene grupos: el ", format(round(100 * mean(ref_label == 0), 1), decimal.mark = ","),
+    " % de los documentos queda sin asignar. ",
+    if (any(ok_runs)) paste0("El ARI calculado (", format(round(med(runs$ari[ok_runs]), 3), decimal.mark = ","),
+      ") solo indica que las repeticiones reproducen esa misma ausencia de grupos (", sum(ok_runs & runs$grupos == 0L, na.rm = TRUE), " de ", sum(ok_runs),
+      " repeticiones ejecutadas sin grupos) y no mide la estabilidad de grupos tem\u00e1ticos, que aqu\u00ed no existen. ")
+    else "No hay repeticiones ejecutadas con las que comparar. ",
+    "Reduce minPts o el n\u00famero de vecinos, o revisa la representaci\u00f3n, antes de evaluar la estabilidad.",
+    if (any(ok_runs & runs$grupos > 0L, na.rm = TRUE)) sprintf(" Con otros par\u00e1metros o semillas, %d repeticiones s\u00ed forman alg\u00fan grupo.", sum(ok_runs & runs$grupos > 0L, na.rm = TRUE)) else "")
+  else paste0("Estabilidad entre semillas: ", band(med(sd_runs$ari)), ". Sensibilidad a parametros: ", band(med(pm_runs$ari)),
     ". Las bandas son una convencion orientativa (Steinley, 2004) y no un contraste. ",
-    "Si la estabilidad es baja, trata los grupos como una exploracion y apoyate solo en los que persisten (tabla de persistencia).",
+    "Si la estabilidad es baja, trata los grupos como una exploracion y apoyate solo en los que persisten (tabla de persistencia).")
+  reading <- paste0(reading,
     if (any(runs$estado == "fallida")) sprintf(" Atencion: %d de %d repeticiones fallaron y no entran en los resumenes; consulta la causa en la tabla de repeticiones.", sum(runs$estado == "fallida"), nrow(runs)) else "")
   list(reference = ref, runs = runs, summary = summary, cluster_stability = cluster_stability, reading = reading,
     params = list(base = p, seeds = seeds, neighbors = neighbors, min_pts = min_pts),
@@ -551,6 +585,13 @@ jsd_index <- function(x, n, label) {
 #'   dentro del rango. Si un grupo no reune masa lexica, la JSD no esta definida y
 #'   se produce un error. Las replicas sin masa en algun grupo se excluyen y se
 #'   informan en `valid_null` y `valid_boot`.
+#'
+#'   Recursos: las replicas se evaluan por lotes, de modo que no se reserva una
+#'   matriz densa de `B` x documentos ni de `B` x terminos. La memoria crece
+#'   linealmente con `B` x (documentos de A + B) enteros (los indices sorteados) mas
+#'   un lote de unos dos millones de celdas. Con `B = 5000`, 10000 documentos y
+#'   10000 terminos dispersos, el pico medido fue de unos 830 MB y 31 s en un
+#'   equipo de pruebas; los resultados para una misma semilla no dependen del lote.
 #' @return Lista con `observed`, `null_mean`, `null_p95`, `excess` (observada menos
 #'   media nula), `p_value` (permutacion, con correccion +1), `ci` (bootstrap),
 #'   `valid_null`, `valid_boot` y tamanos.
@@ -580,20 +621,30 @@ jsd_uncertainty <- function(weighted, in_a, in_b, B = 500L, seed = 2026L, conf =
   pool <- c(ia, ib); na <- length(ia); n <- length(pool)
   Wp <- W[pool, , drop = FALSE]
   total <- as.numeric(Matrix::colSums(Wp))
+  # Memoria acotada: primero se sortean, en el mismo orden que siempre (resultados identicos para una
+  # misma semilla), solo los indices de cada replica (enteros); despues las replicas se evaluan por
+  # lotes, de modo que nunca se reserva una matriz densa de B x documentos ni de B x terminos.
   res <- with_seed(seed, {
-    # Permutacion: asignar al azar na documentos del conjunto A U B al grupo A.
-    S <- matrix(0, B, n)
-    for (b in seq_len(B)) S[b, sample.int(n, na)] <- 1
-    Aperm <- as.matrix(Matrix::Matrix(S, sparse = TRUE) %*% Wp)
-    Bperm <- matrix(total, B, ncol(Wp), byrow = TRUE) - Aperm
-    null <- jsd_rows(Aperm, pmax(Bperm, 0))
-    # Bootstrap de documentos dentro de cada grupo.
-    boot_counts <- function(idx) {
-      M <- matrix(0, B, length(idx))
-      for (b in seq_len(B)) M[b, ] <- tabulate(sample.int(length(idx), length(idx), replace = TRUE), length(idx))
-      as.matrix(Matrix::Matrix(M, sparse = TRUE) %*% W[idx, , drop = FALSE])
-    }
-    boot <- jsd_rows(boot_counts(ia), boot_counts(ib))
+    perm <- lapply(seq_len(B), function(b) sample.int(n, na))
+    boot_a <- lapply(seq_len(B), function(b) sample.int(length(ia), length(ia), replace = TRUE))
+    boot_b <- lapply(seq_len(B), function(b) sample.int(length(ib), length(ib), replace = TRUE))
+    batch <- max(1L, min(B, as.integer(floor(2e6 / max(ncol(W), 1)))))
+    starts <- seq.int(1L, B, by = batch)
+    # Matriz dispersa de pertenencia (lote x documentos); `count` repite filas en el remuestreo.
+    design <- function(sel, size, rows) Matrix::sparseMatrix(i = rep(seq_along(sel), lengths(sel)), j = unlist(sel, use.names = FALSE),
+      x = 1, dims = c(length(sel), size))
+    run_batches <- function(make) unlist(lapply(starts, function(st) {
+      rows <- st:min(B, st + batch - 1L); make(rows)
+    }), use.names = FALSE)
+    null <- run_batches(function(rows) {
+      Aperm <- as.matrix(design(perm[rows], n) %*% Wp)
+      Bperm <- matrix(total, length(rows), ncol(Wp), byrow = TRUE) - Aperm
+      jsd_rows(Aperm, pmax(Bperm, 0))
+    })
+    boot <- run_batches(function(rows) {
+      one <- function(sel, idx) as.matrix(design(sel, length(idx)) %*% W[idx, , drop = FALSE])
+      jsd_rows(one(boot_a[rows], ia), one(boot_b[rows], ib))
+    })
     list(null = null, boot = boot)
   })
   alpha <- (1 - conf) / 2
@@ -671,8 +722,9 @@ GENERIC_ACADEMIC_TERMS <- c("study", "studies", "paper", "article", "results", "
 #' @details Cada fila de `sensitivity` repite la seleccion efectiva del corpus
 #'   con otra presencia minima y los mismos criterios restantes (frecuencia,
 #'   TF-IDF, entropia, presencia maxima, orden y maximo de terminos), por lo que
-#'   la fila `actual` coincide con el vocabulario retenido. `terminos_solo_presencia`
-#'   cuenta los terminos que cumplen unicamente la presencia minima.
+#'   la fila `actual` coincide con el vocabulario retenido y siempre esta presente,
+#'   incluso cuando el umbral vigente deja el vocabulario vacio (cero terminos).
+#'   `terminos_solo_presencia` cuenta los terminos que cumplen unicamente la presencia minima.
 #' @return Lista con `sensitivity`, `generic`, `coverage`, `suggestion` y `boilerplate`.
 #' @examples
 #' d <- read_biblio_csv(system.file("extdata", "practica.csv", package = "bibliolab"), ";")
@@ -685,8 +737,10 @@ vocabulary_diagnostics <- function(corpus, prepared, generic_pct = 25, min_terms
   n_docs <- nrow(prepared$documents)
   total_tokens <- sum(terms$frecuencia)
   grid <- sort(unique(c(1L, 2L, 3L, 5L, 10L, 20L, prepared$config$min_df)))
-  grid <- grid[grid <= max(terms$documentos)]
   cfg <- prepared$config
+  # El umbral vigente se conserva siempre, aunque ningun termino lo alcance: justamente entonces hay
+  # que poder explicar por que el vocabulario esta vacio.
+  grid <- sort(unique(c(grid[grid <= max(terms$documentos)], as.integer(cfg$min_df))))
   sens <- do.call(rbind, lapply(grid, function(md) {
     # Cada fila repite la seleccion real del corpus con otra presencia minima y los mismos
     # criterios restantes (frecuencia, TF-IDF, entropia, presencia maxima, orden y maximo de terminos).
