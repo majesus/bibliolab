@@ -124,6 +124,7 @@ build_ui <- function() fluidPage(
           hint("Palabras activa una primera vista de 30 nodos y 120 conexiones, con presencia y coincidencia m\u00ednimas 3 y fuerza de asociaci\u00f3n. Ajusta estos valores y compara sensibilidad; son filtros exploratorios, no pruebas de significaci\u00f3n."),
           actionButton("run_network", "Calcular red", class = "btn-primary run-analysis"), uiOutput("network_state"),
           actionButton("help_network_roles", "Comunidades, roles y key players / gu\u00eda",class="btn-quiet"),
+          checkboxInput("network_label_all","Mostrar el nombre de todos los nodos / si lo desmarcas, solo los m\u00e1s presentes y mejor conectados",TRUE),
           checkboxInput("network_motion","Movimiento suave al arrastrar nodos",TRUE),
           checkboxInput("network_pin_drag","Conservar la posici\u00f3n donde sueltas cada nodo",TRUE),
           actionButton("network_release","Liberar posiciones fijadas / reactivar disposici\u00f3n",class="btn-primary"),

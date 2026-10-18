@@ -48,6 +48,12 @@ make_network_widget<-function(fit) {
   nodes<-data.frame(id=d$name,label=vapply(d$name,function(x) paste(strwrap(if(nchar(x)>62) paste0(substr(x,1,59),"…") else x,width=24),collapse="\n"),""),
     title=paste0("<strong>",escape_html(d$name),"</strong><br>Documentos: ",d$documentos,"<br>Grado: ",d$grado,"<br>Fuerza: ",round(d$fuerza,4),"<br>Intermediación: ",round(d$intermediacion,4),"<br>Comunidad: ",d$comunidad,"<br>",d$rol_observado),
     color=colours,size=12+14*sqrt(d$documentos/max(d$documentos)),x=d$x*100,y=d$y*100,stringsAsFactors=FALSE)
+  # Rotulado como en Lectura enlazada: nombre visible en todos los nodos, con halo blanco para leerlo sobre aristas y colores.
+  # Los nodos destacados (mayor presencia o grado) llevan letra mayor; la casilla permite rotular solo estos si la red es densa.
+  base_font<-if(nrow(nodes)<=40L) 20 else if(nrow(nodes)<=80L) 16 else 13
+  prominent<-rank(-d$documentos,ties.method="first")<=15L|rank(-d$grado,ties.method="first")<=10L|nodes$id %in% marked
+  nodes$font.size<-ifelse(prominent,base_font+4,base_font);nodes$font.strokeWidth<-4;nodes$font.strokeColor<-"#ffffff"
+  if(!isTRUE(input$network_label_all %||% TRUE)) nodes$label<-ifelse(prominent,nodes$label,"")
   nodes$borderWidth<-ifelse(nodes$id %in% marked,4,0);nodes$color.background<-colours;nodes$color.border<-ifelse(nodes$id %in% marked,"#c7281e",colours)
   saved<-isolate(network_layout());nodes$fixed<-FALSE
   if(length(saved)) for(i in seq_len(nrow(nodes))) {z<-saved[[nodes$id[i]]];if(!is.null(z)){nodes$x[i]<-z$x;nodes$y[i]<-z$y;nodes$fixed[i]<-isTRUE(z$fixed)}}
@@ -56,7 +62,7 @@ make_network_widget<-function(fit) {
   selected_edges<-if(is.null(path))character() else key(path$edges$from,path$edges$to)
   edges$color<-ifelse(key(edges$from,edges$to) %in% selected_edges,"#c7281e","#b8b8b8");edges$width[key(edges$from,edges$to) %in% selected_edges]<-5
   widget<-visNetwork::visNetwork(nodes,edges,height="670px",width="100%")
-  widget<-visNetwork::visNodes(widget,shape="dot",font=list(face="Arial",size=16),borderWidth=0,shadow=FALSE)
+  widget<-visNetwork::visNodes(widget,shape="dot",font=list(face="Arial",size=base_font,strokeWidth=4,strokeColor="#ffffff"),borderWidth=0,shadow=FALSE)
   widget<-visNetwork::visEdges(widget,color=list(color="#b8b8b8",highlight="#245579"),smooth=FALSE)
   widget<-visNetwork::visInteraction(widget,dragNodes=TRUE,dragView=TRUE,zoomView=TRUE,hover=TRUE,navigationButtons=TRUE)
   widget<-visNetwork::visOptions(widget,highlightNearest=list(enabled=TRUE,degree=1,hover=FALSE),nodesIdSelection=list(enabled=TRUE,useLabels=TRUE,main="Buscar un nodo"))
