@@ -150,5 +150,6 @@ output$pca_variance <- renderPlot(pca_variance_graph(),res=96)
 output$ca_variance <- renderPlot(ca_variance_graph(),res=96)
 
 output$jsd_caption <- renderUI({f<-comparison_current();if(is.null(f)) return(hint("La explicación de la figura aparecerá tras calcular A y B."))
-  tags$p(class="chart-caption",if(f$jsd==0) "Resultado válido: A y B tienen las mismas proporciones en el vocabulario analizado. No se dibujan barras porque ninguna palabra aporta divergencia. Comprueba cobertura y ponderación; igualdad léxica no demuestra igualdad de todo el contenido." else jsd_result_reading(f))
+  tagList(tags$p(class="chart-caption",if(f$jsd==0) "Resultado válido: A y B tienen las mismas proporciones en el vocabulario analizado. No se dibujan barras porque ninguna palabra aporta divergencia. Comprueba cobertura y ponderación; igualdad léxica no demuestra igualdad de todo el contenido." else jsd_result_reading(f)),
+    tags$div(class="report-sentence",tags$h4("Cómo escribirlo en tu informe"),tags$blockquote(jsd_report_sentence(f)),hint("Las cifras proceden de tu comparación. Revisa que la redacción responda a tu pregunta antes de copiarla.")))
 })

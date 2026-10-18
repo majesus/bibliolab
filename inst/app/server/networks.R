@@ -28,6 +28,7 @@ observeEvent(input$run_network, task("Construyendo relaciones y calculando indic
 output$network_state <- renderUI({
   fit <- network_current(); if (is.null(fit)) return(empty_help("Selecciona el tipo y pulsa Calcular red. Si cambias los parámetros, vuelve a calcular."))
   tagList(tags$p(class = "chart-caption", fit$note), tags$div(class = "network-metrics", lapply(seq_len(5), function(i) tags$span(tags$strong(if (is.na(fit$summary$valor[i])) "—" else format(fit$summary$valor[i], digits = 3)), tags$small(fit$summary$indicador[i])))),
+    if (nrow(fit$edges)) tags$div(class="report-sentence",tags$h4("Cómo escribirlo en tu informe"),tags$blockquote(network_report_sentence(fit)),hint("Las cifras proceden de tu red vigente. Revisa que la redacción responda a tu pregunta antes de copiarla.")),
     if (!nrow(fit$edges)) hint("No hay conexiones que superen el umbral. Los puntos aislados son un resultado válido; reduce el umbral para explorar otras relaciones."))
 })
 make_network_graph <- function(fit) {

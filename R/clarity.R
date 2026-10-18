@@ -46,6 +46,34 @@ jsd_result_reading <- function(fit,top_n=20L) {
   words<-function(side){z<-head(d$termino[d$direccion==side],4);if(length(z))paste(z,collapse=", ") else "ninguna entre las mostradas"}
   sprintf("JSD resume cu\u00e1nto difieren las proporciones de palabras de A y B. Las barras de la izquierda tienen mayor proporci\u00f3n en A (%s); las de la derecha, en B (%s). Una barra m\u00e1s larga aporta m\u00e1s al contraste total (%s son las primeras por aportaci\u00f3n). Estas %d palabras explican %.1f %% de la diferencia. La direcci\u00f3n indica en qu\u00e9 grupo pesa m\u00e1s la palabra; la aportaci\u00f3n a la divergencia siempre es no negativa. Abre sus documentos para comprobar qu\u00e9 significa el contraste.",words("Mayor en A"),words("Mayor en B"),paste(head(d$termino,3),collapse=", "),nrow(d),sum(d$aporte_pct))
 }
+# Frase modelo para el informe con las cifras de la comparación vigente. Es descriptiva: no atribuye causa ni valida los grupos.
+jsd_report_sentence <- function(fit, top_n = 3L) {
+  if (is.null(fit) || is.null(fit$jsd)) return("")
+  p <- fit$params; a <- fit$audit$valor
+  weight <- if (identical(p$weighting, "documents")) "documentos equilibrados" else "tokens agrupados"
+  intro <- paste0("Se compararon ", p$label_A, " (n = ", a[3], " documentos) y ", p$label_B, " (n = ", a[4], " documentos) con el vocabulario retenido y la ponderaci\u00f3n de ", weight,
+    ". La divergencia de Jensen-Shannon (JSD) es ", fmt_es(fit$jsd, 4), " bits (0 = reparto de palabras id\u00e9ntico; 1 = vocabularios sin palabras en com\u00fan).")
+  if (fit$jsd == 0) return(paste0(intro, " Con este vocabulario los dos grupos tienen las mismas proporciones; esto no demuestra igualdad de todo su contenido."))
+  u <- fit$uncertainty
+  azar <- if (is.list(u) && is.finite(u$null_mean)) paste0(" Al redistribuir al azar los documentos entre ambos grupos se esperar\u00eda una JSD media de ", fmt_es(u$null_mean, 4), " bits; el exceso observado es ", fmt_es(u$excess, 4), " bits (p de permutaci\u00f3n = ", fmt_es(u$p_value, 3), ").") else ""
+  d <- fit$terms[fit$terms$aporte_bits > 0, , drop = FALSE]
+  words <- function(side) { z <- head(d$termino[d$direccion == side], top_n); if (length(z)) paste(z, collapse = ", ") else "ninguna entre las principales" }
+  paste0(intro, azar, " Las palabras que m\u00e1s contribuyen son ", words("Mayor en A"), " (mayor proporci\u00f3n en A) y ", words("Mayor en B"), " (mayor proporci\u00f3n en B). La comparaci\u00f3n describe diferencias de vocabulario y no establece su causa; si los grupos se formaron con el mismo vocabulario, no constituye una validaci\u00f3n independiente de ellos.")
+}
+# Frase modelo para el informe con las cifras de la red vigente: define qué es una conexión y declara filtros y límites.
+network_report_sentence <- function(fit) {
+  if (is.null(fit) || is.null(fit$summary)) return("")
+  v <- function(name) { i <- match(name, fit$summary$indicador); if (is.na(i)) NA_real_ else fit$summary$valor[i] }
+  p <- fit$params
+  relation <- switch(p$type, authors = "dos autores est\u00e1n unidos si han firmado una misma publicaci\u00f3n", words = "dos palabras est\u00e1n unidas si coinciden en al menos un documento",
+    sources = "dos revistas est\u00e1n unidas si comparten vocabulario retenido", references = "dos obras est\u00e1n unidas si una misma publicaci\u00f3n las cita", coupling = "dos documentos est\u00e1n unidos si comparten referencias citadas", "dos entidades est\u00e1n unidas si cumplen la relaci\u00f3n elegida")
+  weight <- switch(p$weighting %||% "", full = "el n\u00famero de coincidencias", fractional = "coincidencias fraccionadas", cosine = "el coseno", association = "la fuerza de asociaci\u00f3n", "el peso elegido")
+  n <- v("Nodos"); e <- v("Conexiones"); dens <- v("Densidad"); comp <- v("Componentes"); com <- v("Comunidades louvain"); mod <- v("Modularidad")
+  paste0("En la red analizada, ", relation, ". Con los filtros declarados (presencia m\u00ednima ", p$min_presence %||% "\u2014", ", hasta ", p$max_nodes %||% "\u2014", " nodos y ponderaci\u00f3n por ", weight, ") la red tiene ", n, " nodos y ", e, " conexiones, con una densidad de ", fmt_es(dens, 3),
+    " y ", comp, if (identical(as.integer(comp), 1L)) " componente" else " componentes", ". ",
+    if (is.finite(com)) paste0("El m\u00e9todo ", p$community_method, " propone ", com, if (identical(as.integer(com), 1L)) " comunidad" else " comunidades", if (is.finite(mod)) paste0(" (modularidad = ", fmt_es(mod, 3), ")") else "", ". ") else "",
+    "Los nodos y las comunidades dependen de los filtros y del m\u00e9todo; la posici\u00f3n en el dibujo es una disposici\u00f3n visual y las cifras describen la red, sin implicar influencia ni causalidad.")
+}
 jsd_time_reading <- function(fit) {
   d<-fit$temporal
   if(!nrow(d))return("Compara per\u00edodos con varios a\u00f1os observados para estudiar d\u00f3nde cambia el vocabulario. Cada punto compara dos a\u00f1os observados sucesivos, con la misma ponderaci\u00f3n y el mismo vocabulario retenido.")
