@@ -230,6 +230,7 @@ test_that("D05, D09 y D12: las ayudas operativas figuran en el codigo de la inte
 
 test_that("ACP, Correspondencias, LDA y densidad ofrecen frases de informe con cifras reales y limites", {
   skip_on_cran()
+  for (pk in c("uwot", "dbscan", "irlba")) skip_if_not_installed(pk)
   d <- read_biblio_csv(app_extdata("practica.csv"), ";")
   p <- prepare_documents(d, guess_columns(d)); cp <- prepare_corpus(p)
   pca <- run_pca(cp, p, max_terms = 50, B = 20)
