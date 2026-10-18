@@ -135,3 +135,15 @@ test_that("H11: la pregunta, la procedencia y la ejecucion no invalidan el corpu
     expect_true(stale())
   })
 })
+
+test_that("H10/H16: los controles especializados de Redes y de UMAP + HDBSCAN van en secciones plegadas", {
+  skip_if_not_installed("xml2")
+  ui <- as.character(build_ui())
+  expect_match(ui, "Ajustes finos de la red", fixed = TRUE)
+  expect_match(ui, "Movimiento y posición de los nodos", fixed = TRUE)
+  expect_match(ui, "Ajustes especializados", fixed = TRUE)
+  doc <- xml2::read_html(ui)
+  folded <- function(id) length(xml2::xml_find_all(doc, sprintf("//details[.//*[@id='%s']]", id))) > 0L
+  for (id in c("network_seed", "network_edges", "network_community", "network_keyplayers", "network_motion", "network_pin_drag", "density_rep", "umap_min_dist", "umap_epochs")) expect_true(folded(id), info = id)
+  for (id in c("network_type", "network_presence", "network_nodes", "network_label_all", "umap_neighbors", "hdb_min_pts")) expect_false(folded(id), info = id)
+})
