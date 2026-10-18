@@ -33,8 +33,8 @@ write_csv_text <- function(text, ...) {
 # hace fallar la invocacion. Se omite (no se da por buena) si bibliolab no esta instalado en las
 # bibliotecas visibles, por ejemplo al ejecutar con pkgload::load_all().
 ejecutar_rscript <- function(script, dir) {
-  instalado <- nzchar(find.package("bibliolab", lib.loc = .libPaths(), quiet = TRUE)) &&
-    file.exists(file.path(find.package("bibliolab", lib.loc = .libPaths(), quiet = TRUE), "Meta", "package.rds"))
+  ruta <- find.package("bibliolab", lib.loc = .libPaths(), quiet = TRUE)
+  instalado <- length(ruta) == 1L && nzchar(ruta) && file.exists(file.path(ruta, "Meta", "package.rds"))
   if (!instalado) testthat::skip("bibliolab no esta instalado: el proceso independiente no puede cargarlo")
   rscript <- file.path(R.home("bin"), "Rscript")
   withr::with_envvar(c(R_LIBS = paste(.libPaths(), collapse = .Platform$path.sep), LANG = "C.UTF-8"),

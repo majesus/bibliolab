@@ -247,6 +247,7 @@ build_ui <- function() fluidPage(
           actionButton("help_skills","C\u00f3mo usarlas / ejemplo de trabajo",class="btn-quiet"),downloadButton("download_skills","Descargar skills .zip",class="btn-primary")),panel("Interpretar con evidencia", selectInput("prompt_key", "Tarea", setNames(names(prompt_catalog()), vapply(prompt_catalog(), `[[`, "", "title"))),
           uiOutput("prompt_help"), textAreaInput("extra_context", "Borrador / contexto / segunda ejecuci\u00f3n", "", rows = 3),
           checkboxInput("include_text", "Incluir extractos de documentos representativos", FALSE),
+          hint("A\u00f1ade fragmentos de documentos a las instrucciones que vas a copiar o guardar. Est\u00e1 desactivado por defecto; usa \u00abRevisar prompt\u00bb para ver qu\u00e9 se incluye antes de copiarlo."),
           tags$div(class = "figure-tools", actionButton("preview_prompt", "Revisar prompt", class = "btn-quiet"), actionButton("copy_prompt", "Copiar prompt", class = "btn-primary"), downloadButton("download_prompt", "Guardar .txt")),
           hint("Los prompts utilizan resultados vigentes. La aplicaci\u00f3n no env\u00eda datos a servicios de IA.")))))
   ), tags$footer(paste("Laboratorio de bibliometr\u00eda / Procedencia, decisiones y evidencia / Versi\u00f3n",BIBLIO_VERSION))

@@ -108,7 +108,8 @@ rank_controls <- function(key, author = FALSE) tagList(
     selectInput(paste0(key, "_n"), "Registros que quieres explorar", c(10, 25, 50, 100, 250, 1000), selected = 25)),
     column(if (author) 4 else 6, numericInput(paste0(key, "_page"), "P\u00e1gina del gr\u00e1fico / 50 barras por p\u00e1gina", 1, 1, 20)),
     if (author) column(4, selectInput("authors_order", "Ordenar autores por", c("Documentos" = "documentos", "\u00cdndice h del corpus" = "h_corpus", "Suma de citas v\u00e1lidas" = "citas_suma")))),
-  hint("El gr\u00e1fico presenta hasta 50 filas por p\u00e1gina para mantener las etiquetas legibles. Elige 100 o 1.000 registros y cambia la p\u00e1gina. Ver tabla permite consultar y ordenar todas las filas."))
+  hint(paste0("Estos controles cambian lo que consultas, no los documentos ni los c\u00e1lculos. El gr\u00e1fico presenta hasta 50 filas por p\u00e1gina para mantener las etiquetas legibles. Elige 100 o 1.000 registros y cambia la p\u00e1gina. Ver tabla permite consultar y ordenar todas las filas.",
+    if (author) " Documentos es la presencia del autor en el corpus; citas v\u00e1lidas son las citas disponibles en los registros; el \u00edndice h se calcula solo con las publicaciones de este corpus. Ninguna de las tres medidas es una evaluaci\u00f3n integral de la persona.")))
 
 rank_slice <- function(d, n = 25L, page = 1L, metric = "documentos") {
   n <- suppressWarnings(as.integer(n)); page <- suppressWarnings(as.integer(page))

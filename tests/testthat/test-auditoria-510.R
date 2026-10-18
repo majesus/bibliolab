@@ -216,3 +216,14 @@ test_that("La red ofrece una frase de informe que define la conexion y declara f
   expect_match(s, "sin implicar influencia ni causalidad", fixed = TRUE)
   expect_identical(network_report_sentence(NULL), "")
 })
+
+test_that("D05, D09 y D12: las ayudas operativas figuran en el codigo de la interfaz", {
+  rd <- function(f) paste(readLines(system.file(f, package = "bibliolab"), warn = FALSE, encoding = "UTF-8"), collapse = "\n")
+  ext <- rd("app/server/extensions.R"); cmp <- rd("app/server/comparisons.R")
+  expect_match(ext, "Excluido no significa que la palabra sea incorrecta", fixed = TRUE)
+  expect_match(cmp, "Estar bien representado, contribuir mucho y ser importante para tu pregunta son cosas distintas", fixed = TRUE)
+  ui <- as.character(rank_controls("authors", author = TRUE))
+  expect_match(ui, "no los documentos ni los cálculos", fixed = TRUE)
+  expect_match(ui, "Ninguna de las tres medidas es una evaluación integral", fixed = TRUE)
+  expect_match(as.character(build_ui()), "Est\u00e1 desactivado por defecto; usa", fixed = TRUE)
+})

@@ -29,10 +29,35 @@ bibliometria ni en estadistica pueda usar la aplicacion sin entender su mecanica
 * Texto frente a calculo (P0: H02-H04, H06-H09, H12, H13, H17) corregido y cubierto por
   `tests/testthat/test-auditoria-510.R` y `test-leyes.R`.
 
-## Pendiente
+## Ayudas y didactica
 
-* H10/H16 (plegar controles especializados), H11 (separar dependencias `settings()` y `stale()`)
-  y la reescritura en lenguaje llano de las ayudas largas restantes (D01-D12).
+* Catalogo de 27 fichas de decision (`R/decision_help.R`) que cubre D01-D12, con analogia y limite
+  de la analogia en 11 de ellas (`decision_help_extras()`).
+* Narrativas didacticas (`R/narrativas.R`, 12 conceptos): pregunta natural, que se calcula de verdad,
+  analogia con su limite, errores frecuentes y frase modelo. Guia de estilo en
+  `dev/guia_estilo_ayudas.md`.
+* Frases modelo para el informe, generadas con las cifras vigentes y sin lenguaje causal:
+  leyes (Lotka, Bradford, Zipf), comparacion de vocabulario (JSD) y redes
+  (`network_report_sentence()`).
+* Vista previa del vocabulario (D04, `R/vocab_preview.R`): antes de calcular muestra que terminos
+  entran y salen al cambiar los filtros, o declara que no puede estimarlo.
+* Ayudas operativas de D05 (consultar no es calcular; orden de autores; retenido frente a excluido),
+  D09 (cos2 y contribucion) y D12 (extractos desactivados por defecto).
+
+## Estructura de la interfaz
+
+* H10/H16: controles especializados de Redes y de UMAP + HDBSCAN plegados bajo "ajustes avanzados";
+  los enlaces internos abren el bloque plegado de destino.
+* H11: `analysis_settings()` (afecta al calculo) separado de `documentation_settings()`
+  (pregunta, procedencia, ejecucion). Cambiar solo la documentacion ya no marca el analisis como
+  desactualizado.
+* Procesamiento paralelo en "Rendimiento del equipo · opcional".
+
+## Limites de verificacion
+
+* Las rutas de LDA (`topicmodels`), lematizacion (`udpipe`) y deteccion de idioma (`cld2`) no pudieron
+  ejecutarse en el entorno de desarrollo; se prueban con los datos y el codigo disponibles.
+* `ejecutar_rscript()` (ayudante de pruebas) fallaba con `load_all()` cuando bibliolab no estaba instalado, en lugar de omitir la prueba; ahora la omite con un aviso. Las pruebas de reproduccion en proceso independiente solo se ejecutan con el paquete instalado y no se han podido ejecutar aqui.
 
 # bibliolab 5.0.3
 

@@ -219,6 +219,7 @@ open_result_table <- function(key) {
     if (key == "tokens") tagList(fluidRow(column(5, textInput("term_search", "Buscar término o motivo · admite búsqueda sin acentos", "")),
       column(3, selectInput("term_status", "Estado", c("Todos" = "all", "Retenidos" = "kept", "Excluidos" = "excluded"))),
       column(4, selectInput("term_reason", "Motivo de exclusión", c("Todos los motivos" = "all", setNames(term_reasons(rv$corpus$terms), term_reasons(rv$corpus$terms)))))),
+      hint("Retenidos: entran en los modelos. Excluidos: no entran, pero puedes consultarlos para comprobar qué se ha perdido. Excluido no significa que la palabra sea incorrecta: indica que no cumplió un criterio de los filtros."),
       uiOutput("term_count")),
     if(key %in% c("lda","lda_examples")) {fit<-lda_current();if(!is.null(fit)) selectInput("result_topic","Filtrar por tema LDA",c("Todos los temas"="all",setNames(as.character(seq_len(fit$params$k)),paste("Tema",seq_len(fit$params$k)))),selected="all")},
     DT::DTOutput("result_table"), uiOutput("result_reading"), footer = modalButton("Cerrar tabla")))
