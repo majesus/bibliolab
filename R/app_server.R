@@ -73,7 +73,7 @@ app_server <- function(input, output, session) {
   output$processing_controls<-renderUI(tagList(checkboxInput("parallel_enabled","Usar procesamiento paralelo en tareas grandes",TRUE),
     conditionalPanel("input.parallel_enabled",numericInput("parallel_workers","M\u00e1ximo de trabajadores R locales",min(2L,processing_worker_limit()),1,processing_worker_limit())),
     hint("Se deja al menos un n\u00facleo libre y se usan como m\u00e1ximo cuatro trabajadores. Para lotes peque\u00f1os se evita iniciar procesos. M\u00e1s trabajadores tambi\u00e9n requieren m\u00e1s memoria.")))
-  settings <- reactive({
+  analysis_settings <- reactive({
     fields <- c("text", "title", "id", "year", "source", "authors", "citations", "keywords", "doi", "language", "translated", "references")
     mapping <- setNames(lapply(fields, function(nm) input[[paste0("col_", nm)]] %||% ""), fields)
     config <- list(language = if(isTRUE(input$lemmatize)||isTRUE(input$pos_filter)) {if(identical(input$lemma_language,"column")) "by_document" else input$lemma_language %||% "es"} else input$language, remove_stop = isTRUE(input$remove_stop), custom_stop = input$custom_stop %||% "",
@@ -86,16 +86,35 @@ app_server <- function(input, output, session) {
       min_tfidf = input$min_tfidf %||% 0, max_entropy = input$max_entropy %||% 1, term_order = input$term_order %||% "frequency",
       tfidf_stat = input$tfidf_stat %||% "mean", tfidf_scope = input$tfidf_scope %||% "all", tfidf_percentile = input$tfidf_percentile %||% 75,
       language_overrides=if(identical(input$lemma_language,"column")) language_route()$overrides else character(),
-      language_detection=if(identical(input$lemma_language,"column")) language_route()$detector else NULL,execution=execution_settings(),
+      language_detection=if(identical(input$lemma_language,"column")) language_route()$detector else NULL,
       lemma_language = input$lemma_language %||% "es", pos_filter = isTRUE(input$pos_filter), pos_keep = if (isTRUE(input$pos_filter)) input$pos_keep %||% character() else c("NOUN", "PROPN", "ADJ"),
       normalize_labels = isTRUE(input$normalize_labels %||% TRUE), remove_boilerplate = isTRUE(input$remove_boilerplate %||% TRUE),
       metadata_sep = input$metadata_sep %||% ";", authors_sep=input$authors_sep %||% "auto", keywords_sep=input$keywords_sep %||% "auto", filter_col = if (isTRUE(input$value_filter)) input$filter_col %||% "" else "",
       filter_value = if (isTRUE(input$value_filter)) input$filter_value %||% "" else "")
+    list(mapping = mapping, config = config)
+  })
+  # Documentación y recursos de ejecución: no alteran ningún resultado, de modo que editarlos no invalida el corpus ni los modelos (H11).
+  documentation_settings <- reactive({
     provenance <- list(base_de_datos = input$source_db %||% "", ecuacion_busqueda = input$search_query %||% "",
       fecha_extraccion = input$extraction_date %||% "", criterios = input$inclusion %||% "")
-    list(mapping = mapping, config = config, question = input$question %||% "", provenance = provenance)
+    list(question = input$question %||% "", provenance = provenance, execution = execution_settings())
   })
-  stale <- reactive(!is.null(rv$prepared) && !identical(rv$signature, settings()))
+  settings <- reactive({
+    a <- analysis_settings(); d <- documentation_settings()
+    list(mapping = a$mapping, config = c(a$config, list(execution = d$execution)), question = d$question, provenance = d$provenance)
+  })
+  stale <- reactive(!is.null(rv$prepared) && !identical(rv$signature, analysis_settings()))
+  # La pregunta, la procedencia y la ejecuci\u00f3n se actualizan en el corpus vigente sin repetir la preparaci\u00f3n.
+  observeEvent(documentation_settings(), {
+    if (is.null(rv$prepared)) return()
+    d <- documentation_settings(); p <- rv$prepared
+    p$question <- d$question
+    date_text <- trimws(d$provenance$fecha_extraccion)
+    date_ok <- !nzchar(date_text) || (grepl("^[0-9]{4}-[0-9]{2}-[0-9]{2}$", date_text) && !is.na(tryCatch(as.Date(date_text, format = "%Y-%m-%d"), error = function(e) as.Date(NA))))
+    if (date_ok) p$provenance <- d$provenance
+    if (is.list(p$config)) p$config$execution <- d$execution
+    rv$prepared <- p
+  }, ignoreInit = TRUE)
   current <- reactive({
     validate(need(!is.null(rv$prepared), "Prepara un corpus en el paso 2 para ver resultados."),
       need(!stale(), "Hay cambios pendientes. Pulsa \u00abPreparar corpus\u00bb en el paso 2."))
@@ -128,7 +147,7 @@ app_server <- function(input, output, session) {
     cp <- prepare_corpus(p,progress=function(stage,current,total) setProgress(value=.1+.7*current/max(1,total),detail=switch(stage,lexical="Segmentaci\u00f3n y limpieza",annotate="Lematizaci\u00f3n y categor\u00edas",normalize="Normalizaci\u00f3n de lemas y tokens",stage)))
     if(identical(input$lemma_language,"column")) cp$processing<-rbind(attr(language_estimates(),"processing"),cp$processing)
     b <- biblio_summary(p); p$model_info <- cp$models
-    rv$comparison <- NULL; rv$comparison_signature <- NULL; rv$pca <- NULL; rv$pca_signature <- NULL; rv$network <- NULL; rv$network_signature <- NULL; rv$prepared <- p; rv$corpus <- cp; rv$bib <- b; rv$signature <- s; rv$lda <- NULL; rv$ca <- NULL; rv$density <- NULL; rv$density_signature <- NULL
+    rv$comparison <- NULL; rv$comparison_signature <- NULL; rv$pca <- NULL; rv$pca_signature <- NULL; rv$network <- NULL; rv$network_signature <- NULL; rv$prepared <- p; rv$corpus <- cp; rv$bib <- b; rv$signature <- analysis_settings(); rv$lda <- NULL; rv$ca <- NULL; rv$density <- NULL; rv$density_signature <- NULL
     rv$kselect <- NULL; rv$kselect_signature <- NULL; rv$dsens <- NULL; rv$dsens_signature <- NULL
     showNotification("Corpus preparado. Revisa la auditor\u00eda y explora los resultados.", type = "message", duration = 6)
   }))

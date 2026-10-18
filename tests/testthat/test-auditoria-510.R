@@ -107,3 +107,31 @@ test_that("T02: cada ficha de decision cumple el contrato y aparece junto a su c
   expect_match(ui, "Ejemplo ilustrativo", fixed = TRUE)
   for (id in c("lda_k", "jsd_weight", "hdb_min_pts", "network_weight", "token_rank_metric", "split_sentences", "wiki_concept_k")) expect_match(ui, h[[id]]$pregunta, fixed = TRUE)
 })
+
+test_that("H11: la pregunta, la procedencia y la ejecucion no invalidan el corpus; un ajuste analitico si", {
+  skip_on_cran(); skip_if_not(all(vapply(c("DT", "plotly", "visNetwork"), requireNamespace, TRUE, quietly = TRUE)))
+  raw <- practica_raw()
+  shiny::testServer(bibliolab:::app_server, {
+    set_data(raw, "practica", TRUE)
+    do.call(session$setInputs, mapeo_510)
+    session$setInputs(prepare = 1)
+    expect_false(stale())
+    prepared_at <- rv$prepared$prepared_at
+    session$setInputs(question = "¿Qué temas dominan?", source_db = "Scopus", search_query = "TITLE-ABS-KEY(x)", extraction_date = "2026-10-01", inclusion = "artículos")
+    expect_false(stale())
+    expect_identical(rv$prepared$question, "¿Qué temas dominan?")
+    expect_identical(rv$prepared$provenance$base_de_datos, "Scopus")
+    expect_identical(rv$prepared$provenance$fecha_extraccion, "2026-10-01")
+    expect_identical(rv$prepared$prepared_at, prepared_at)
+    session$setInputs(parallel_enabled = FALSE)
+    expect_false(stale())
+    expect_false(isTRUE(rv$prepared$config$execution$enabled))
+    # Una fecha incompleta no sustituye a la ultima fecha valida ni invalida resultados.
+    session$setInputs(extraction_date = "2026-10-")
+    expect_false(stale())
+    expect_identical(rv$prepared$provenance$fecha_extraccion, "2026-10-01")
+    # Un ajuste que si cambia el vocabulario marca el corpus como pendiente.
+    session$setInputs(max_terms = 7L)
+    expect_true(stale())
+  })
+})
