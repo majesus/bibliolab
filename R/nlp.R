@@ -58,6 +58,23 @@ model_usable <- function(path) {
   .model_validation_cache[[key]] <- ok
   ok
 }
+# Procedencia y condiciones de los modelos UDPipe descargables. El codigo de bibliolab es MIT; los
+# modelos son materiales distintos, con su propia licencia (no se redistribuyen con el paquete: los
+# descarga el usuario con `download_language_model()`).
+udpipe_model_source <- function() list(
+  repositorio = "jwijffels/udpipe.models.ud.2.5",
+  url = "https://github.com/jwijffels/udpipe.models.ud.2.5",
+  licencia = "CC BY-NC-SA 4.0",
+  url_licencia = "https://creativecommons.org/licenses/by-nc-sa/4.0/")
+
+model_license_notice <- function() {
+  src <- udpipe_model_source()
+  paste0("Los modelos de idioma UDPipe no forman parte de bibliolab (licencia MIT): se descargan de ", src$url,
+    " y se rigen por su propia licencia, ", src$licencia, " (", src$url_licencia, "): exigen atribuci\u00f3n, prohiben el uso comercial ",
+    "y las obras derivadas deben compartirse con la misma licencia. Descargarlos implica aceptar esas condiciones. ",
+    "Cada modelo usado queda registrado con su archivo, MD5, procedencia y licencia.")
+}
+
 #' Descarga y verifica un modelo UDPipe
 #'
 #' Solo debe invocarse por decision del usuario (requiere conexion). El modelo se
@@ -66,6 +83,14 @@ model_usable <- function(path) {
 #' modelo ya presente se reutiliza unicamente si tambien se puede cargar: si esta
 #' danado (por ejemplo, una descarga interrumpida), se sustituye por una descarga
 #' nueva en lugar de devolverse como valido.
+#'
+#' @section Licencia de los modelos:
+#' El codigo de bibliolab se distribuye con licencia MIT, pero los modelos UDPipe son
+#' materiales externos que no se incluyen en el paquete: se descargan de
+#' <https://github.com/jwijffels/udpipe.models.ud.2.5> y se rigen por su licencia,
+#' **CC BY-NC-SA 4.0** (atribucion, uso no comercial y compartir igual). Antes de cada
+#' descarga se muestra este aviso, y los modelos utilizados se registran (archivo, MD5,
+#' procedencia y licencia) en los parametros, el informe y el guion de reproduccion.
 #'
 #' @param language Codigo `es`, `en`, `fr`, `de`, `it` o `pt`.
 #' @param directory Carpeta de destino.
@@ -77,11 +102,12 @@ download_language_model <- function(language, directory = model_directory(), for
   if (!is.character(language) || length(language) != 1L || !language %in% names(language_models())) abort_user("Selecciona uno de los seis idiomas disponibles.")
   existing <- model_file(language, directory)
   if (!is.null(existing) && !isTRUE(force) && model_usable(existing)) return(existing)
+  message(model_license_notice())
   old <- getOption("timeout"); options(timeout = max(300, old)); on.exit(options(timeout = old), add = TRUE)
   staging <- tempfile("bibliolab-modelo-"); dir.create(staging)
   on.exit(unlink(staging, recursive = TRUE), add = TRUE)
   info <- tryCatch(udpipe::udpipe_download_model(language = unname(language_models()[language]), model_dir = staging,
-    udpipe_model_repo = "jwijffels/udpipe.models.ud.2.5"), error = function(e) NULL)
+    udpipe_model_repo = udpipe_model_source()$repositorio), error = function(e) NULL)
   if (is.null(info) || !nrow(info) || isTRUE(info$download_failed[1]) || !file.exists(info$file_model[1]))
     abort_user("No se ha podido descargar el modelo. Comprueba la conexi\u00f3n y vuelve a intentarlo; el corpus y los modelos locales no se han modificado.")
   downloaded <- info$file_model[1]
@@ -131,7 +157,8 @@ annotate_corpus_units <- function(units, documents, cfg, stops, pool=NULL, progr
   jobs<-list();models<-list()
   for(lang in names(files)) {
     idx<-which(languages==lang & nzchar(trimws(units$original)))
-    models[[lang]]<-list(file=basename(files[[lang]]),md5=unname(tools::md5sum(files[[lang]])),package=as.character(utils::packageVersion("udpipe")),parser="none",tagger="default")
+    models[[lang]]<-list(file=basename(files[[lang]]),md5=unname(tools::md5sum(files[[lang]])),package=as.character(utils::packageVersion("udpipe")),parser="none",tagger="default",
+      origen=udpipe_model_source()$url,licencia=udpipe_model_source()$licencia,url_licencia=udpipe_model_source()$url_licencia)
     for(batch in split(idx,ceiling(seq_along(idx)/100L))) jobs[[length(jobs)+1L]]<-list(file=files[[lang]],language=lang,text=units$original[batch],unit_id=units$unit_id[batch])
   }
   # Mantener afinidad de idioma reduce cargas duplicadas del mismo modelo.

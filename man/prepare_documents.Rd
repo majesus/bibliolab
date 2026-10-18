@@ -11,11 +11,13 @@ prepare_documents(d, mapping, config = default_config())
 
 \item{mapping}{Lista de columnas, normalmente de \code{\link[=guess_columns]{guess_columns()}}.}
 
-\item{config}{Lista parcial de opciones; ver \code{\link[=default_config]{default_config()}}.}
+\item{config}{Lista parcial de opciones; ver \code{\link[=default_config]{default_config()}}. Se rechazan
+las opciones desconocidas (suelen ser erratas) y las opciones logicas que no
+sean \code{TRUE} o \code{FALSE}.}
 }
 \value{
-Lista con \code{documents}, \code{audit}, \code{duplicates} (con el criterio y el
-registro conservado), \code{ambiguous} (coincidencias no eliminadas), \code{issues},
+Lista con \code{documents}, \code{audit}, \code{duplicates} (con el criterio, el
+registro conservado y los campos completados), \code{ambiguous} (coincidencias no eliminadas), \code{issues},
 \code{config}, \code{mapping} e \code{input_md5} (huella del archivo leido con
 \code{\link[=read_biblio_csv]{read_biblio_csv()}}, o \code{NULL}).
 }
@@ -30,8 +32,15 @@ Dos registros son el mismo si comparten DOI. Si falta el DOI en alguno,
 coinciden en titulo normalizado (o, sin titulo, en texto normalizado), no
 tienen DOI distintos ni anios distintos y, cuando el titulo tiene menos de
 cuatro palabras (por ejemplo \code{Editorial}), coinciden ademas en anio y en
-autores o texto. Las coincidencias con evidencia contradictoria o con
-varios candidatos se conservan y se listan en \code{ambiguous}.
+autores o texto. La identidad se decide sobre el conjunto completo de
+candidatos, no fila a fila: un registro sin DOI que podria corresponder a
+varias obras incompatibles entre si no se fusiona con ninguna y se lista en
+\code{ambiguous}, de modo que permutar el orden del archivo no cambia las obras
+analizadas. De cada grupo se conserva la primera fila del archivo; si le
+faltan el anio o el DOI y un duplicado los aporta sin contradiccion, se
+completan y se registran en la columna \code{campos_completados} de \code{duplicates}.
+Las coincidencias con evidencia contradictoria o con varios candidatos se
+conservan y se listan en \code{ambiguous}.
 }
 \examples{
 d <- read_biblio_csv(system.file("extdata", "practica.csv", package = "bibliolab"), ";")

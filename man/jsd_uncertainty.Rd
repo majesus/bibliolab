@@ -35,6 +35,13 @@ Los pesos deben ser finitos y no negativos; los indices de cada grupo
 dentro del rango. Si un grupo no reune masa lexica, la JSD no esta definida y
 se produce un error. Las replicas sin masa en algun grupo se excluyen y se
 informan en \code{valid_null} y \code{valid_boot}.
+
+Recursos: las replicas se evaluan por lotes, de modo que no se reserva una
+matriz densa de \code{B} x documentos ni de \code{B} x terminos. La memoria crece
+linealmente con \code{B} x (documentos de A + B) enteros (los indices sorteados) mas
+un lote de unos dos millones de celdas. Con \code{B = 5000}, 10000 documentos y
+10000 terminos dispersos, el pico medido fue de unos 830 MB y 31 s en un
+equipo de pruebas; los resultados para una misma semilla no dependen del lote.
 }
 \examples{
 set.seed(1)

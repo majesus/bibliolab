@@ -14,7 +14,7 @@ observeEvent(input$run_kselect, task("Comparando soluciones LDA con varias semil
   if (is.na(s$k_min) || is.na(s$k_max) || s$k_min >= s$k_max) abort_user("El rango de temas necesita al menos dos valores: elige un máximo mayor que el mínimo.")
   rv$kselect <- NULL; rv$kselect_signature <- NULL
   alpha_rule <- switch(s$alpha_mode, moderate = function(k) 5 / k, standard = function(k) 50 / k, NULL)
-  fit <- lda_select_k(rv$corpus, k_range = seq.int(s$k_min, s$k_max), seeds = s$base_seed + seq_len(s$seeds) - 1L,
+  fit <- lda_select_k(rv$corpus, k_range = seq.int(s$k_min, s$k_max), seeds = derive_seed(s$base_seed, seq_len(s$seeds) - 1L),
     iterations = s$iterations, alpha = alpha_rule,
     progress = function(i, total) setProgress(value = .1 + .85 * i / total, detail = sprintf("Ajuste %d de %d", i, total)))
   rv$kselect <- fit; rv$kselect_signature <- s
@@ -88,7 +88,7 @@ output$lda_quality_state <- renderUI({
 output$lda_diagnostics_table <- table_render(function() { f <- lda_current(); validate(need(!is.null(f), "Calcula LDA con parámetros vigentes."))
   d <- f$diagnostics$overview; names(d) <- c("Indicador", "Valor"); d })
 output$lda_topic_quality <- table_render(function() { f <- lda_current(); validate(need(!is.null(f), "Calcula LDA con parámetros vigentes."))
-  d <- f$diagnostics$topics; names(d) <- c("Tema", "Prevalencia (%)", "Coherencia UMass", "Coherencia NPMI", "Palabras principales"); d })
+  d <- f$diagnostics$topics; names(d) <- c("Tema", "Prevalencia (%)", "Coherencia UMass", "Coherencia NPMI", "Palabras principales", "Pares NPMI informativos"); d })
 output$lda_quality_reading<-table_render(function(){f<-lda_current();validate(need(!is.null(f),"Calcula LDA para interpretar sus indicadores."));d<-lda_quality_reading(f);names(d)<-c("Aspecto","Cómo leer esta ejecución","Qué comprobar después");d})
 output$lda_quality_results<-renderUI({if(is.null(lda_current()))return(NULL)
   tagList(tags$section(class="lda-quality-block",DT::DTOutput("lda_diagnostics_table")),
@@ -125,7 +125,7 @@ observeEvent(input$help_stability, showModal(modalDialog(title = "Estabilidad de
     tags$p(class = "modal-lead", "UMAP incluye azar y HDBSCAN depende de minPts: dos ejecuciones razonables pueden dar agrupaciones distintas. Medirlo evita presentar como hallazgo lo que es una de varias soluciones posibles."),
     tags$section(class = "lesson-section", tags$h3("Qué es el ARI"),
       tags$p("El índice de Rand ajustado compara dos agrupaciones del mismo conjunto de documentos: 1 significa que coinciden; 0, lo esperable entre asignaciones al azar. Aquí el grupo «sin asignar» cuenta como una clase más. La columna «solo asignados» ignora los documentos sin grupo en alguna de las dos."),
-      tags$p("Una convención orientativa (Steinley, 2004) habla de acuerdo excelente por encima de 0,90, bueno desde 0,80 y moderado desde 0,65. No es un contraste de hipótesis.")),
+      tags$p("Una convención orientativa (Steinley, 2004) habla de acuerdo excelente por encima de 0,90, bueno desde 0,80 y moderado desde 0,65. No es un contraste de hipótesis. Si la referencia no forma ningún grupo, un ARI de 1 solo indica que las repeticiones también dejan todos los documentos sin asignar: es la misma ausencia de grupos, no estabilidad de grupos temáticos.")),
     tags$section(class = "lesson-example", tags$h3("Persistencia de cada grupo"),
       tags$p("Para cada grupo de la referencia se busca, en cada otra semilla, el grupo que más documentos comparte y se calcula el solapamiento (Jaccard). Un grupo con Jaccard medio alto reaparece; uno con valores bajos es probablemente un artefacto de esa semilla.")),
     tags$section(class = "lesson-section", tags$h3("Qué hacer con el resultado"),

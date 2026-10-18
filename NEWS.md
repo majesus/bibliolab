@@ -1,3 +1,98 @@
+# bibliolab 5.0.3
+
+Revision a partir de la auditoria del commit f6a57da3 (version 5.0.2). Cada punto cita su
+hallazgo (R01-R18). Cada correccion lleva una prueba de regresion en
+`tests/testthat/test-auditoria-503.R` (salvo R01, en `test-entrega-v2.R`) que falla con el codigo
+de 5.0.2.
+
+## Integridad de datos y entrega
+
+* Deduplicacion independiente del orden (R03): la identidad se decide sobre el conjunto completo de
+  candidatos (grafo de compatibilidad) y no fila a fila. Un registro sin DOI que podria
+  corresponder a varias obras incompatibles no se fusiona con ninguna y se lista en `ambiguous`;
+  permutar el archivo no cambia las obras analizadas. El registro conservado es la primera fila;
+  si le faltan el anio o el DOI y un duplicado los aporta sin contradiccion, se completan y
+  `duplicates$campos_completados` lo registra.
+* Normalizacion Unicode (R04): el texto, las palabras vacias personalizadas, el diccionario y las
+  notas del cuaderno se normalizan a NFC antes de tokenizar (`normalize_unicode()`). "cafe" +
+  U+0301 y "cafe" precompuesto son un unico termino. Una marca combinante sin forma precompuesta
+  forma parte de la palabra. Nueva dependencia dura, `utf8` (ya presente de forma transitiva).
+* Huellas de contenido (R05): `entrega.huellas` de `parametros.json` guarda la huella canonica de
+  `entrada_original.rds`, de los documentos preparados y de la matriz documento-termino
+  (independientes de plataforma, locale y orden); `reproducir_analisis.R` las verifica y se detiene
+  con un mensaje explicito. `export_bundle()` comprueba antes de publicar que `raw`, `prepared`,
+  `corpus` y los modelos son coherentes entre si (no solo sus dimensiones).
+* Requisitos por resultado (R06): una sensibilidad de UMAP + HDBSCAN se reproduce con sus propios
+  insumos, sin exigir el modelo final de densidad; una comparacion por temas LDA o por grupos
+  UMAP se entrega sin el modelo de origen y se declara en `entrega.comprobaciones_omitidas` (los
+  grupos proceden de `grupos_jsd.rds`). Una sensibilidad con vectores sin sus vectores hace parcial
+  la entrega.
+* Alpha como funcion (R07): `lda_select_k()` registra los valores efectivos de alpha para cada k
+  (`params$alpha_por_k`, `params$alpha_regla`) y el guion los reproduce con una tabla numerica,
+  sin depender del entorno de la funcion original.
+* `verify_bundle()` valida el esquema y el contenido del manifiesto (R18): rechaza un manifiesto
+  ilegible, sin las columnas `archivo`, `bytes` y `md5`, vacio, con rutas vacias, absolutas, con
+  `..`, duplicadas o que apunten al propio manifiesto, o con tamanos y MD5 invalidos. Mantiene los
+  estados `correcto`, `modificado`, `ausente` y `no registrado`.
+* Publicacion alternativa de la entrega: si no se puede renombrar la carpeta preparada, la copia se
+  verifica y no queda una carpeta temporal contigua.
+
+## Diagnosticos
+
+* Semillas de la seleccion de k en la interfaz (R08): se derivan con `derive_seed()`, tambien con
+  la semilla maxima.
+* `run_lda()` rechaza un `thin` mayor que las iteraciones antes de llamar al motor (R09); el
+  ajuste interno de `lda_select_k()` lo comprueba tambien y devuelve un mensaje legible.
+* NPMI (R10): un par cuyos dos terminos aparecen en todos los documentos no tiene variacion (0/0) y
+  se excluye del promedio en lugar de valer 1. Un tema sin pares informativos devuelve `NA`
+  (`topics$pares_npmi`), la lectura lo declara y un k con NPMI no informativa no compite en la
+  recomendacion.
+* Sensibilidad de UMAP + HDBSCAN (R11): sin grupos en la referencia, `ari_asignados` es `NA` y la
+  lectura habla de "misma ausencia de grupos", no de estabilidad excelente.
+* Denominadores (R12): `prepare_corpus()` devuelve `tokens_in_model` y `units_in_model`; la
+  aplicacion distingue palabras tras la limpieza, palabras en el vocabulario de los modelos y
+  unidades de la matriz.
+* `vocabulary_diagnostics()` conserva siempre la fila de la presencia minima vigente, tambien con
+  vocabulario vacio (R13).
+
+## Dependencias opcionales, licencias y rendimiento
+
+* ggrepel es realmente opcional (R02): las figuras de correspondencias/ACP, el cuaderno y la red
+  estatica usan `label_layer()`, que recurre a `ggplot2::geom_text(check_overlap = TRUE)` si falta.
+  En la descarga del ZIP, un grafico que falla se omite y se registra en `graficos_omitidos.csv` y
+  `LEEME.txt` en lugar de abortar la descarga.
+* Modelos UDPipe (R16): se avisa de su licencia (CC BY-NC-SA 4.0) antes de cada descarga y en el
+  gestor de modelos; cada modelo usado se registra con archivo, MD5, origen y licencia (parametros,
+  informe y tabla de modelos). El README separa la licencia MIT del codigo de la de los
+  modelos.
+* Version minima de R (R15): el nucleo requiere R 4.1.0 y se comprueba en la integracion continua
+  con R 4.1.0 instalando solo las dependencias duras; `dbscan` (HDBSCAN) exige R 4.3.0, hecho que
+  consta en el README y en `biblio_check_dependencies()`.
+* Rendimiento (R17): `author_citation_metrics()` usa un indice autor -> documentos en una sola
+  pasada (3.000 documentos y autores: de unos 17 s a unos 1,5 s en el equipo de prueba) y
+  `jsd_uncertainty()` evalua las replicas por lotes con resultados identicos para una misma
+  semilla (B = 5000, 10.000 documentos y terminos: pico de unos 830 MB y 31 s).
+
+## Pruebas, API y citacion
+
+* `ejecutar_rscript()` (R01): el helper lanza los guiones en un proceso limpio con
+  `withr::with_envvar()` y comprueba el estado de salida; el argumento `env` de `system2()`
+  falla en Windows. Se omite si bibliolab no esta instalado.
+* `prepare_documents()` rechaza opciones de configuracion desconocidas y opciones logicas que no
+  sean `TRUE`/`FALSE` (con sugerencia de la opcion mas parecida).
+* `inst/CITATION`: cita de software explicita y coherente con `DESCRIPTION`.
+
+## Limites conocidos (no abordados en esta version)
+
+* R14: la cobertura sigue siendo desigual (cuaderno de lectura, redes, `nlp.R`, `temporal.R`). Se
+  anaden regresiones por hallazgo, no una campana de cobertura.
+* `reconstruir_graficos.R` no reproduce todos los graficos que la aplicacion anade al ZIP
+  (por ejemplo, la red estatica y algunos rankings).
+* La cobertura bibliometrica descrita en el informe (RIS/BibTeX, paises e instituciones, citas
+  locales, coocurrencia de palabras clave) es alcance futuro, no un defecto de esta version.
+* No hay etiquetas de version recuperables en el repositorio; el guion advierte si la version
+  instalada difiere de la registrada.
+
 # bibliolab 5.0.2
 
 Revision a partir de la auditoria del commit b876e55. Cada punto cita su hallazgo (H01-H23).

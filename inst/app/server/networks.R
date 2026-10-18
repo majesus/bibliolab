@@ -34,7 +34,7 @@ make_network_graph <- function(fit) {
   d$comunidad <- factor(ifelse(d$comunidad == 0, "Sin comunidad", paste("Comunidad", d$comunidad))); labels <- head(d[order(-d$grado, -d$documentos, d$name), ], 18)
   ggplot2::ggplot(d, ggplot2::aes(x, y)) + ggplot2::geom_segment(data = ed, ggplot2::aes(x, y, xend = xend, yend = yend, linewidth = weight), inherit.aes = FALSE, colour = "#b7b7b7", alpha = .6) +
     ggplot2::scale_linewidth_continuous(range = c(.2, 1.5), guide = "none") + ggplot2::geom_point(ggplot2::aes(size = documentos, colour = comunidad)) +
-    ggrepel::geom_text_repel(data = labels, ggplot2::aes(label = name), max.overlaps = Inf, seed = fit$params$seed, size = 3.5) +
+    label_layer(labels, ggplot2::aes(label = name), size = 3.5, seed = fit$params$seed, repel = list(max.overlaps = Inf)) +
     ggplot2::scale_colour_manual(values = swiss_colours(length(unique(d$comunidad)))) +
     ggplot2::coord_equal() + ggplot2::theme_void(base_size = 13) + ggplot2::theme(legend.position = "bottom") +
     ggplot2::labs(title = switch(fit$params$type, authors = "Red de coautoría", words = "Red de copresencia de palabras", sources = "Afinidad léxica de revistas",references="Red de cocitación de referencias",coupling="Acoplamiento bibliográfico de documentos"), size = "Documentos", colour = "Comunidad", subtitle = paste("Métricas del grafo filtrado ·",if(isTRUE(fit$params$remove_isolates)) "aislados retirados" else "aislados incluidos","· disposición visual"))

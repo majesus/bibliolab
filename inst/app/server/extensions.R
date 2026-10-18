@@ -83,6 +83,7 @@ observeEvent(input$model_manager, {
   showModal(modalDialog(title = "Modelos locales / UDPipe", size = "l", easyClose = TRUE,
     tags$p(class="modal-lead","Cada idioma necesita su propio modelo de UDPipe. La aplicación propone los modelos correspondientes a los idiomas asignados: combina los casos aceptados de CLD2, las etiquetas del archivo y tus correcciones. Antes de preparar el corpus, resuelve los textos que aún no tienen un idioma compatible."),
     tags$p("Por ejemplo, si tu corpus reúne resúmenes españoles e ingleses, necesitas ambos modelos. Descargar solo español no prepara los textos ingleses. Pulsa Descargar todos los modelos necesarios para obtener los que faltan; si ya están guardados, la app los reutiliza. El selector individual sirve para preparar otro idioma de forma anticipada, no para cambiar la lengua de tus documentos."),
+    tags$p(class="hint",model_license_notice()),
     uiOutput("models_needed"),actionButton("download_required_models","Descargar todos los modelos necesarios",class="btn-primary run-analysis"),
     hint(paste("Descarga una vez cada idioma que utilices. No se transmiten textos. Carpeta configurada:",model_directory(),". Se reutilizan los modelos existentes y cada ejecución registra su MD5.")),
     selectInput("model_language", "Idioma a preparar", language_choices(), selected = if ((input$lemma_language %||% "es") %in% names(language_models())) input$lemma_language %||% "es" else "es"),
@@ -121,8 +122,7 @@ token_graph <- reactive({ current(); d <- rv$corpus$terms
     ggplot2::scale_colour_manual(values = c(Retenido = "#d52b1e", Excluido = "#999999")) +
     ggplot2::scale_size_area(max_size = 9) + ggplot2::labs(x = "Presencia en documentos (%)", y = "TF-IDF medio por unidad",
       title = "Presencia y especificidad de términos", colour = NULL, size = "Apariciones") + plot_theme()
-  if (requireNamespace("ggrepel", quietly = TRUE)) g + ggrepel::geom_text_repel(data = labels, ggplot2::aes(label = termino), seed = 2026, max.overlaps = 20, size = 3)
-  else g
+  g + label_layer(labels, ggplot2::aes(label = termino), size = 3, seed = 2026, repel = list(max.overlaps = 20))
 })
 lda_display_documents<-reactive({f<-lda_current();validate(need(!is.null(f),"Calcula LDA para consultar documentos."));lda_document_rows(f,if(identical(input$lda_document_mode,"selected"))input$lda_documents %||% character() else NULL,input$lda_document_page %||% 1L,input$lda_document_page_size %||% 18L)})
 output$lda_document_controls<-renderUI({f<-lda_current();if(is.null(f))return(NULL);choices<-lda_document_labels(f,rv$prepared);selected<-isolate(input$lda_documents %||% head(unname(choices),1))

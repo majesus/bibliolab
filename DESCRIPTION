@@ -1,7 +1,7 @@
 Package: bibliolab
 Type: Package
 Title: Guided Bibliometric Analysis and Text Mining
-Version: 5.0.2
+Version: 5.0.3
 Date: 2026-10-17
 Authors@R: 
     person("Manuel J.", "Sánchez-Franco", , "majesus@us.es", role = c("aut", "cre", "cph"),
@@ -40,6 +40,7 @@ Imports:
     stopwords,
     tools,
     utils,
+    utf8,
     visNetwork,
     zip
 Suggests: 

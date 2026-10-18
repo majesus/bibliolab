@@ -94,9 +94,7 @@ test_that("el script de reproduccion regenera el analisis en un proceso independ
   expect_true(any(grepl("stopifnot(nrow(preparado$documents)", script, fixed = TRUE)))
   expect_true(any(grepl("dim(corpus$counts)", script, fixed = TRUE)))
   expect_true(any(grepl(attr(pr$raw, "source_md5"), script, fixed = TRUE)))
-  rscript <- file.path(R.home("bin"), "Rscript")
-  salida <- withr::with_dir(dir, suppressWarnings(system2(rscript, "reproducir_analisis.R", stdout = TRUE, stderr = TRUE,
-    env = paste0("R_LIBS=", paste(.libPaths(), collapse = .Platform$path.sep), " LANG=C.UTF-8"))))
+  salida <- ejecutar_rscript("reproducir_analisis.R", dir)
   expect_null(attr(salida, "status"), info = paste(utils::tail(salida, 5), collapse = "\n"))
   reproducido <- readRDS(file.path(dir, "resultados_reproducidos.rds"))
   expect_equal(reproducido$lda$top, lda$top)

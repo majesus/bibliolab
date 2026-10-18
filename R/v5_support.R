@@ -48,8 +48,12 @@ author_citation_metrics <- function(prepared, authors) {
     vm <- variant_map(unlist(entries), "author")
     entries <- lapply(entries, function(x) unname(vm$map[x[nzchar(x)]]))
   }
+  # Indice autor -> documentos construido en una sola pasada (coste lineal en las apariciones),
+  # en lugar de recorrer todos los conjuntos de autores para cada autor.
+  entries <- lapply(entries, function(x) unique(x[!is.na(x)]))
+  index <- split(rep(seq_along(entries), lengths(entries)), factor(unlist(entries, use.names = FALSE)))
   ans <- lapply(authors$elemento, function(a) {
-    ids <- which(vapply(entries, function(x) a %in% x, logical(1)))
+    ids <- as.integer(index[[a]] %||% integer())
     ct <- d$citations[ids]; valid <- ct[is.finite(ct)]
     s <- sort(valid, decreasing = TRUE)
     data.frame(citas_validas = length(valid), citas_ausentes = sum(!is.finite(ct)),

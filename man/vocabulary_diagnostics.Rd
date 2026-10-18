@@ -30,8 +30,9 @@ palabras. No modifica el corpus.
 Cada fila de \code{sensitivity} repite la seleccion efectiva del corpus
 con otra presencia minima y los mismos criterios restantes (frecuencia,
 TF-IDF, entropia, presencia maxima, orden y maximo de terminos), por lo que
-la fila \code{actual} coincide con el vocabulario retenido. \code{terminos_solo_presencia}
-cuenta los terminos que cumplen unicamente la presencia minima.
+la fila \code{actual} coincide con el vocabulario retenido y siempre esta presente,
+incluso cuando el umbral vigente deja el vocabulario vacio (cero terminos).
+\code{terminos_solo_presencia} cuenta los terminos que cumplen unicamente la presencia minima.
 }
 \examples{
 d <- read_biblio_csv(system.file("extdata", "practica.csv", package = "bibliolab"), ";")

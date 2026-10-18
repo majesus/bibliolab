@@ -22,6 +22,14 @@ una carpeta de entrega en \code{manifiesto_archivos.csv} (sin incluirse a si mis
 \code{verify_bundle()} recalcula las huellas y devuelve una tabla con el estado de
 cada archivo: \code{correcto}, \code{modificado}, \code{ausente} o \verb{no registrado}.
 }
+\details{
+Antes de comparar, \code{verify_bundle()} valida el propio manifiesto y se detiene con un
+error (sin devolver una tabla vacia que pudiera leerse como "todo correcto") si no se
+puede leer como CSV, no tiene las columnas \code{archivo}, \code{bytes} y \code{md5}, no registra
+ningun archivo, contiene rutas vacias, absolutas, que salen de la carpeta, repetidas
+o que apuntan al propio manifiesto, o tiene tamanos o MD5 con formato invalido. Un
+archivo se considera \code{correcto} solo si coinciden su MD5 y su tamano.
+}
 \examples{
 d <- read_biblio_csv(system.file("extdata", "practica.csv", package = "bibliolab"), ";")
 p <- prepare_documents(d, guess_columns(d)); cp <- prepare_corpus(p)

@@ -39,6 +39,14 @@ con la de referencia mediante el indice de Rand ajustado (ARI). Tambien
 resume, por grupo de referencia, su persistencia (Jaccard maximo) en las
 repeticiones. Un solo mapa no demuestra que los grupos sean reproducibles.
 }
+\details{
+El ARI trata el grupo «sin asignar» como una clase mas, de modo que dos
+agrupaciones sin ningun grupo coinciden (ARI = 1): eso expresa la misma ausencia de
+grupos, no estabilidad de grupos tematicos. Si la referencia no forma grupos, la
+lectura (\code{reading}) lo dice, \code{ari_asignados} de la referencia es \code{NA} y no se
+aplican las bandas de estabilidad. \code{ari_asignados} es \code{NA} siempre que haya menos
+de dos documentos asignados en ambas agrupaciones.
+}
 \examples{
 \donttest{
 d <- read_biblio_csv(system.file("extdata", "practica.csv", package = "bibliolab"), ";")

@@ -20,8 +20,9 @@ report_html <- function(prepared, corpus, bibliography, lda = NULL, ca = NULL, d
     part("Decisiones de preparaci\u00f3n", "Los par\u00e1metros siguientes describen esta ejecuci\u00f3n; deben acompa\u00f1ar a las tablas.", params),
     if(!is.null(corpus$processing)) part("Ejecuci\u00f3n / preprocesamiento", "Etapas efectivas, trabajadores y tiempos de esta ejecuci\u00f3n. Paralelismo no cambia unidades ni m\u00e9todos estad\u00edsticos. En corpus peque\u00f1os se evita iniciar procesos; si falla un trabajador se intenta la v\u00eda secuencial y se registra.",corpus$processing),
     part("Selecci\u00f3n del vocabulario", "Se documentan t\u00e9rminos retenidos y motivos de exclusi\u00f3n. TF-IDF y entrop\u00eda son criterios opcionales; LDA conserva conteos enteros.", corpus$filter_audit),
-    part("Modelos de idioma", "Lematizaci\u00f3n local UDPipe; no traduce. Los archivos y MD5 constan en par\u00e1metros JSON.",
-      if (length(corpus$models)) data.frame(idioma = names(corpus$models), modelo = vapply(corpus$models, `[[`, "", "file"), md5 = vapply(corpus$models, `[[`, "", "md5")) else data.frame()),
+    part("Modelos de idioma", "Lematizaci\u00f3n local UDPipe; no traduce. Los archivos y MD5 constan en par\u00e1metros JSON. Los modelos no son MIT: se rigen por la licencia indicada (CC BY-NC-SA 4.0 en los modelos de udpipe.models.ud.2.5).",
+      if (length(corpus$models)) data.frame(idioma = names(corpus$models), modelo = vapply(corpus$models, `[[`, "", "file"), md5 = vapply(corpus$models, `[[`, "", "md5"),
+        licencia = vapply(corpus$models, function(m) m$licencia %||% "no registrada", ""), origen = vapply(corpus$models, function(m) m$origen %||% "no registrado", "")) else data.frame()),
     part("Asignaci\u00f3n de columnas", "Campos elegidos en el archivo importado.", data.frame(campo = names(prepared$mapping), columna = unlist(prepared$mapping))),
     if(!is.null(prepared$language_audit)) part("Idiomas / estimaci\u00f3n y decisiones", if(is.null(cfg$language_detection)) "Estimaci\u00f3n autom\u00e1tica desactivada: se aplican etiquetas reconocidas del archivo y correcciones manuales." else "CLD2 analiza localmente cada texto. Se conservan etiquetas reconocidas del archivo y las correcciones manuales tienen prioridad. Proporci\u00f3n clasificada no es probabilidad de acierto. Los casos inciertos, breves, mezclados o sin modelo requieren revisi\u00f3n.", prepared$language_audit),
     part("Calidad y cobertura", paste(escape_html(c(prepared$issues, corpus$issues)), collapse = "<br>")),
@@ -108,6 +109,17 @@ report_html <- function(prepared, corpus, bibliography, lda = NULL, ca = NULL, d
 #'   declara parcial en `parametros.json` (`entrega`), en `LEEME.txt` y con un aviso, y no
 #'   se escribe `reproducir_analisis.R` ni `reproducir_cuaderno.R`.
 #'
+#'   Antes de escribir nada se comprueba la coherencia entre los objetos: `raw` debe
+#'   reproducir los documentos de `prepared` (mismo contenido, no solo las mismas
+#'   dimensiones) y los modelos, la comparacion y la densidad deben proceder de las
+#'   unidades y los documentos de `corpus` y `prepared`; si no, la funcion se detiene con
+#'   un mensaje y no crea la carpeta. `parametros.json` guarda en `entrega$huellas` las
+#'   huellas de contenido de la entrada, de los documentos preparados y de la matriz
+#'   documento-termino, que `reproducir_analisis.R` verifica. Cuando falta el objeto que
+#'   origino los grupos de una comparacion (`lda` o `density`), los grupos se toman de
+#'   `grupos_jsd.rds` y la verificacion de origen se declara omitida en
+#'   `entrega$comprobaciones_omitidas`.
+#'
 #'   `lda_selection` y `density_sens` se registran en `parametros.json` y en
 #'   `evidencia_ia.json` aunque no haya modelo final, junto con las repeticiones y el
 #'   reparto reservado (`lda_seleccion_k_ejecuciones.csv`,
@@ -126,6 +138,10 @@ export_bundle <- function(directory, prepared, corpus, bibliography, lda = NULL,
   if (file.exists(final) && !dir.exists(final)) abort_user("El destino existe y no es una carpeta. Elige una carpeta nueva.")
   if (dir.exists(final) && length(list.files(final, all.files = TRUE, no.. = TRUE)))
     abort_user("La carpeta de destino ya contiene archivos. Elige una carpeta nueva o vac\u00eda para no mezclar resultados de ejecuciones distintas; no se ha modificado nada.")
+  # Coherencia entre objetos, antes de escribir nada: una entrega con insumos contradictorios no puede
+  # reproducirse y no debe presentarse como si lo hiciera.
+  problems <- bundle_consistency_problems(prepared, corpus, raw, lda, ca, density, comparison)
+  if (length(problems)) abort_user(paste0("Los objetos de la entrega no son coherentes entre s\u00ed: ", paste(problems, collapse = "; "), ". No se ha escrito nada."))
   dir.create(dirname(final), recursive = TRUE, showWarnings = FALSE)
   if (!dir.exists(dirname(final))) abort_user("No se puede crear la carpeta que contendr\u00eda la entrega.")
   stage <- tempfile(pattern = paste0(".", basename(final), "-parcial-"), tmpdir = dirname(normalizePath(final, winslash = "/", mustWork = FALSE)))
@@ -138,7 +154,13 @@ export_bundle <- function(directory, prepared, corpus, bibliography, lda = NULL,
   if (is.null(raw)) missing_inputs <- c(missing_inputs, "entrada_original.rds (argumento `raw`)")
   if (!is.null(density) && identical(density$params$representation, "vectors") && is.null(density$input_vectors)) missing_inputs <- c(missing_inputs, "vectores_entrada.rds (`density$input_vectors`)")
   if (!is.null(comparison) && !identical(comparison$params$mode, "year") && is.null(comparison$grouping)) missing_inputs <- c(missing_inputs, "grupos_jsd.rds (`comparison$grouping`)")
+  if (!is.null(density_sens) && identical(density_sens$params$base$representation, "vectors") && is.null(density_sens$reference$input_vectors) && is.null(density$input_vectors))
+    missing_inputs <- c(missing_inputs, "vectores de la sensibilidad (`density_sens$reference$input_vectors`)")
   reproducible <- !length(missing_inputs)
+  # Huellas de contenido (entrada, documentos preparados y matriz) que el guion comprueba al reproducir,
+  # y comprobaciones que no pueden hacerse con los insumos entregados.
+  fingerprints <- if (reproducible) list(entrada = raw_fingerprint(raw), documentos = documents_fingerprint(prepared$documents), matriz = corpus_fingerprint(corpus)) else NULL
+  omitted <- if (reproducible) reproduction_omissions(comparison, lda, density) else character()
   tables <- list(documentos = prepared$documents, auditoria = prepared$audit, duplicados_detectados = prepared$duplicates, duplicados_ambiguos = prepared$ambiguous %||% data.frame(),
     unidades_textuales = corpus$units, terminos = corpus$terms, filtros_vocabulario = corpus$filter_audit,
     anotacion_linguistica = corpus$annotation, bigramas = corpus$bigrams, ngramas = corpus$ngrams %||% data.frame(),
@@ -189,7 +211,7 @@ export_bundle <- function(directory, prepared, corpus, bibliography, lda = NULL,
     red = if (!is.null(network)) list(parametros = network$params, definicion = network$note), modelos_idioma = corpus$models, densidad = if (!is.null(density)) list(parametros = density$params, representacion = density$representation, advertencias = density$issues),
     subgrafo=if(!is.null(subgraph)) subgraph$extraction, spline=if(!is.null(density$temporal_spline)) list(parametros=density$temporal_spline$params,lectura=density$temporal_spline$note),vista_terminos=corpus$term_view %||% NULL,
     vista_acp=corpus$pca_view %||% NULL,vista_ngramas=corpus$gram_view %||% NULL,vista_lda_temporal=corpus$lda_time_view %||% NULL,vista_lda_documentos=corpus$lda_document_view %||% NULL,
-    entrega = list(reproducible = reproducible, insumos_faltantes = as.list(missing_inputs)),
+    entrega = list(reproducible = reproducible, insumos_faltantes = as.list(missing_inputs), comprobaciones_omitidas = as.list(omitted), huellas = fingerprints),
     seleccion_k = if (!is.null(lda_selection)) lda_selection$params,
     sensibilidad_densidad = if (!is.null(density_sens)) density_sens$params,
     nota_csv = "CSV UTF-8 con BOM y separador punto y coma. Texto que podr\u00eda ser f\u00f3rmula lleva un ap\u00f3strofo inicial para apertura segura en Excel.")
@@ -208,7 +230,7 @@ export_bundle <- function(directory, prepared, corpus, bibliography, lda = NULL,
   if (!is.null(raw)) saveRDS(raw, file.path(directory, "entrada_original.rds"))
   if(!is.null(prepared$language_audit)) saveRDS(prepared$language_audit,file.path(directory,"idiomas_asignacion.rds"))
   if (!is.null(density$input_vectors)) saveRDS(density$input_vectors, file.path(directory, "vectores_entrada.rds"))
-  if (reproducible) writeLines(enc2utf8(reproduction_script(prepared, lda, ca, density, network, comparison, pca, subgraph, corpus = corpus)), file.path(directory, "reproducir_analisis.R"), useBytes = TRUE)
+  if (reproducible) writeLines(enc2utf8(reproduction_script(prepared, lda, ca, density, network, comparison, pca, subgraph, corpus = corpus, fingerprints = fingerprints)), file.path(directory, "reproducir_analisis.R"), useBytes = TRUE)
   if (exists("graphics_script",mode="function")) writeLines(enc2utf8(graphics_script()),file.path(directory,"reconstruir_graficos.R"),useBytes=TRUE)
   skills_dir <- system.file("skills", package = "bibliolab")
   if (nzchar(skills_dir) && dir.exists(skills_dir)) {
@@ -248,6 +270,8 @@ export_bundle <- function(directory, prepared, corpus, bibliography, lda = NULL,
     "Las tablas de LDA, CA, subgrafo y UMAP/HDBSCAN solo se incluyen si sus resultados est\u00e1n vigentes. La spline requiere un ajuste v\u00e1lido; no se inventa si falta cobertura.",
     if (reproducible) "reproducir_analisis.R se ejecuta desde esta carpeta, usa entrada_original.rds y requiere el paquete bibliolab instalado (version registrada en registro_reproducibilidad.json)."
     else paste0("ENTREGA PARCIAL: no incluye reproducir_analisis.R porque faltan insumos de reproduccion: ", paste(missing_inputs, collapse = "; "), "."),
+    if (length(omitted)) paste0("Comprobaciones omitidas al reproducir (faltan insumos): ", paste(omitted, collapse = " | ")),
+    if (reproducible) "El guion comprueba las huellas de entrada_original.rds, de los documentos preparados y de la matriz documento-t\u00e9rmino (parametros.json, entrega$huellas); si no coinciden, se detiene con un diagn\u00f3stico.",
     if (reproducible && (!is.null(lda_selection) || !is.null(density_sens))) "reproducir_diagnosticos.R (opcional, costoso) repite la seleccion de k y la sensibilidad con los parametros, semillas y documentos reservados registrados y compara con diagnosticos_decision.rds.",
     "manifiesto_archivos.csv lista cada archivo con su tamano y MD5; verify_bundle() lo comprueba.",
     "informe_metodologico.md / .html resume procedimientos, parametros, diagnosticos de validez y limitaciones. registro_reproducibilidad.json guarda versiones, semillas y huella de los datos.",
@@ -257,14 +281,55 @@ export_bundle <- function(directory, prepared, corpus, bibliography, lda = NULL,
   write_bundle_manifest(directory)
   # Publicacion: la carpeta vacia previa (si existe) se sustituye por la entrega completa.
   if (dir.exists(final)) unlink(final, recursive = TRUE)
-  if (!file.rename(stage, final)) {
+  if (!publish_directory(stage, final)) {
+    # Alternativa cuando no se puede renombrar (por ejemplo, otra unidad): copiar, verificar y retirar la copia temporal.
     dir.create(final, showWarnings = FALSE)
     ok <- all(file.copy(list.files(stage, full.names = TRUE, all.files = TRUE, no.. = TRUE), final, recursive = TRUE))
+    ok <- ok && all(verify_bundle(final)$estado == "correcto")
     if (!ok) { unlink(final, recursive = TRUE); abort_user("No se ha podido publicar la entrega en la carpeta de destino.") }
+    unlink(stage, recursive = TRUE)
   }
   published <- TRUE
   if (!reproducible) warning("Entrega parcial: no se escribi\u00f3 reproducir_analisis.R porque faltan ", paste(missing_inputs, collapse = "; "), ".", call. = FALSE)
   invisible(final)
+}
+
+# Publicacion por renombrado; funcion separada para poder simular su fallo en las pruebas.
+publish_directory <- function(from, to) isTRUE(file.rename(from, to))
+
+# Documentos que la entrega declararia reproducibles sin que lo sean: se comprueba la relacion entre
+# objetos, no solo su presencia. Devuelve un vector de problemas (vacio si todo es coherente).
+bundle_consistency_problems <- function(prepared, corpus, raw, lda = NULL, ca = NULL, density = NULL, comparison = NULL) {
+  out <- character()
+  doc_ids <- prepared$documents$doc_id
+  if (!is.null(raw)) {
+    again <- tryCatch(prepare_documents(raw, prepared$mapping, prepared$config), error = function(e) e)
+    if (inherits(again, "error")) out <- c(out, paste0("la entrada original (`raw`) no se puede preparar con la asignaci\u00f3n de columnas y la configuraci\u00f3n registradas (", conditionMessage(again), ")"))
+    else if (!identical(documents_fingerprint(again$documents), documents_fingerprint(prepared$documents)))
+      out <- c(out, "la entrada original (`raw`) no reproduce los documentos preparados (`prepared`): su contenido es distinto aunque las dimensiones coincidan")
+  }
+  m <- corpus$counts
+  if (!is.null(m)) {
+    if (!is.null(corpus$units) && !all(rownames(m) %in% corpus$units$unit_id)) out <- c(out, "la matriz del corpus contiene unidades que no constan en `corpus$units`")
+    if (!is.null(corpus$units) && !all(corpus$units$doc_id %in% doc_ids)) out <- c(out, "el corpus contiene documentos que no constan en `prepared`")
+    if (!is.null(lda) && (!all(lda$gamma$unit_id %in% rownames(m)) || !all(lda$top$termino %in% colnames(m))))
+      out <- c(out, "el modelo LDA no se ajust\u00f3 con las unidades y t\u00e9rminos de este corpus")
+    if (!is.null(ca) && (!all(ca$terms$termino %in% colnames(m)) || !all(ca$units$unit_id %in% rownames(m))))
+      out <- c(out, "el mapa de correspondencias no procede de las unidades y t\u00e9rminos de este corpus")
+  } else if (!is.null(lda) || !is.null(ca)) out <- c(out, "se entregan modelos de texto sin matriz de corpus")
+  if (!is.null(density) && !all(density$assignments$doc_id %in% doc_ids)) out <- c(out, "los grupos UMAP/HDBSCAN incluyen documentos que no constan en `prepared`")
+  if (!is.null(comparison$grouping) && !all(comparison$grouping$doc_id %in% doc_ids)) out <- c(out, "la agrupaci\u00f3n de la comparaci\u00f3n incluye documentos que no constan en `prepared`")
+  out
+}
+
+# Comprobaciones del guion de reproduccion que no pueden hacerse porque falta un objeto de contraste.
+# No impiden reproducir: los grupos de la comparacion se leen de grupos_jsd.rds.
+reproduction_omissions <- function(comparison = NULL, lda = NULL, density = NULL) {
+  out <- character()
+  mode <- comparison$params$mode
+  if (identical(mode, "lda") && is.null(lda)) out <- c(out, "origen LDA de la comparaci\u00f3n (no se entreg\u00f3 `lda`: los grupos se toman de grupos_jsd.rds sin comprobar que provengan del modelo)")
+  if (identical(mode, "density") && is.null(density)) out <- c(out, "origen UMAP/HDBSCAN de la comparaci\u00f3n (no se entreg\u00f3 `density`: los grupos se toman de grupos_jsd.rds sin comprobar que provengan del modelo)")
+  out
 }
 
 #' Manifiesto de archivos de una entrega
@@ -273,6 +338,13 @@ export_bundle <- function(directory, prepared, corpus, bibliography, lda = NULL,
 #' una carpeta de entrega en `manifiesto_archivos.csv` (sin incluirse a si mismo).
 #' `verify_bundle()` recalcula las huellas y devuelve una tabla con el estado de
 #' cada archivo: `correcto`, `modificado`, `ausente` o `no registrado`.
+#'
+#' Antes de comparar, `verify_bundle()` valida el propio manifiesto y se detiene con un
+#' error (sin devolver una tabla vacia que pudiera leerse como "todo correcto") si no se
+#' puede leer como CSV, no tiene las columnas `archivo`, `bytes` y `md5`, no registra
+#' ningun archivo, contiene rutas vacias, absolutas, que salen de la carpeta, repetidas
+#' o que apuntan al propio manifiesto, o tiene tamanos o MD5 con formato invalido. Un
+#' archivo se considera `correcto` solo si coinciden su MD5 y su tamano.
 #'
 #' @param directory Carpeta de una entrega creada con [export_bundle()].
 #' @return `write_bundle_manifest()` devuelve la tabla escrita de forma invisible;
@@ -301,12 +373,22 @@ bundle_files <- function(directory) {
 verify_bundle <- function(directory) {
   path <- file.path(directory, "manifiesto_archivos.csv")
   if (!file.exists(path)) abort_user("La carpeta no contiene manifiesto_archivos.csv.")
-  recorded <- utils::read.csv(path, stringsAsFactors = FALSE, fileEncoding = "UTF-8", colClasses = "character")
+  recorded <- tryCatch(suppressWarnings(utils::read.csv(path, stringsAsFactors = FALSE, fileEncoding = "UTF-8", colClasses = "character")),
+    error = function(e) abort_user("El manifiesto no se puede leer como CSV. No se ha verificado ning\u00fan archivo."))
+  if (!all(c("archivo", "bytes", "md5") %in% names(recorded))) abort_user("El manifiesto debe tener las columnas archivo, bytes y md5. No se ha verificado ning\u00fan archivo.")
+  if (!nrow(recorded)) abort_user("El manifiesto no registra ning\u00fan archivo: no hay nada que verificar y no puede darse por verificada la entrega.")
+  f <- recorded$archivo
+  bad <- is.na(f) | !nzchar(f) | grepl("^(/|\\\\|[A-Za-z]:)", f) | grepl("(^|[/\\\\])\\.\\.($|[/\\\\])", f) | f == "manifiesto_archivos.csv"
+  if (any(bad)) abort_user("El manifiesto contiene rutas no v\u00e1lidas (vac\u00edas, absolutas, que salen de la carpeta o el propio manifiesto). No se ha verificado ning\u00fan archivo.")
+  if (anyDuplicated(f)) abort_user("El manifiesto repite rutas de archivo. No se ha verificado ning\u00fan archivo.")
+  size <- suppressWarnings(as.numeric(recorded$bytes))
+  if (anyNA(size) || any(size < 0) || !all(grepl("^[0-9a-f]{32}$", recorded$md5))) abort_user("El manifiesto contiene tama\u00f1os o huellas MD5 no v\u00e1lidos. No se ha verificado ning\u00fan archivo.")
   present <- bundle_files(directory)
-  state <- vapply(recorded$archivo, function(f) {
-    full <- file.path(directory, f)
-    if (!file.exists(full)) "ausente" else if (identical(unname(tools::md5sum(full)), recorded$md5[match(f, recorded$archivo)])) "correcto" else "modificado"
+  state <- vapply(seq_along(f), function(i) {
+    full <- file.path(directory, f[i])
+    if (!file.exists(full) || dir.exists(full)) "ausente"
+    else if (identical(unname(tools::md5sum(full)), recorded$md5[i]) && identical(as.numeric(file.size(full)), size[i])) "correcto" else "modificado"
   }, "")
-  extra <- setdiff(present, recorded$archivo)
-  data.frame(archivo = c(recorded$archivo, extra), estado = c(unname(state), rep("no registrado", length(extra))), stringsAsFactors = FALSE)
+  extra <- setdiff(present, f)
+  data.frame(archivo = c(f, extra), estado = c(unname(state), rep("no registrado", length(extra))), stringsAsFactors = FALSE)
 }

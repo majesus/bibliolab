@@ -37,8 +37,8 @@ help_catalog <- function() list(
 r_literal <- function(x) paste(capture.output(dput(x)), collapse = "\n")
 stage_code <- function(stage, prepared = NULL, lda = NULL, ca = NULL, density = NULL, network = NULL, comparison = NULL, pca = NULL) {
   # Son las definiciones reales de las funciones utilizadas, no pseudocodigo.
-  functions <- switch(stage, load = c("biblio_file_format", "biblio_excel_sheets", "read_biblio_file", "read_biblio_excel", "read_biblio_csv"), prepare = c("prepare_documents", "tokenize_one", "prepare_corpus", "apply_language_overrides", "language_diagnostics", "bm25_weights", "ngram_summary", "annotate_corpus_units", "duplicate_audit", "vocabulary_selection"),
-    explore = c("biblio_summary", "count_metadata", "run_network", "network_metrics", "extract_subgraph", "collaboration_summary", "network_conclusions", "keyplayers_coverage", "ngram_summary", "bibliography_extensions", "jsd_shift", "run_comparison"), models = c("run_lda", "document_term_counts", "run_ca", "document_counts", "lsa_vectors", "bm25_weights", "class_tfidf", "run_density", "run_pca", "ordination_figure", "swiss_theme"),
+  functions <- switch(stage, load = c("biblio_file_format", "biblio_excel_sheets", "read_biblio_file", "read_biblio_excel", "read_biblio_csv"), prepare = c("prepare_documents", "normalize_unicode", "tokenize_one", "prepare_corpus", "apply_language_overrides", "language_diagnostics", "bm25_weights", "ngram_summary", "annotate_corpus_units", "duplicate_audit", "vocabulary_selection"),
+    explore = c("biblio_summary", "count_metadata", "run_network", "network_metrics", "extract_subgraph", "collaboration_summary", "network_conclusions", "keyplayers_coverage", "ngram_summary", "bibliography_extensions", "jsd_shift", "run_comparison"), models = c("run_lda", "document_term_counts", "run_ca", "document_counts", "lsa_vectors", "bm25_weights", "class_tfidf", "run_density", "run_pca", "ordination_figure", "label_layer", "swiss_theme"),
     export = c("export_bundle", "safe_csv", "reproduction_script", "write_bundle_manifest", "bundle_files"), c("prepare_corpus"))
   if(stage=="prepare") functions<-c(functions,"estimate_text_languages","estimate_language_one","route_document_languages","processing_map","processing_plan","processing_open","processing_close","processing_dispatch","tokenize_document","annotate_language_batch","normalize_annotation_chunk","normalize_annotation_one")
   if(stage=="models" && exists("density_spline",mode="function")) functions<-c(functions,"density_yearly","density_spline","lda_yearly","density_year_terms")
@@ -56,11 +56,12 @@ script_preamble <- function() c(
   "if (.Platform$OS.type == 'windows' && !isTRUE(l10n_info()[['UTF-8']])) try(Sys.setlocale('LC_CTYPE', '.UTF-8'), silent = TRUE)",
   "# Funciones del paquete (exportadas e internas) disponibles en esta sesion.",
   "list2env(as.list(asNamespace('bibliolab')), envir = environment())")
-reproduction_script <- function(prepared, lda = NULL, ca = NULL, density = NULL, network = NULL, comparison = NULL, pca = NULL, subgraph=NULL, record = NULL, corpus = NULL) {
+reproduction_script <- function(prepared, lda = NULL, ca = NULL, density = NULL, network = NULL, comparison = NULL, pca = NULL, subgraph=NULL, record = NULL, corpus = NULL, fingerprints = NULL) {
   lines <- c(paste("# bibliolab", BIBLIO_VERSION, "/ Reproduccion de esta ejecucion"), "# Descomprime el ZIP y ejecuta este archivo desde esa carpeta.",
     "# Los datos exactos estan en entrada_original.rds; los CSV neutralizan formulas para Excel.",
     script_preamble(),
     "options(bibliolab.model_dir = if (dir.exists('models')) normalizePath('models') else getOption('bibliolab.model_dir'))", "datos <- readRDS('entrada_original.rds')",
+    if (!is.null(fingerprints$entrada)) paste0("verify_reproduction(raw_fingerprint(datos), '", fingerprints$entrada, "', 'el contenido de entrada_original.rds (no es el archivo analizado)')"),
     paste0("mapping <- ", r_literal(prepared$mapping)), paste0("cfg <- ", r_literal(prepared$config)),
     "# Los idiomas aplicados estan congelados por fila original: no se reestiman al reproducir.",
     "preparado <- prepare_documents(datos, mapping, cfg)",
@@ -74,10 +75,12 @@ reproduction_script <- function(prepared, lda = NULL, ca = NULL, density = NULL,
   # Verificaciones frente a la ejecucion original: huella del archivo y dimensiones del corpus analitico.
   md5 <- prepared$input_md5 %||% NA_character_
   if (!is.na(md5)) lines <- c(lines, paste0("if (!identical(as.character(attr(datos, 'source_md5')), '", md5, "')) warning('La huella MD5 de entrada_original.rds no coincide con la del archivo analizado originalmente (", md5, ").')"))
-  lines <- c(lines, sprintf("stopifnot(nrow(preparado$documents) == %dL)", nrow(prepared$documents)))
-  if (!is.null(corpus$counts)) lines <- c(lines, sprintf("stopifnot(identical(dim(corpus$counts), c(%dL, %dL)), isTRUE(all.equal(sum(corpus$counts), %s)))", nrow(corpus$counts), ncol(corpus$counts), format(sum(corpus$counts), digits = 15)))
+  lines <- c(lines, sprintf("stopifnot(nrow(preparado$documents) == %dL)", nrow(prepared$documents)),
+    if (!is.null(fingerprints$documentos)) paste0("verify_reproduction(documents_fingerprint(preparado$documents), '", fingerprints$documentos, "', 'los documentos preparados (t\u00edtulos, textos, a\u00f1os, autores y dem\u00e1s campos)')"))
+  if (!is.null(corpus$counts)) lines <- c(lines, sprintf("stopifnot(identical(dim(corpus$counts), c(%dL, %dL)), isTRUE(all.equal(sum(corpus$counts), %s)))", nrow(corpus$counts), ncol(corpus$counts), num_literal(sum(corpus$counts))),
+    if (!is.null(fingerprints$matriz)) paste0("verify_reproduction(corpus_fingerprint(corpus), '", fingerprints$matriz, "', 'la matriz documento-t\u00e9rmino, sus nombres y la correspondencia unidad-documento')"))
   lines <- c(lines, "lda <- ca <- densidad <- acp <- comparacion <- red <- red_subgrafo <- NULL")
-  if (!is.null(lda)) lines <- c(lines, sprintf("lda <- run_lda(corpus, k=%s, seed=%s, iterations=%s, alpha=%s, delta=%s, burnin=%s, thin=%s)", lda$params$k, lda$params$seed, lda$params$iterations, format(lda$params$alpha, digits = 15), format(lda$params$delta, digits = 15),lda$params$burnin,lda$params$thin))
+  if (!is.null(lda)) lines <- c(lines, sprintf("lda <- run_lda(corpus, k=%s, seed=%s, iterations=%s, alpha=%s, delta=%s, burnin=%s, thin=%s)", lda$params$k, lda$params$seed, lda$params$iterations, num_literal(lda$params$alpha), num_literal(lda$params$delta),lda$params$burnin,lda$params$thin))
   if (!is.null(ca)) lines <- c(lines, sprintf("ca <- run_ca(corpus, max_terms=%s, baseline=%s, B=%s, seed=%s)", ca$params$max_terms,
     if (isTRUE(ca$params$baseline$computed)) "TRUE" else "FALSE", ca$params$baseline$B %||% 50L, ca$params$baseline$seed %||% 2026L))
   if (!is.null(density)) {
@@ -92,10 +95,12 @@ reproduction_script <- function(prepared, lda = NULL, ca = NULL, density = NULL,
     if(pca$params$standardize) "TRUE" else "FALSE", if (isTRUE(pca$params$baseline$computed)) "TRUE" else "FALSE", pca$params$baseline$B %||% 50L, pca$params$baseline$seed %||% 2026L))
   if (!is.null(comparison)) {
     lines <- c(lines, paste0("comparison_params <- ", r_literal(comparison$params)), "grupos_jsd <- if (file.exists('grupos_jsd.rds')) readRDS('grupos_jsd.rds') else NULL")
-    if (comparison$params$mode == "density") lines <- c(lines,
+    # La comprobacion de origen exige el objeto que generó los grupos; sin el, los grupos guardados en
+    # grupos_jsd.rds bastan para reproducir la comparacion (ver `entrega$comprobaciones_omitidas`).
+    if (comparison$params$mode == "density" && !is.null(density)) lines <- c(lines,
       "stopifnot(!is.null(densidad))", "verificados <- data.frame(doc_id=densidad$assignments$doc_id, valor=ifelse(densidad$assignments$grupo==0, 'Sin asignar', paste('Grupo',densidad$assignments$grupo)))",
       "stopifnot(identical(as.character(grupos_jsd$valor), as.character(verificados$valor[match(grupos_jsd$doc_id,verificados$doc_id)])))")
-    if (comparison$params$mode == "lda") lines <- c(lines,
+    if (comparison$params$mode == "lda" && !is.null(lda)) lines <- c(lines,
       "stopifnot(!is.null(lda))", "verificados <- data.frame(doc_id=lda$document_topics$doc_id, valor=paste('Tema',max.col(as.matrix(lda$document_topics[-1]),ties.method='first')))",
       "stopifnot(identical(as.character(grupos_jsd$valor), as.character(verificados$valor[match(grupos_jsd$doc_id,verificados$doc_id)])))")
     lines <- c(lines, "comparacion <- run_comparison(corpus, preparado, comparison_params, grupos_jsd)")
@@ -114,18 +119,31 @@ diagnostics_script <- function(lda_selection = NULL, density_sens = NULL, densit
     "corpus <- r$corpus; preparado <- r$preparado", "comparar <- function(nuevo, previo, nombre) { ok <- isTRUE(all.equal(nuevo, previo, tolerance = 1e-6, check.attributes = FALSE)); message(nombre, ': ', if (ok) 'coincide con la entrega' else 'DIFIERE de la entrega'); ok }")
   if (!is.null(lda_selection)) {
     p <- lda_selection$params
-    alpha <- if (is.character(p$alpha)) { if (identical(p$alpha, "1/k")) "NULL" else paste0("function(k) ", p$alpha) } else format(p$alpha, digits = 15)
     lines <- c(lines, sprintf("seleccion <- lda_select_k(corpus, k_range = %s, seeds = %s, iterations = %s, alpha = %s, delta = %s, holdout = %s, top_n = %s)",
-      r_literal(as.integer(p$k_range)), r_literal(as.integer(p$seeds)), p$iterations, alpha, format(p$delta, digits = 15), format(p$holdout_fraction %||% 0.1, digits = 15), p$top_n),
+      r_literal(as.integer(p$k_range)), r_literal(as.integer(p$seeds)), p$iterations, alpha_literal(p), num_literal(p$delta), num_literal(p$holdout_fraction %||% 0.1), p$top_n),
       "stopifnot(identical(seleccion$params$holdout_doc_ids, guardado$lda_selection$params$holdout_doc_ids))",
       "comparar(seleccion$table, guardado$lda_selection$table, 'Seleccion de k')")
   }
   if (!is.null(density_sens)) {
     p <- density_sens$params
-    lines <- c(lines, "stopifnot(!is.null(r$densidad))",
-      sprintf("sensibilidad <- density_sensitivity(corpus, preparado, guardado$density_sens$params$base, seeds = %s, neighbors = %s, min_pts = %s, vectors = r$densidad$input_vectors, embedding_model = %s)",
-        r_literal(as.integer(p$seeds)), r_literal(as.integer(p$neighbors)), r_literal(as.integer(p$min_pts)), r_literal(density$representation$model %||% "")),
+    # La referencia guardada contiene sus propios insumos (parametros, vectores y modelo de origen): la
+    # sensibilidad no exige el modelo final de densidad.
+    lines <- c(lines, "referencia <- guardado$density_sens$reference",
+      sprintf("sensibilidad <- density_sensitivity(corpus, preparado, guardado$density_sens$params$base, seeds = %s, neighbors = %s, min_pts = %s, vectors = referencia$input_vectors, embedding_model = referencia$representation$model %%||%% '')",
+        r_literal(as.integer(p$seeds)), r_literal(as.integer(p$neighbors)), r_literal(as.integer(p$min_pts))),
       "comparar(sensibilidad$runs[c('grupos', 'ari')], guardado$density_sens$runs[c('grupos', 'ari')], 'Sensibilidad de UMAP + HDBSCAN')")
   }
   paste(c(lines, ""), collapse = "\n")
+}
+
+# Prior alpha de una seleccion de k como argumento de R. Una funcion de k puede depender de su entorno
+# (coeficientes capturados): se reproduce con los valores efectivos por k, que son los que se usaron.
+alpha_literal <- function(p) {
+  rule <- p$alpha_regla %||% if (is.numeric(p$alpha)) "constante" else if (identical(p$alpha, "1/k")) "1/k" else "funcion"
+  if (identical(rule, "1/k")) return("NULL")
+  table <- p$alpha_por_k
+  if (identical(rule, "constante")) return(num_literal(if (is.data.frame(table) && nrow(table)) table$alpha[1L] else p$alpha))
+  if (!is.data.frame(table) || !nrow(table))
+    stop("La regla alpha de la selecci\u00f3n de k no tiene valores efectivos registrados; no se puede reproducir.", call. = FALSE)
+  paste0("local({ tabla <- c(", paste0("`", table$k, "` = ", num_literal(table$alpha), collapse = ", "), "); function(k) unname(tabla[as.character(k)]) })")
 }
