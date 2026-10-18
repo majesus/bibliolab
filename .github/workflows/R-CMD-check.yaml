@@ -49,7 +49,9 @@ jobs:
           use-public-rspm: true
       - uses: r-lib/actions/setup-r-dependencies@v2
         with:
-          extra-packages: any::rcmdcheck
+          # testthat se instala siempre: tests/testthat.R lo carga y, con dependencias duras, setup-r-dependencies
+          # no instala los paquetes de Suggests; las pruebas condicionan el resto de paquetes opcionales.
+          extra-packages: any::rcmdcheck, any::testthat
           needs: check
           dependencies: ${{ matrix.config.hard_only && '"hard"' || '"all"' }}
       - uses: r-lib/actions/check-r-package@v2
