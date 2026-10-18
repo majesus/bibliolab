@@ -37,8 +37,10 @@ bibliometria ni en estadistica pueda usar la aplicacion sin entender su mecanica
   analogia con su limite, errores frecuentes y frase modelo. Guia de estilo en
   `dev/guia_estilo_ayudas.md`.
 * Frases modelo para el informe, generadas con las cifras vigentes y sin lenguaje causal:
-  leyes (Lotka, Bradford, Zipf), comparacion de vocabulario (JSD) y redes
-  (`network_report_sentence()`).
+  leyes (Lotka, Bradford, Zipf), comparacion de vocabulario (JSD), redes
+  (`network_report_sentence()`), ACP y Correspondencias (`ordination_report_sentence()`), LDA
+  (`lda_report_sentence()`) y agrupacion por densidad (`density_report_sentence()`). La frase de LDA
+  se prueba con un ajuste simulado porque `topicmodels` no esta instalado en el entorno de desarrollo.
 * Vista previa del vocabulario (D04, `R/vocab_preview.R`): antes de calcular muestra que terminos
   entran y salen al cambiar los filtros, o declara que no puede estimarlo.
 * Ayudas operativas de D05 (consultar no es calcular; orden de autores; retenido frente a excluido),
