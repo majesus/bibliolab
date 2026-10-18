@@ -47,7 +47,7 @@ processing_open <- function(pool,workers) {
     .libPaths(libs)
     Sys.setenv(OMP_NUM_THREADS="1",OPENBLAS_NUM_THREADS="1",MKL_NUM_THREADS="1")
     if(source) {
-      if(!requireNamespace("pkgload",quietly=TRUE)) stop("Falta pkgload en el trabajador para cargar las fuentes locales de V5. Instalalo con install.packages('pkgload') y vuelve a abrir la app.")
+      if(!requireNamespace("pkgload",quietly=TRUE)) stop("Falta pkgload en el trabajador para cargar las fuentes locales de bibliolab. Instalalo con install.packages('pkgload') y vuelve a abrir la app.")
       pkgload::load_all(path,attach=FALSE,export_all=FALSE,helpers=FALSE,attach_testthat=FALSE,quiet=TRUE)
     } else loadNamespace("bibliolab",lib.loc=dirname(path))
     loaded_path<-normalizePath(getNamespaceInfo(asNamespace("bibliolab"),"path"),winslash="/",mustWork=TRUE)

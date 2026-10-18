@@ -40,7 +40,7 @@ open_help <- function(key) {
   if (is.null(h)) h <- list(title = lesson$title %||% "Redes / relaciones e indicadores", goal = lesson$goal %||% "Definir conexiones y entender sus indicadores.", sources = lesson$sources %||% c("igraph / centralidades" = "https://r.igraph.org/reference/harmonic_centrality.html"))
   showModal(modalDialog(title = h$title, size = "l", easyClose = TRUE,
     tags$div(class = "lesson", tags$p(class = "modal-lead", lesson$goal %||% h$goal),
-      if(key=="tokens") tags$section(class="lesson-example",tags$h3("V5 / media, mediana, percentiles y dispersión"),vocabulary_decision_text()),
+      if(key=="tokens") tags$section(class="lesson-example",tags$h3("Media, mediana, percentiles y dispersión"),vocabulary_decision_text()),
       if(key=="bm25") tags$section(class="lesson-example",tags$h3("Una primera decisión que puedes contrastar"),tags$p("Con resúmenes de longitud similar, empieza con TF-IDF. Si los textos tienen longitudes muy distintas o repiten mucho una palabra, compara BM25. Reduce el aporte de cada repetición adicional mediante el parámetro de repeticiones (k1) y ajusta el peso por longitud mediante el parámetro de longitud (b). Por ejemplo, cinco menciones no equivalen a cinco veces el peso de una mención. La app usa estos pesos para representar vocabulario; comprueba qué cambia leyendo textos y comparando estabilidad."),tags$p("En selección de vocabulario cambia el orden de términos; LDA y correspondencias usan conteos. En UMAP + LSA cambia la representación del modelo. Guarda ambas ejecuciones y compara sus resultados.")),
       if(key=="bradford") tags$section(class="lesson-example",tags$h3("Leer el porcentaje acumulado"),tags$p("De 100 documentos con fuente conocida, la revista más frecuente tiene 30 y la segunda 20. En la posición 1 la curva marca 30 %; en la 2, 50 %. Si otros 10 documentos no tienen fuente, no entran en ese denominador. El gráfico muestra concentración de la búsqueda. Las zonas de Bradford se calculan en la pestaña Leyes bibliométricas; ninguna de las dos vistas prueba la ley ni mide la calidad de las revistas.")),
       tags$section(class = "lesson-section", tags$p(class = "eyebrow", "01 / COMPRENDER"), tags$h3("Qué estás haciendo y para qué sirve"), lapply(lesson$meaning,tags$p)),
@@ -232,7 +232,7 @@ result_data <- reactive({ current(); key <- input$result_detail %||% unname(resu
   if (key == "issues") return(data.frame(avisos = c(rv$prepared$issues, rv$corpus$issues)))
   if (key == "duplicates") return(rv$prepared$duplicates)
   if (key == "filters") return(rv$corpus$filter_audit)
-  if (key == "tokens") return(filter_term_table(rv$corpus$terms, term_query(), input$term_status %||% "all", input$term_reason %||% "all"))
+  if (key == "tokens") { d <- filter_term_table(rv$corpus$terms, term_query(), input$term_status %||% "all", input$term_reason %||% "all"); d$tfidf_mean <- NULL; return(d) }  # tfidf_mean es un alias de compatibilidad de tfidf_medio: una sola columna a la vista
   if (startsWith(key, "jsd")) {
     f <- comparison_current(); validate(need(!is.null(f), "Calcula una comparación JSD vigente."))
     if (key == "jsd_summary") return(data.frame(indicador = c("JSD / bits base 2", "Distancia sqrt(JSD)"), valor = c(f$jsd, f$distancia)))

@@ -171,11 +171,13 @@ graphics_script <- function() paste(c(
   "  ggplot2::ggsave(file.path('graficos_reconstruidos',paste0(nm,'.pdf')),figuras[[nm]],width=11,height=7,device=if(capabilities('cairo')) grDevices::cairo_pdf else grDevices::pdf,bg='white')",
   "}", ""),collapse="\n")
 
-term_metric_choices <- function() c("M\u00e1s frecuentes"="frecuencia", "M\u00e1s presentes en documentos"="documentos",
-  "TF-IDF / media global"="tfidf_medio", "TF-IDF / mediana global"="tfidf_median",
+term_metric_choices <- function() c("Aparecen en m\u00e1s documentos"="documentos", "Se repiten m\u00e1s"="frecuencia",
+  "Distinguen m\u00e1s los textos \u00b7 peso medio"="tfidf_medio", "TF-IDF / mediana global"="tfidf_median",
   "TF-IDF / percentil 75 global"="tfidf_q75", "TF-IDF / percentil 90 global"="tfidf_q90",
   "TF-IDF / media con peso positivo"="tfidf_present_mean", "TF-IDF / mediana con peso positivo"="tfidf_present_median",
   "TF-IDF / estad\u00edstico elegido en Preparaci\u00f3n"="tfidf_orden")
+# Selector de T\u00e9rminos: tres preguntas habituales a la vista; el resto de res\u00famenes del peso, aparte y en avanzado.
+term_metric_choices_grouped <- function() { all <- term_metric_choices(); list(" " = all[1:3], "Otros res\u00famenes del peso (avanzado)" = all[-(1:3)]) }
 
 source_concentration_widget <- function(d,position=1L) {
   i<-match(position,d$posicion);if(is.na(i))i<-1L

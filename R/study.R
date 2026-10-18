@@ -58,7 +58,7 @@ study_catalog <- function() list(
 # Contenido nuevo de V4: lo que cambia en el metodo y como decidir con apoyo.
 v4_additions <- function() list(
   lda = list(
-    action = c("Prior alpha (cambio de V4). La mezcla de temas de cada documento tiene un prior que controla cuanto puede concentrarse en pocos temas. V4 usa alpha = 1/k por defecto; el valor 50/k de topicmodels hace que, en textos cortos, las proporciones dependan sobre todo del prior. En los datos de pr\u00e1ctica (res\u00famenes de unas veinte palabras y cuatro temas) la proporci\u00f3n media del tema dominante fue 0,36 con 50/k y 0,93 con 1/k. Puedes cambiarlo en Opciones avanzadas; informa siempre el valor utilizado.",
+    action = c("Prior alpha. La mezcla de temas de cada documento tiene un prior que controla cuanto puede concentrarse en pocos temas. V4 usa alpha = 1/k por defecto; el valor 50/k de topicmodels hace que, en textos cortos, las proporciones dependan sobre todo del prior. En los datos de pr\u00e1ctica (res\u00famenes de unas veinte palabras y cuatro temas) la proporci\u00f3n media del tema dominante fue 0,36 con 50/k y 0,93 con 1/k. Puedes cambiarlo en Opciones avanzadas; informa siempre el valor utilizado.",
       "Elegir k. Usa Elegir el n\u00famero de temas con apoyo: ajusta varias soluciones con varias semillas y las compara por coherencia, diversidad, estabilidad y perplejidad. Los criterios pueden discrepar; el valor de compromiso es solo un punto de partida. Despu\u00e9s lee los temas de dos o tres candidatos."),
     study = c("Calidad del modelo. Coherencia NPMI y UMass miden si las palabras principales de un tema co-ocurren en los mismos documentos (Mimno et al., 2011; R\u00f6der et al., 2015); aqu\u00ed se calculan con los propios documentos, as\u00ed que orientan pero no sustituyen a una evaluaci\u00f3n humana. La diversidad es la proporci\u00f3n de palabras principales distintas entre temas.",
       "Convergencia. Se guardan los estados del muestreador tras el burn-in y se devuelve el de mayor log-verosimilitud. El cambio relativo entre la primera y la segunda mitad de la traza es un indicador heur\u00edstico: si es grande, aumenta las iteraciones. No es una prueba formal de convergencia.")),
@@ -74,7 +74,7 @@ v4_additions <- function() list(
   pca = list(
     study = c("L\u00ednea base. Cada t\u00e9rmino se permuta de forma independiente entre documentos y se calcula el porcentaje de varianza por componente; el percentil 95 de esa distribuci\u00f3n es el umbral. Un componente por debajo no se distingue de la varianza esperable con t\u00e9rminos independientes.")),
   explore = list(
-    action = c("Variantes de escritura. V4 unifica, al contar autores, palabras clave y fuentes, las variantes que solo difieren en may\u00fasculas, acentos o puntuaci\u00f3n (Machine Learning y machine learning; Smith, J. y Smith, J). No resuelve hom\u00f3nimos ni abreviaturas de revistas. La tabla de variantes unificadas permite revisar lo fusionado; puedes desactivarlo en Preparaci\u00f3n."))
+    action = c("Variantes de escritura. La aplicaci\u00f3n unifica, al contar autores, palabras clave y fuentes, las variantes que solo difieren en may\u00fasculas, acentos o puntuaci\u00f3n (Machine Learning y machine learning; Smith, J. y Smith, J). No resuelve hom\u00f3nimos ni abreviaturas de revistas. La tabla de variantes unificadas permite revisar lo fusionado; puedes desactivarlo en Preparaci\u00f3n."))
 )
 
 enrich_lesson <- function(key, lesson) {

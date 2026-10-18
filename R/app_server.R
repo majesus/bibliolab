@@ -347,7 +347,14 @@ app_server <- function(input, output, session) {
     write_bundle_manifest(dir)
     zip::zipr(file, files = list.files(dir, full.names = TRUE), include_directories = TRUE)
   })
-  transitions <- c(to_prepare = "prepare", to_explore = "explore", to_models = "models", to_export = "export")
+  # Entrada por prop\u00f3sito (04 / Modelos): cada bot\u00f3n lleva al an\u00e1lisis que responde a la pregunta; no cambia ajustes.
+  purpose_targets <- list(purpose_lda = list(step = "models", tab = "model_method", value = "LDA"), purpose_density = list(step = "models", tab = "model_method", value = "UMAP + HDBSCAN"),
+    purpose_pca = list(step = "models", tab = "model_method", value = "ACP"), purpose_ca = list(step = "models", tab = "model_method", value = "Correspondencias"),
+    purpose_jsd = list(step = "explore", tab = "explore_tabs", value = "JSD shifts"), purpose_wiki = list(step = "explore", tab = "explore_tabs", value = "wiki"), purpose_network = list(step = "explore", tab = "explore_tabs", value = "Redes"))
+  for (id in names(purpose_targets)) local({ key <- id; target <- purpose_targets[[id]]
+    observeEvent(input[[key]], { updateTabsetPanel(session, "steps", selected = target$step); updateTabsetPanel(session, target$tab, selected = target$value) })
+  })
+  transitions <- c(to_prepare = "prepare", to_explore = "explore", to_models = "models", to_export = "export", to_export_direct = "export")
   for (id in names(transitions)) local({ key <- id; target <- transitions[[id]]
     observeEvent(input[[key]], {
       if (target == "prepare" && is.null(rv$raw)) { showNotification("Carga un CSV o usa el ejemplo de pr\u00e1ctica.", type = "warning"); return() }
