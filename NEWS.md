@@ -1,3 +1,39 @@
+# bibliolab 5.1.0
+
+Revision de usabilidad a partir de la auditoria "ayudas para decidir y simplificacion" (H01-H17)
+y de las correcciones ya aplicadas a la presentacion. El objetivo es que quien no es experto en
+bibliometria ni en estadistica pueda usar la aplicacion sin entender su mecanica interna.
+
+## Nuevo
+
+* Leyes bibliometricas (03 / Indicadores): pestanas **Lotka** (autores), **Bradford** (revistas)
+  y **Zipf** (palabras), en `R/leyes.R` y `inst/app/server/laws.R`. Lotka usa maxima verosimilitud
+  discreta truncada en el maximo observado, con distancia de Kolmogorov-Smirnov frente a
+  1,63/raiz(K); Bradford, tres zonas con ~1/3 de los documentos y multiplicadores k21 y k32;
+  Zipf, ajuste log-log sobre todos los terminos evaluados. Son descriptivas ("no confirman la
+  ley"), devuelven `estado = "insuficiente"` si faltan datos e entran en exportacion y script de
+  reproduccion.
+* Catalogo comun de fichas de decision (`R/decision_help.R`, 12 fichas) con el contrato
+  pregunta / empezar / cambiar / que cambia / como comprobar / ejemplo / tecnica.
+* Entrada por proposito en Modelos y selector de terminos en tres preguntas.
+
+## Cambios
+
+* Redes: las palabras aparecen sobre todos los nodos (como en Lectura enlazada), con halo blanco,
+  letra mayor para los nodos destacados y casilla para rotular solo estos en redes densas. La
+  disposicion inicial se normaliza para que el zoom de ajuste no reduzca los rotulos.
+* Explicacion de la fuerza de asociacion y de la leyenda del grafo de Lectura enlazada en lenguaje
+  no tecnico.
+* Se retira el spline de LDA por tiempo y los alias de TF-IDF por pantalla; se elimina la
+  referencia a "V5" en la interfaz.
+* Texto frente a calculo (P0: H02-H04, H06-H09, H12, H13, H17) corregido y cubierto por
+  `tests/testthat/test-auditoria-510.R` y `test-leyes.R`.
+
+## Pendiente
+
+* H10/H16 (plegar controles especializados), H11 (separar dependencias `settings()` y `stale()`)
+  y la reescritura en lenguaje llano de las ayudas largas restantes (D01-D12).
+
 # bibliolab 5.0.3
 
 Revision a partir de la auditoria del commit f6a57da3 (version 5.0.2). Cada punto cita su
