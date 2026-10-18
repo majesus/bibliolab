@@ -95,7 +95,7 @@ reproduction_script <- function(prepared, lda = NULL, ca = NULL, density = NULL,
     if(pca$params$standardize) "TRUE" else "FALSE", if (isTRUE(pca$params$baseline$computed)) "TRUE" else "FALSE", pca$params$baseline$B %||% 50L, pca$params$baseline$seed %||% 2026L))
   if (!is.null(comparison)) {
     lines <- c(lines, paste0("comparison_params <- ", r_literal(comparison$params)), "grupos_jsd <- if (file.exists('grupos_jsd.rds')) readRDS('grupos_jsd.rds') else NULL")
-    # La comprobacion de origen exige el objeto que generó los grupos; sin el, los grupos guardados en
+    # La comprobacion de origen exige el objeto que genero los grupos; sin el, los grupos guardados en
     # grupos_jsd.rds bastan para reproducir la comparacion (ver `entrega$comprobaciones_omitidas`).
     if (comparison$params$mode == "density" && !is.null(density)) lines <- c(lines,
       "stopifnot(!is.null(densidad))", "verificados <- data.frame(doc_id=densidad$assignments$doc_id, valor=ifelse(densidad$assignments$grupo==0, 'Sin asignar', paste('Grupo',densidad$assignments$grupo)))",

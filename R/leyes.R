@@ -1,11 +1,11 @@
-# Leyes bibliométricas clásicas: Lotka (productividad de autores), Bradford (dispersión en revistas) y
-# Zipf (frecuencia de palabras). Cada función devuelve la misma estructura:
+# Leyes bibliometricas clasicas: Lotka (productividad de autores), Bradford (dispersion en revistas) y
+# Zipf (frecuencia de palabras). Cada funcion devuelve la misma estructura:
 #   estado    "ok" o "insuficiente" (con `motivo`),
-#   tabla     cifras que sostienen el gráfico,
+#   tabla     cifras que sostienen el grafico,
 #   resumen   data.frame de indicadores (criterio, valor),
 #   lectura   texto en lenguaje llano con las cifras del corpus,
 #   criterio  regla de ajuste declarada (se registra en el informe).
-# Principio: describen cuánto se parece el corpus a un patrón teórico. No "confirman" ninguna ley.
+# Principio: describen cuanto se parece el corpus a un patron teorico. No "confirman" ninguna ley.
 
 LEYES_MIN <- list(lotka_autores = 20L, lotka_niveles = 3L, bradford_fuentes = 9L, zipf_terminos = 30L)
 
@@ -20,10 +20,10 @@ law_insufficient <- function(law, motivo) {
 }
 
 # ---- Lotka --------------------------------------------------------------------------------------
-# Ley del cuadrado inverso generalizada: la proporción de autores con x trabajos es proporcional a x^(-n).
-# Criterio de ajuste: exponente por máxima verosimilitud discreta truncada en el máximo observado (el método clásico de
-# mínimos cuadrados sobre log-log subestima el exponente con colas poco pobladas y se informa solo como contraste). La discrepancia
-# se mide con la distancia máxima entre acumuladas (Kolmogorov-Smirnov) frente a 1,63 / sqrt(autores).
+# Ley del cuadrado inverso generalizada: la proporcion de autores con x trabajos es proporcional a x^(-n).
+# Criterio de ajuste: exponente por maxima verosimilitud discreta truncada en el maximo observado (el metodo clasico de
+# minimos cuadrados sobre log-log subestima el exponente con colas poco pobladas y se informa solo como contraste). La discrepancia
+# se mide con la distancia maxima entre acumuladas (Kolmogorov-Smirnov) frente a 1,63 / sqrt(autores).
 lotka_fit <- function(productivity) {
   x <- productivity[is.finite(productivity) & productivity >= 1]; x <- as.integer(x)
   k <- length(x)
@@ -63,10 +63,10 @@ lotka_fit <- function(productivity) {
 }
 
 # ---- Bradford -----------------------------------------------------------------------------------
-# Se ordenan las revistas de mayor a menor productividad y se forman tres zonas con (casi) el mismo número de
-# artículos. La ley predice que el número de revistas crece con un multiplicador parecido de una zona a la siguiente
-# (1 : k : k²). Una revista pertenece a la zona en la que empieza. Criterio orientativo propio: los dos cocientes se
-# consideran "parecidos" si el mayor no supera al menor en más de un 50 %.
+# Se ordenan las revistas de mayor a menor productividad y se forman tres zonas con (casi) el mismo numero de
+# articulos. La ley predice que el numero de revistas crece con un multiplicador parecido de una zona a la siguiente
+# (1 : k : k2). Una revista pertenece a la zona en la que empieza. Criterio orientativo propio: los dos cocientes se
+# consideran "parecidos" si el mayor no supera al menor en mas de un 50 %.
 bradford_fit <- function(sources) {
   if (is.null(sources) || !nrow(sources)) return(law_insufficient("bradford", "No hay una columna de fuente con valores."))
   d <- sources[order(-sources$documentos, sources$elemento), c("elemento", "documentos"), drop = FALSE]
@@ -96,9 +96,9 @@ bradford_fit <- function(sources) {
 }
 
 # ---- Zipf ---------------------------------------------------------------------------------------
-# Frecuencia de una palabra ∝ 1 / rango^s, con s cercano a 1 en textos largos. Criterio de ajuste: mínimos cuadrados
-# sobre log(frecuencia) frente a log(rango) con todos los términos evaluados. Criterio orientativo propio: se dice
-# "cercano a 1" si s está entre 0,8 y 1,2 y la recta explica al menos el 90 % (R²) de la variación.
+# Frecuencia de una palabra ? 1 / rango^s, con s cercano a 1 en textos largos. Criterio de ajuste: minimos cuadrados
+# sobre log(frecuencia) frente a log(rango) con todos los terminos evaluados. Criterio orientativo propio: se dice
+# "cercano a 1" si s esta entre 0,8 y 1,2 y la recta explica al menos el 90 % (R2) de la variacion.
 zipf_fit <- function(terms, frequency = NULL) {
   if (is.null(frequency)) { f <- terms$frecuencia; nm <- terms$termino } else { f <- frequency; nm <- terms }
   ok <- is.finite(f) & f > 0; f <- f[ok]; nm <- nm[ok]
@@ -124,7 +124,7 @@ zipf_fit <- function(terms, frequency = NULL) {
     exponente = s, r2 = r2, compatible = cercano)
 }
 
-# ---- Gráficos ----------------------------------------------------------------------------------------
+# ---- Graficos ----------------------------------------------------------------------------------------
 wrap_sub <- function(x, width = 95L) paste(strwrap(x, width), collapse = "\n")
 law_empty_graph <- function(fit, title) {
   ggplot2::ggplot() + ggplot2::annotate("text", x = 0, y = 0, label = paste(strwrap(fit$motivo, 60), collapse = "\n"), size = 5, colour = "#555555") +

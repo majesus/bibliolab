@@ -2,7 +2,7 @@
 # numericos exactos y huellas de contenido. Funciones puras, sin dependencia de Shiny.
 
 # ---- Normalizacion Unicode ---------------------------------------------------
-# Forma canonica compuesta (NFC) de un vector de texto. "cafe" + U+0301 y "café" son la misma
+# Forma canonica compuesta (NFC) de un vector de texto. "cafe" + U+0301 y "cafe" son la misma
 # palabra para quien lee, pero distintas secuencias de puntos de codigo: sin normalizar, el
 # vocabulario las separaria. Se conservan NA, nombres y posiciones. El texto con UTF-8 invalido se
 # devuelve sin cambios (no se descarta ni se inventa una lectura). La implementacion es unica y no

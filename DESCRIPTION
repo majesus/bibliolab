@@ -60,7 +60,8 @@ Suggests:
     udpipe,
     uwot,
     withr,
-    writexl
+    writexl,
+    xml2
 Config/bibliolab/App-Suggests: cld2, dbscan, ggrepel, igraph, irlba, mgcv,
     readxl, slam, topicmodels, udpipe, uwot
 Config/testthat/edition: 3

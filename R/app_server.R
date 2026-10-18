@@ -93,7 +93,7 @@ app_server <- function(input, output, session) {
       filter_value = if (isTRUE(input$value_filter)) input$filter_value %||% "" else "")
     list(mapping = mapping, config = config)
   })
-  # Documentación y recursos de ejecución: no alteran ningún resultado, de modo que editarlos no invalida el corpus ni los modelos (H11).
+  # Documentacion y recursos de ejecucion: no alteran ningun resultado, de modo que editarlos no invalida el corpus ni los modelos (H11).
   documentation_settings <- reactive({
     provenance <- list(base_de_datos = input$source_db %||% "", ecuacion_busqueda = input$search_query %||% "",
       fecha_extraccion = input$extraction_date %||% "", criterios = input$inclusion %||% "")

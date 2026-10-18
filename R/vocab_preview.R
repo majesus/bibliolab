@@ -28,7 +28,7 @@ vocabulary_preview <- function(corpus, prepared, changes = list()) {
     !identical(changes$tfidf_scope %||% cfg$tfidf_scope %||% "all", prepared$config$tfidf_scope %||% "all") ||
     !isTRUE(all.equal(as.numeric(changes$tfidf_percentile %||% cfg$tfidf_percentile %||% 75), as.numeric(prepared$config$tfidf_percentile %||% 75)))
   if (identical(cfg$term_order, "tfidf") && stat_changed) {
-    return(list(estado = "no_disponible", motivo = "El resumen TF-IDF elegido para ordenar cambia cómo se calcula cada peso; pulsa Preparar corpus para ver su efecto."))
+    return(list(estado = "no_disponible", motivo = "El resumen TF-IDF elegido para ordenar cambia c\u00f3mo se calcula cada peso; pulsa Preparar corpus para ver su efecto."))
   }
   current <- corpus$vocabulary
   proposed <- vocabulary_selection(terms, cfg, n_docs)
@@ -54,9 +54,9 @@ vocabulary_preview <- function(corpus, prepared, changes = list()) {
 vocabulary_preview_ui <- function(p, shown = 8L) {
   if (is.null(p)) return(NULL)
   tag <- htmltools::tags
-  lead <- "Vista previa sobre la última preparación. No sustituye al corpus vigente hasta que pulses Preparar corpus; la longitud de las palabras, las palabras vacías, los lemas y las categorías solo se aplican al preparar."
+  lead <- "Vista previa sobre la \u00faltima preparaci\u00f3n. No sustituye al corpus vigente hasta que pulses Preparar corpus; la longitud de las palabras, las palabras vac\u00edas, los lemas y las categor\u00edas solo se aplican al preparar."
   if (identical(p$estado, "no_disponible")) return(tag$div(class = "empty-help", tag$p(lead), tag$p(p$motivo)))
-  names_of <- function(x) if (length(x) > shown) paste0(paste(x[seq_len(shown)], collapse = ", "), " y ", length(x) - shown, " más") else paste(x, collapse = ", ")
+  names_of <- function(x) if (length(x) > shown) paste0(paste(x[seq_len(shown)], collapse = ", "), " y ", length(x) - shown, " m\u00e1s") else paste(x, collapse = ", ")
   fmt <- function(x) format(round(x, 1), nsmall = 1, decimal.mark = ",")
   if (identical(p$estado, "sin_cambios")) {
     return(tag$div(class = "empty-help", tag$p(lead), tag$p(sprintf("Con estos valores el vocabulario de los modelos no cambia: siguen entrando %d palabras.", p$terminos_vigentes))))
@@ -64,13 +64,13 @@ vocabulary_preview_ui <- function(p, shown = 8L) {
   empty_now <- if (is.na(p$unidades_con_vocabulario_propuestas)) NULL else {
     lost <- p$unidades_con_vocabulario_vigentes - p$unidades_con_vocabulario_propuestas
     tag$p(sprintf("Unidades con alguna palabra del vocabulario: %d ahora y %d con estos valores%s.", p$unidades_con_vocabulario_vigentes, p$unidades_con_vocabulario_propuestas,
-      if (lost > 0L) sprintf(" (%d quedarían sin vocabulario y no entrarían en los modelos)", lost) else ""))
+      if (lost > 0L) sprintf(" (%d quedar\u00edan sin vocabulario y no entrar\u00edan en los modelos)", lost) else ""))
   }
   tag$div(class = "empty-help vocab-preview", tag$p(lead),
-    tag$p(tag$strong(sprintf("Entrarían %d palabras (ahora %d). ", p$terminos_propuestos, p$terminos_vigentes)),
-      sprintf("Conservarían el %s %% de las apariciones (ahora %s %%).", fmt(p$apariciones_propuestas_pct), fmt(p$apariciones_vigentes_pct))),
-    if (length(p$salen)) tag$p(tag$strong("Saldrían: "), paste0(names_of(p$salen), ".")),
-    if (length(p$entran)) tag$p(tag$strong("Entrarían ahora: "), paste0(names_of(p$entran), ".")),
+    tag$p(tag$strong(sprintf("Entrar\u00edan %d palabras (ahora %d). ", p$terminos_propuestos, p$terminos_vigentes)),
+      sprintf("Conservar\u00edan el %s %% de las apariciones (ahora %s %%).", fmt(p$apariciones_propuestas_pct), fmt(p$apariciones_vigentes_pct))),
+    if (length(p$salen)) tag$p(tag$strong("Saldr\u00edan: "), paste0(names_of(p$salen), ".")),
+    if (length(p$entran)) tag$p(tag$strong("Entrar\u00edan ahora: "), paste0(names_of(p$entran), ".")),
     empty_now,
-    if (!p$recorta) tag$p("El máximo de términos no recorta con estos valores: el criterio de orden no cambia cuáles entran."))
+    if (!p$recorta) tag$p("El m\u00e1ximo de t\u00e9rminos no recorta con estos valores: el criterio de orden no cambia cu\u00e1les entran."))
 }

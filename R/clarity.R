@@ -46,7 +46,7 @@ jsd_result_reading <- function(fit,top_n=20L) {
   words<-function(side){z<-head(d$termino[d$direccion==side],4);if(length(z))paste(z,collapse=", ") else "ninguna entre las mostradas"}
   sprintf("JSD resume cu\u00e1nto difieren las proporciones de palabras de A y B. Las barras de la izquierda tienen mayor proporci\u00f3n en A (%s); las de la derecha, en B (%s). Una barra m\u00e1s larga aporta m\u00e1s al contraste total (%s son las primeras por aportaci\u00f3n). Estas %d palabras explican %.1f %% de la diferencia. La direcci\u00f3n indica en qu\u00e9 grupo pesa m\u00e1s la palabra; la aportaci\u00f3n a la divergencia siempre es no negativa. Abre sus documentos para comprobar qu\u00e9 significa el contraste.",words("Mayor en A"),words("Mayor en B"),paste(head(d$termino,3),collapse=", "),nrow(d),sum(d$aporte_pct))
 }
-# Frase modelo para el informe con las cifras de la comparación vigente. Es descriptiva: no atribuye causa ni valida los grupos.
+# Frase modelo para el informe con las cifras de la comparacion vigente. Es descriptiva: no atribuye causa ni valida los grupos.
 jsd_report_sentence <- function(fit, top_n = 3L) {
   if (is.null(fit) || is.null(fit$jsd)) return("")
   p <- fit$params; a <- fit$audit$valor
@@ -60,7 +60,7 @@ jsd_report_sentence <- function(fit, top_n = 3L) {
   words <- function(side) { z <- head(d$termino[d$direccion == side], top_n); if (length(z)) paste(z, collapse = ", ") else "ninguna entre las principales" }
   paste0(intro, azar, " Las palabras que m\u00e1s contribuyen son ", words("Mayor en A"), " (mayor proporci\u00f3n en A) y ", words("Mayor en B"), " (mayor proporci\u00f3n en B). La comparaci\u00f3n describe diferencias de vocabulario y no establece su causa; si los grupos se formaron con el mismo vocabulario, no constituye una validaci\u00f3n independiente de ellos.")
 }
-# Frase modelo para el informe con las cifras de la red vigente: define qué es una conexión y declara filtros y límites.
+# Frase modelo para el informe con las cifras de la red vigente: define que es una conexion y declara filtros y limites.
 network_report_sentence <- function(fit) {
   if (is.null(fit) || is.null(fit$summary)) return("")
   v <- function(name) { i <- match(name, fit$summary$indicador); if (is.na(i)) NA_real_ else fit$summary$valor[i] }

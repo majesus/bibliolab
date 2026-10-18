@@ -15,5 +15,8 @@ utils::globalVariables(c(
   "pair", "pca_axes", "pca_current", "pca_documents_graph", "pca_terms_graph", "pca_variance_graph",
   "posicion", "proporcion", "proporcion_media", "segmento", "shift_pct", "subgraph_current",
   "superior", "tema", "tema_label", "termino", "token_bars_graph", "token_display_metric", "token_graph", "token_view",
-  "total", "type", "valor", "wiki_export_current", "x", "xend", "y", "yend"
+  "total", "type", "valor", "wiki_export_current", "x", "xend", "y", "yend",
+  "acumulado", "frecuencia", "frecuencia_ajustada", "law_bradford_graph", "law_lotka_graph",
+  "law_zipf_graph", "laws_current", "proporcion_ajustada", "proporcion_lotka_2",
+  "proporcion_observada", "rango", "trabajos", "zona"
 ))
