@@ -109,3 +109,4 @@ table.dataTable tbody tr:nth-child(even){background:#f8f9fa}.dataTables_scrollHe
 .wiki-step{margin:16px 0}.wiki-step-details{margin:12px 0}
 .wiki-step-details>summary{font-weight:600}
 .wiki-step .wiki-network-reading h4{margin:4px 0 10px}
+.decision-card{border-left:3px solid #222;background:#f7f7f5;padding:8px 14px;margin:8px 0 16px;max-width:900px}.decision-card>summary{cursor:pointer;font-weight:600}.decision-card>summary:focus-visible,.decision-technical>summary:focus-visible{outline:3px solid #245579;outline-offset:2px}.decision-card p{font-size:14px;line-height:1.6;margin:8px 0}.decision-technical{margin-top:6px}.decision-technical>summary{cursor:pointer;font-weight:400;font-size:13px}

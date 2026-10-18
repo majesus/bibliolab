@@ -89,3 +89,21 @@ test_that("H15: la tabla de terminos a la vista muestra una sola columna de TF-I
     expect_true("tfidf_mean" %in% names(rv$corpus$terms)) # el alias se conserva para scripts y entregas anteriores
   })
 })
+
+test_that("T02: cada ficha de decision cumple el contrato y aparece junto a su control", {
+  h <- decision_help_catalog()
+  expect_gte(length(h), 12L)
+  words <- function(x) length(strsplit(trimws(x), "\\s+")[[1]])
+  for (id in names(h)) {
+    f <- h[[id]]
+    expect_true(all(decision_help_fields %in% names(f)), info = id)
+    expect_true(all(nzchar(unlist(f[decision_help_fields]))), info = id)
+    expect_gte(words(f$empezar), 15L); expect_lte(words(f$empezar), 35L)
+    expect_true(endsWith(trimws(f$pregunta), "?"), info = id)
+    expect_false(grepl("\\bV[0-9]\\b", paste(unlist(f), collapse = " ")), info = id)
+  }
+  ui <- as.character(build_ui())
+  expect_match(ui, "En cu\u00e1ntos documentos debe aparecer una palabra", fixed = TRUE)
+  expect_match(ui, "Ejemplo ilustrativo", fixed = TRUE)
+  for (id in c("lda_k", "jsd_weight", "hdb_min_pts", "network_weight", "token_rank_metric", "split_sentences", "wiki_concept_k")) expect_match(ui, h[[id]]$pregunta, fixed = TRUE)
+})
