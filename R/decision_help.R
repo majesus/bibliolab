@@ -207,5 +207,45 @@ decision_card <- function(id) {
     htmltools::tags$p(htmltools::tags$strong("Qu\u00e9 cambia: "), h$cambia),
     htmltools::tags$p(htmltools::tags$strong("Qu\u00e9 comprobar: "), h$comprobar),
     htmltools::tags$p(htmltools::tags$strong("Ejemplo ilustrativo: "), h$ejemplo),
+    if (!is.null(x <- decision_help_extras()[[id]])) htmltools::tagList(
+      htmltools::tags$p(htmltools::tags$strong("Una analog\u00eda: "), x$analogia, " ", htmltools::tags$em("D\u00f3nde deja de servir: "), x$limite),
+      htmltools::tags$p(htmltools::tags$strong("Lo que no significa: "), x$no_significa)),
     htmltools::tags$details(class = "decision-technical", htmltools::tags$summary("C\u00f3mo se calcula"), htmltools::tags$p(h$tecnica)))
 }
+
+# Ampliación opcional de algunas fichas: analogía (con su límite) y lo que el ajuste no significa. No forman parte del contrato mínimo.
+decision_help_extras <- function() list(
+  min_df = list(analogia = "Es como exigir que un dato aparezca en al menos dos fuentes antes de fiarte de \u00e9l: una menci\u00f3n suelta puede ser un error de transcripci\u00f3n.",
+    limite = "Una palabra poco frecuente puede ser justamente el asunto raro que buscas, y entonces conviene mantenerla.",
+    no_significa = "Subir el valor no hace los resultados m\u00e1s fiables: elimina los asuntos poco frecuentes junto con el ruido."),
+  max_terms = list(analogia = "Es como las plazas de un aula: si hay m\u00e1s candidatos que plazas, hay que decidir qui\u00e9n entra primero; si caben todos, el criterio de admisi\u00f3n no importa.",
+    limite = "En un aula, quien queda fuera no vuelve a verse; aqu\u00ed las palabras excluidas siguen consultables con su motivo.",
+    no_significa = "Un m\u00e1ximo mayor no mejora el an\u00e1lisis por s\u00ed solo: tambi\u00e9n puede a\u00f1adir palabras raras."),
+  lda_k = list(analogia = "Es como ordenar una biblioteca en k cajones: con pocos cajones, estanter\u00edas amplias; con muchos, matices que pueden acabar repiti\u00e9ndose.",
+    limite = "No existe un n\u00famero correcto de cajones: el criterio pr\u00e1ctico es que cada uno se pueda leer y nombrar.",
+    no_significa = "El valor de k con mejores cifras no es \u00abel verdadero\u00bb n\u00famero de temas."),
+  hdb_min_pts = list(analogia = "Es como decidir cu\u00e1ntas personas deben estar juntas para llamarlas corro: con 5 basta un grupo peque\u00f1o; con 10 se exigen corros mayores y m\u00e1s gente queda fuera.",
+    limite = "En una plaza se ve a todos a la vez; aqu\u00ed los grupos se calculan en otra representaci\u00f3n y el mapa es solo un plano.",
+    no_significa = "Los documentos sin asignar no son errores ni deben eliminarse."),
+  network_weight = list(analogia = "Piensa en dos personas muy populares: coinciden en muchas fiestas por pura casualidad. La fuerza de asociaci\u00f3n y el coseno descuentan esa coincidencia esperable seg\u00fan cu\u00e1nto asiste cada una; el peso completo, no.",
+    limite = "Descontar por popularidad no es una prueba estad\u00edstica: no calcula valores p ni controla falsos descubrimientos.",
+    no_significa = "Una conexi\u00f3n fuerte no demuestra relaci\u00f3n causal ni influencia entre las entidades."),
+  jsd_weight = list(analogia = "Es como calcular la opini\u00f3n media de un grupo: puedes contar cada palabra pronunciada, de modo que quien m\u00e1s habla pesa m\u00e1s, o contar cada persona por igual.",
+    limite = "Aqu\u00ed \u00abhablar m\u00e1s\u00bb significa tener un texto m\u00e1s largo, no tener m\u00e1s raz\u00f3n.",
+    no_significa = "Ninguna de las dos opciones mide la opini\u00f3n mayoritaria ni indica cu\u00e1l es la correcta."),
+  token_rank_metric = list(analogia = "Es como una lista de canciones: puedes ordenarla por cu\u00e1ntas personas la escuchan (documentos) o por cu\u00e1ntas reproducciones suma (apariciones); una sola persona que la repita cien veces la dispara en la segunda.",
+    limite = "TF-IDF a\u00f1ade otra pregunta: qu\u00e9 canciones caracterizan a un oyente, no solo cu\u00e1les son populares.",
+    no_significa = "La palabra m\u00e1s repetida no es necesariamente la m\u00e1s presente ni la m\u00e1s caracter\u00edstica."),
+  umap_neighbors = list(analogia = "Es como decidir a cu\u00e1ntos vecinos preguntas para conocer tu barrio: con pocos ves tu manzana; con muchos, el barrio entero.",
+    limite = "Ninguna escala es mejor: cada una responde a una pregunta distinta, local o amplia.",
+    no_significa = "M\u00e1s vecinos no garantizan menos grupos."),
+  network_community = list(analogia = "Es como repartir a los invitados de una cena en mesas: con otra regla de reparto salen mesas distintas y ninguna es \u00abla verdadera\u00bb.",
+    limite = "Las comunidades se calculan con una regla matem\u00e1tica, no por lo que las personas tengan realmente en com\u00fan.",
+    no_significa = "Una modularidad alta no certifica que las comunidades tengan sentido: l\u00e9elas."),
+  lemmatize = list(analogia = "Es como buscar en un diccionario: \u00abestudiantes\u00bb y \u00abestudiante\u00bb se re\u00fanen bajo una misma entrada.",
+    limite = "Un diccionario de otro idioma re\u00fane mal las formas.",
+    no_significa = "Lematizar no une sin\u00f3nimos ni traduce."),
+  remove_stop = list(analogia = "Es como quitar los conectores de un telegrama para quedarte con las palabras que informan.",
+    limite = "A veces un conector es el asunto: palabras como \u00abno\u00bb o \u00absin\u00bb pueden cambiar el sentido.",
+    no_significa = "Una palabra frecuente no es necesariamente una palabra vac\u00eda.")
+)

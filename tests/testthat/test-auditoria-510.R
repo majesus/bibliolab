@@ -178,3 +178,13 @@ test_that("D01-D10: cada ficha del catalogo aparece junto a su control", {
   for (id in setdiff(names(h), server_side)) expect_match(ui, htmltools::htmlEscape(h[[id]]$pregunta), fixed = TRUE, info = id)
   expect_gte(length(h), 27L)
 })
+
+test_that("Las fichas con analogia declaran su limite y lo que no significan", {
+  ex <- decision_help_extras(); cat_ids <- names(decision_help_catalog())
+  expect_true(all(names(ex) %in% cat_ids))
+  expect_gte(length(ex), 10L)
+  for (id in names(ex)) expect_true(all(nzchar(unlist(ex[[id]])) & c("analogia", "limite", "no_significa") %in% names(ex[[id]])), info = id)
+  html <- as.character(decision_card("network_weight"))
+  expect_match(html, "Una analogía", fixed = TRUE); expect_match(html, "Dónde deja de servir", fixed = TRUE); expect_match(html, "Lo que no significa", fixed = TRUE)
+  expect_false(grepl("Una analogía", as.character(decision_card("min_tfidf")), fixed = TRUE))
+})
