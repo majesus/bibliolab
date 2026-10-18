@@ -90,6 +90,32 @@ ordination_reading <- function(fit,kind="ACP",axes=c(1L,2L)) {
   paste0("El plano ",axes[1]," / ",axes[2]," recoge ",sprintf("%.1f",information)," % de la ",if(kind=="ACP")"varianza" else "inercia"," total. Las palabras con mayor contribuci\u00f3n a este plano son (",paste(best,collapse=", "),"). El eje horizontal contrasta (",mention(sides("eje_1",FALSE)),") con (",mention(sides("eje_1",TRUE)),"); el vertical contrasta (",mention(sides("eje_2",FALSE)),") con (",mention(sides("eje_2",TRUE)),"). Estas listas describen extremos, no etiquetas tem\u00e1ticas validadas. ",representative," de ",nrow(d)," t\u00e9rminos conservan al menos la mitad de su informaci\u00f3n en el plano (cos\u00b2 \u2265 0,5, referencia de lectura, no criterio universal). Un cos\u00b2 de 0,20 significa que aqu\u00ed se ve el 20 % de la informaci\u00f3n de ese punto: examina otros ejes antes de interpretar proximidad. ",
   if(kind=="ACP")"Las variables son correlaciones con componentes: flechas de direcci\u00f3n parecida sugieren asociaci\u00f3n positiva bien representada; direcciones opuestas sugieren asociaci\u00f3n negativa. El plano de documentos muestra semejanza de perfiles TF-IDF centrados; abre los textos para explicar los contrastes." else "Correspondencias compara c\u00f3mo se reparte cada palabra entre las unidades de texto mediante distancias chi-cuadrado. Cerca del origen, su perfil es pr\u00f3ximo al promedio; lejos, es distinto en los ejes mostrados. La cercan\u00eda entre palabras bien representadas sugiere perfiles parecidos, sin demostrar sinonimia. Lee documentos con esas palabras y comprueba masa y contribuci\u00f3n: una palabra rara puede ocupar un extremo."," El signo puede invertirse sin cambiar el resultado. Estos m\u00e9todos no asignan grupos por s\u00ed solos.")
 }
+# Frases modelo para el informe de ACP, Correspondencias, LDA y grupos de documentos. Usan las cifras de la ejecuci\u00f3n vigente y declaran qu\u00e9 no se afirma.
+ordination_report_sentence <- function(fit, kind = "ACP", axes = c(1L, 2L)) {
+  if (is.null(fit) || is.null(fit$dimensions)) return("")
+  dm <- fit$dimensions; axes <- axes[axes %in% dm$eje]
+  if (length(axes) < 2L) return("")
+  pct <- sum(dm$porcentaje[match(axes, dm$eje)])
+  chance <- all(dm$supera_azar[match(axes, dm$eje)] %in% TRUE)
+  measure <- if (identical(kind, "ACP")) "varianza" else "inercia"
+  n_terms <- nrow(fit$terms)
+  paste0("El ", kind, " se calcul\u00f3 sobre ", n_terms, " t\u00e9rminos del vocabulario retenido. El plano formado por los ejes ", axes[1], " y ", axes[2], " recoge el ", fmt_es(pct, 1), " % de la ", measure, " total",
+    if (chance) ", y ambos ejes superan la referencia obtenida por permutaci\u00f3n" else ", pero al menos uno de los dos ejes no supera la referencia obtenida por permutaci\u00f3n, por lo que su lectura debe tomarse con cautela", ". ",
+    "Los ejes resumen contrastes entre perfiles de vocabulario; no son temas ni valoraciones, y el signo positivo o negativo de una posici\u00f3n solo indica el lado del contraste. Antes de interpretar un punto, comprueba que su cos\u00b2 en este plano sea suficiente y lee los textos que lo sustentan.")
+}
+lda_report_sentence <- function(fit) {
+  if (is.null(fit) || is.null(fit$prevalence) || !nrow(fit$prevalence)) return("")
+  d <- fit$prevalence; i <- which.max(d$proporcion_media)
+  terms <- head(fit$top$termino[fit$top$tema == d$tema[i]], 4)
+  paste0("Se estim\u00f3 un modelo LDA con ", fit$params$k, " temas, un n\u00famero fijado por el analista y no descubierto por el modelo. El tema ", d$tema[i], " (", paste(terms, collapse = ", "), ") es el de mayor proporci\u00f3n media de la mezcla, con el ", fmt_es(100 * d$proporcion_media[i], 1), " %. ",
+    "Cada documento se describe como una mezcla de temas, no como perteneciente a uno solo; los temas son distribuciones de palabras y su etiqueta es una interpretaci\u00f3n que debe contrastarse leyendo los documentos con mayor peso en cada uno. La soluci\u00f3n depende del n\u00famero de temas, de la semilla y del vocabulario retenido.")
+}
+density_report_sentence <- function(fit) {
+  if (is.null(fit) || is.null(fit$summary) || is.null(fit$assignments)) return("")
+  groups <- sum(fit$summary$grupo > 0); n <- nrow(fit$assignments); un <- sum(fit$assignments$grupo == 0)
+  paste0("La agrupaci\u00f3n por densidad (UMAP + HDBSCAN, representaci\u00f3n ", fit$representation$type %||% "no declarada", ") detect\u00f3 ", groups, if (groups == 1L) " grupo" else " grupos", " entre ", n, " documentos; ", un, " (", fmt_es(100 * un / n, 1), " %) quedaron sin asignar. ",
+    "Con minPts = ", fit$params$min_pts, " y semilla ", fit$params$seed, ". Los grupos son agrupaciones de documentos con vocabulario parecido, no temas validados; la membres\u00eda describe la estabilidad de la asignaci\u00f3n y no una probabilidad, y las distancias globales del mapa no deben leerse como distancias sem\u00e1nticas exactas. Lee los documentos representativos de cada grupo antes de nombrarlo.")
+}
 lda_result_reading <- function(fit) {
   d<-fit$prevalence
   rows<-vapply(seq_len(nrow(d)),function(i){topic<-d$tema[i];terms<-head(fit$top$termino[fit$top$tema==topic],4);paste0("Tema ",topic," (",paste(terms,collapse=", "),"): ",sprintf("%.1f",100*d$proporcion_media[i])," % de la mezcla media")},"")

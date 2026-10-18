@@ -37,10 +37,10 @@ output$vocab_order_note<-renderUI({t<-rv$corpus$terms;if(is.null(t)||!nrow(t)||i
   hint(if(limit==0)paste0("En la última preparación, los ",eligible," términos que superaron los umbrales cabían en el máximo; cambiar el orden no modifica el vocabulario incluido. El orden solo decide cuando hay más términos elegibles que el máximo.") else paste0("En la última preparación, ",eligible," términos superaron los umbrales y el máximo dejó fuera ",limit,": el orden elegido decide cuáles de ellos entran."))})
 for(key in c("citations","bigrams","lda","ca","density","pca"))local({k<-key
   output[[paste0("guide_",k)]]<-renderUI({if(is.null(rv$prepared)||stale())return(NULL)
-    if(k=="lda"){f<-lda_current();if(is.null(f))return(NULL);return(caption(lda_result_reading(f)))}
-    if(k=="ca"){f<-ca_current();if(is.null(f))return(NULL);return(caption(ordination_reading(f,"Correspondencias")))}
-    if(k=="pca"){f<-pca_current();if(is.null(f))return(NULL);return(caption(ordination_reading(f,"ACP",pca_axes())))}
-    if(k=="density"){f<-density_current();if(is.null(f))return(NULL);return(caption(paste(sum(f$summary$grupo>0),"grupos y",sum(f$assignments$grupo==0),"documentos sin asignar.",figure_explanation("density"),"Evalúa estabilidad antes de describir temas.")))}
+    if(k=="lda"){f<-lda_current();if(is.null(f))return(NULL);return(tagList(caption(lda_result_reading(f)),report_sentence_ui(lda_report_sentence(f))))}
+    if(k=="ca"){f<-ca_current();if(is.null(f))return(NULL);return(tagList(caption(ordination_reading(f,"Correspondencias")),report_sentence_ui(ordination_report_sentence(f,"Correspondencias"))))}
+    if(k=="pca"){f<-pca_current();if(is.null(f))return(NULL);return(tagList(caption(ordination_reading(f,"ACP",pca_axes())),report_sentence_ui(ordination_report_sentence(f,"ACP",pca_axes()))))}
+    if(k=="density"){f<-density_current();if(is.null(f))return(NULL);return(tagList(caption(paste(sum(f$summary$grupo>0),"grupos y",sum(f$assignments$grupo==0),"documentos sin asignar.",figure_explanation("density"),"Evalúa estabilidad antes de describir temas.")),report_sentence_ui(density_report_sentence(f))))}
     if(k=="bigrams"){d<-gram_data();if(!nrow(d))return(NULL);return(caption(paste("El primer resultado según el indicador elegido es",d$expresion[1],". La adyacencia muestra una expresión literal, no una relación causal. Contrasta sus contextos y la dispersión de pesos en la tabla.")))}
     if(k=="citations")return(caption("El índice h es el último rango con al menos ese número de citas. Citas ausentes se excluyen; con cobertura parcial, el valor es un límite inferior del h que tendría este corpus con todas sus citas. Edad, disciplina y fuente condicionan la comparación."))
     NULL

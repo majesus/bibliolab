@@ -111,3 +111,10 @@ narrative_ui <- function(key, open = FALSE) {
       tag$summary("Errores frecuentes al interpretarlo"),
       tag$ul(lapply(n$errores, tag$li))))
 }
+
+# Bloque com\u00fan "C\u00f3mo escribirlo en tu informe": frase generada con las cifras vigentes.
+report_sentence_ui <- function(text) {
+  if (is.null(text) || !nzchar(text)) return(NULL)
+  tags$div(class = "report-sentence", tags$h4("C\u00f3mo escribirlo en tu informe"), tags$blockquote(text),
+    tags$p(class = "hint", "Las cifras proceden de tu ejecuci\u00f3n vigente. Revisa que la redacci\u00f3n responda a tu pregunta antes de copiarla."))
+}
