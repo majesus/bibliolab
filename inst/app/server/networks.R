@@ -44,10 +44,12 @@ output$network_plot <- renderPlot(network_graph(), res = 120)
 make_network_widget<-function(fit) {
   validate(need(!is.null(fit),"Calcula una red para explorar sus relaciones."));validate(need(nrow(fit$nodes)>0,"No quedan nodos conectados. Conserva los aislados o reduce el umbral de conexiones."))
   d<-fit$nodes;d<-d[order(ascii_fold(tolower(d$name))),,drop=FALSE];ed<-fit$edges;palette<-swiss_colours(length(unique(d$comunidad)));colours<-palette[match(d$comunidad,sort(unique(d$comunidad)))]
+  # Escala de la disposición inicial: la envergura se normaliza a ~500 unidades para que el zoom de ajuste no reduzca los rotulos a un tamaño ilegible.
+  net_unit<-{span<-max(abs(c(d$x,d$y)),na.rm=TRUE);if(is.finite(span)&&span>0) 520/span else 100}
   path<-network_path();marked<-if(is.null(path))character() else path$nodes
   nodes<-data.frame(id=d$name,label=vapply(d$name,function(x) paste(strwrap(if(nchar(x)>62) paste0(substr(x,1,59),"…") else x,width=24),collapse="\n"),""),
     title=paste0("<strong>",escape_html(d$name),"</strong><br>Documentos: ",d$documentos,"<br>Grado: ",d$grado,"<br>Fuerza: ",round(d$fuerza,4),"<br>Intermediación: ",round(d$intermediacion,4),"<br>Comunidad: ",d$comunidad,"<br>",d$rol_observado),
-    color=colours,size=12+14*sqrt(d$documentos/max(d$documentos)),x=d$x*100,y=d$y*100,stringsAsFactors=FALSE)
+    color=colours,size=12+14*sqrt(d$documentos/max(d$documentos)),x=d$x*net_unit,y=d$y*net_unit,stringsAsFactors=FALSE)
   # Rotulado como en Lectura enlazada: nombre visible en todos los nodos, con halo blanco para leerlo sobre aristas y colores.
   # Los nodos destacados (mayor presencia o grado) llevan letra mayor; la casilla permite rotular solo estos si la red es densa.
   base_font<-if(nrow(nodes)<=40L) 20 else if(nrow(nodes)<=80L) 16 else 13
