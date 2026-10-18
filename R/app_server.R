@@ -61,7 +61,7 @@ app_server <- function(input, output, session) {
     make <- function(nm) selectInput(paste0("col_", nm), labels[[nm]],
       c("No asignar" = "", setNames(names(rv$raw), names(rv$raw))), selected = guesses[[nm]])
     langs <- language_columns(rv$raw)
-    tagList(make("text"), hint(paste("Lectura propuesta:", if (nzchar(guesses$text)) guesses$text else "no se reconoce una columna de texto; selecci\u00f3nala aqu\u00ed.", "Puedes confirmarla leyendo el visor.")),
+    tagList(make("text"), hint(paste("Lectura propuesta:", if (nzchar(guesses$text)) guesses$text else "no se reconoce una columna de texto; selecci\u00f3nala aqu\u00ed.", "Puedes confirmarla leyendo el visor.")), decision_card("col_text"),
       make("title"), make("id"), make("keywords"), hint("Author Keywords / DE son palabras declaradas por los autores. Keywords Plus / ID e Index Keywords son \u00edndices de la base: as\u00edgnalos solo si esa es tu decisi\u00f3n y documenta su origen."), tags$details(open = if (nzchar(guesses$source) || nzchar(guesses$authors)) "open" else NULL,
         tags$summary("Metadatos bibliom\u00e9tricos \u00b7 detectados autom\u00e1ticamente"), lapply(c("year", "source", "authors", "citations", "doi", "references"), make)),
       tags$details(tags$summary("Traducciones y corpus de varios idiomas \u00b7 opcional"), make("translated"),

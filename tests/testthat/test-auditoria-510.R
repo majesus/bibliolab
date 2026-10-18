@@ -170,3 +170,11 @@ test_that("D04: la vista previa del vocabulario coincide con la preparacion real
   expect_match(html, "No sustituye al corpus vigente", fixed = TRUE)
   expect_match(html, "Saldrían", fixed = TRUE)
 })
+
+test_that("D01-D10: cada ficha del catalogo aparece junto a su control", {
+  h <- decision_help_catalog()
+  ui <- as.character(build_ui())
+  server_side <- "col_text" # se genera con el selector de columnas, que depende del archivo cargado
+  for (id in setdiff(names(h), server_side)) expect_match(ui, htmltools::htmlEscape(h[[id]]$pregunta), fixed = TRUE, info = id)
+  expect_gte(length(h), 27L)
+})
