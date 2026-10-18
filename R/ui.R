@@ -91,6 +91,7 @@ build_ui <- function() fluidPage(
           fluidRow(column(4, numericInput("min_chars", "Longitud m\u00ednima", 3, 1, 12), numericInput("max_chars", "Longitud m\u00e1xima", 40, 3, 100)),
             column(4, numericInput("min_df", "Presencia m\u00ednima \u00b7 documentos", 2, 1, 10000), numericInput("max_df_pct", "Presencia m\u00e1xima \u00b7 %", 100, 1, 100)),
             column(4, numericInput("min_tf", "Frecuencia total m\u00ednima", 1, 1, 1000000), numericInput("max_terms", "M\u00e1ximo de t\u00e9rminos", 1000, 20, 2500))),
+          uiOutput("vocab_preview"),
           tags$details(class = "visible-disclosure", tags$summary("Ayuda para decidir estos filtros / presencia, m\u00e1ximo y orden"), decision_card("min_df"), decision_card("max_df_pct"), decision_card("max_terms"), decision_card("term_order"), decision_card("min_tfidf")),
           tags$details(tags$summary("Criterios avanzados: TF-IDF y entrop\u00eda"),
             hint("Estos dos umbrales excluyen t\u00e9rminos y no dependen del orden que elijas m\u00e1s abajo. TF-IDF combina la proporci\u00f3n de una palabra en cada unidad con su rareza entre unidades; el umbral usa siempre su media global, aunque ordenes con otro resumen. Entrop\u00eda mide c\u00f3mo se distribuyen sus apariciones entre documentos: 0 = concentraci\u00f3n en uno; cerca de 1 = reparto uniforme. Un valor alto no implica una palabra in\u00fatil. Mant\u00e9n 0 y 1 si no tienes una raz\u00f3n documentada para filtrar."),

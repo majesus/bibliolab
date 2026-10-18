@@ -147,3 +147,26 @@ test_that("H10/H16: los controles especializados de Redes y de UMAP + HDBSCAN va
   for (id in c("network_seed", "network_edges", "network_community", "network_keyplayers", "network_motion", "network_pin_drag", "density_rep", "umap_min_dist", "umap_epochs")) expect_true(folded(id), info = id)
   for (id in c("network_type", "network_presence", "network_nodes", "network_label_all", "umap_neighbors", "hdb_min_pts")) expect_false(folded(id), info = id)
 })
+
+test_that("D04: la vista previa del vocabulario coincide con la preparacion real y no la sustituye", {
+  d <- read_biblio_csv(app_extdata("practica.csv"), ";")
+  p <- prepare_documents(d, guess_columns(d))
+  cp <- prepare_corpus(p)
+  # Sin cambios, la vista previa reproduce el corpus vigente.
+  same <- vocabulary_preview(cp, p, list(min_df = p$config$min_df, max_terms = p$config$max_terms))
+  expect_identical(same$estado, "sin_cambios")
+  expect_identical(same$unidades_con_vocabulario_vigentes, as.integer(cp$units_in_model))
+  # Con un umbral distinto, coincide con preparar de verdad con ese umbral.
+  prev <- vocabulary_preview(cp, p, list(min_df = 5))
+  expect_identical(prev$estado, "cambia")
+  p2 <- prepare_documents(d, guess_columns(d), modifyList(p$config, list(min_df = 5)))
+  cp2 <- prepare_corpus(p2)
+  expect_setequal(setdiff(cp$vocabulary, prev$salen), cp2$vocabulary)
+  expect_identical(prev$terminos_propuestos, length(cp2$vocabulary))
+  expect_identical(prev$unidades_con_vocabulario_propuestas, as.integer(cp2$units_in_model))
+  # El resumen TF-IDF distinto exige recalcular: no se inventa una vista previa.
+  expect_identical(vocabulary_preview(cp, p, list(term_order = "tfidf", tfidf_stat = "median"))$estado, "no_disponible")
+  html <- paste(as.character(vocabulary_preview_ui(prev)), collapse = " ")
+  expect_match(html, "No sustituye al corpus vigente", fixed = TRUE)
+  expect_match(html, "Saldrían", fixed = TRUE)
+})
