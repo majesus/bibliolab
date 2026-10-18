@@ -46,6 +46,34 @@ jsd_result_reading <- function(fit,top_n=20L) {
   words<-function(side){z<-head(d$termino[d$direccion==side],4);if(length(z))paste(z,collapse=", ") else "ninguna entre las mostradas"}
   sprintf("JSD resume cu\u00e1nto difieren las proporciones de palabras de A y B. Las barras de la izquierda tienen mayor proporci\u00f3n en A (%s); las de la derecha, en B (%s). Una barra m\u00e1s larga aporta m\u00e1s al contraste total (%s son las primeras por aportaci\u00f3n). Estas %d palabras explican %.1f %% de la diferencia. La direcci\u00f3n indica en qu\u00e9 grupo pesa m\u00e1s la palabra; la aportaci\u00f3n a la divergencia siempre es no negativa. Abre sus documentos para comprobar qu\u00e9 significa el contraste.",words("Mayor en A"),words("Mayor en B"),paste(head(d$termino,3),collapse=", "),nrow(d),sum(d$aporte_pct))
 }
+# Frase modelo para el informe con las cifras de la comparacion vigente. Es descriptiva: no atribuye causa ni valida los grupos.
+jsd_report_sentence <- function(fit, top_n = 3L) {
+  if (is.null(fit) || is.null(fit$jsd)) return("")
+  p <- fit$params; a <- fit$audit$valor
+  weight <- if (identical(p$weighting, "documents")) "documentos equilibrados" else "tokens agrupados"
+  intro <- paste0("Se compararon ", p$label_A, " (n = ", a[3], " documentos) y ", p$label_B, " (n = ", a[4], " documentos) con el vocabulario retenido y la ponderaci\u00f3n de ", weight,
+    ". La divergencia de Jensen-Shannon (JSD) es ", fmt_es(fit$jsd, 4), " bits (0 = reparto de palabras id\u00e9ntico; 1 = vocabularios sin palabras en com\u00fan).")
+  if (fit$jsd == 0) return(paste0(intro, " Con este vocabulario los dos grupos tienen las mismas proporciones; esto no demuestra igualdad de todo su contenido."))
+  u <- fit$uncertainty
+  azar <- if (is.list(u) && is.finite(u$null_mean)) paste0(" Al redistribuir al azar los documentos entre ambos grupos se esperar\u00eda una JSD media de ", fmt_es(u$null_mean, 4), " bits; el exceso observado es ", fmt_es(u$excess, 4), " bits (p de permutaci\u00f3n = ", fmt_es(u$p_value, 3), ").") else ""
+  d <- fit$terms[fit$terms$aporte_bits > 0, , drop = FALSE]
+  words <- function(side) { z <- head(d$termino[d$direccion == side], top_n); if (length(z)) paste(z, collapse = ", ") else "ninguna entre las principales" }
+  paste0(intro, azar, " Las palabras que m\u00e1s contribuyen son ", words("Mayor en A"), " (mayor proporci\u00f3n en A) y ", words("Mayor en B"), " (mayor proporci\u00f3n en B). La comparaci\u00f3n describe diferencias de vocabulario y no establece su causa; si los grupos se formaron con el mismo vocabulario, no constituye una validaci\u00f3n independiente de ellos.")
+}
+# Frase modelo para el informe con las cifras de la red vigente: define que es una conexion y declara filtros y limites.
+network_report_sentence <- function(fit) {
+  if (is.null(fit) || is.null(fit$summary)) return("")
+  v <- function(name) { i <- match(name, fit$summary$indicador); if (is.na(i)) NA_real_ else fit$summary$valor[i] }
+  p <- fit$params
+  relation <- switch(p$type, authors = "dos autores est\u00e1n unidos si han firmado una misma publicaci\u00f3n", words = "dos palabras est\u00e1n unidas si coinciden en al menos un documento",
+    sources = "dos revistas est\u00e1n unidas si comparten vocabulario retenido", references = "dos obras est\u00e1n unidas si una misma publicaci\u00f3n las cita", coupling = "dos documentos est\u00e1n unidos si comparten referencias citadas", "dos entidades est\u00e1n unidas si cumplen la relaci\u00f3n elegida")
+  weight <- switch(p$weighting %||% "", full = "el n\u00famero de coincidencias", fractional = "coincidencias fraccionadas", cosine = "el coseno", association = "la fuerza de asociaci\u00f3n", "el peso elegido")
+  n <- v("Nodos"); e <- v("Conexiones"); dens <- v("Densidad"); comp <- v("Componentes"); com <- v("Comunidades louvain"); mod <- v("Modularidad")
+  paste0("En la red analizada, ", relation, ". Con los filtros declarados (presencia m\u00ednima ", p$min_presence %||% "\u2014", ", hasta ", p$max_nodes %||% "\u2014", " nodos y ponderaci\u00f3n por ", weight, ") la red tiene ", n, " nodos y ", e, " conexiones, con una densidad de ", fmt_es(dens, 3),
+    " y ", comp, if (identical(as.integer(comp), 1L)) " componente" else " componentes", ". ",
+    if (is.finite(com)) paste0("El m\u00e9todo ", p$community_method, " propone ", com, if (identical(as.integer(com), 1L)) " comunidad" else " comunidades", if (is.finite(mod)) paste0(" (modularidad = ", fmt_es(mod, 3), ")") else "", ". ") else "",
+    "Los nodos y las comunidades dependen de los filtros y del m\u00e9todo; la posici\u00f3n en el dibujo es una disposici\u00f3n visual y las cifras describen la red, sin implicar influencia ni causalidad.")
+}
 jsd_time_reading <- function(fit) {
   d<-fit$temporal
   if(!nrow(d))return("Compara per\u00edodos con varios a\u00f1os observados para estudiar d\u00f3nde cambia el vocabulario. Cada punto compara dos a\u00f1os observados sucesivos, con la misma ponderaci\u00f3n y el mismo vocabulario retenido.")
@@ -61,6 +89,32 @@ ordination_reading <- function(fit,kind="ACP",axes=c(1L,2L)) {
   mention<-function(z)if(length(z))paste(z,collapse=", ") else "sin t\u00e9rminos en ese lado"
   paste0("El plano ",axes[1]," / ",axes[2]," recoge ",sprintf("%.1f",information)," % de la ",if(kind=="ACP")"varianza" else "inercia"," total. Las palabras con mayor contribuci\u00f3n a este plano son (",paste(best,collapse=", "),"). El eje horizontal contrasta (",mention(sides("eje_1",FALSE)),") con (",mention(sides("eje_1",TRUE)),"); el vertical contrasta (",mention(sides("eje_2",FALSE)),") con (",mention(sides("eje_2",TRUE)),"). Estas listas describen extremos, no etiquetas tem\u00e1ticas validadas. ",representative," de ",nrow(d)," t\u00e9rminos conservan al menos la mitad de su informaci\u00f3n en el plano (cos\u00b2 \u2265 0,5, referencia de lectura, no criterio universal). Un cos\u00b2 de 0,20 significa que aqu\u00ed se ve el 20 % de la informaci\u00f3n de ese punto: examina otros ejes antes de interpretar proximidad. ",
   if(kind=="ACP")"Las variables son correlaciones con componentes: flechas de direcci\u00f3n parecida sugieren asociaci\u00f3n positiva bien representada; direcciones opuestas sugieren asociaci\u00f3n negativa. El plano de documentos muestra semejanza de perfiles TF-IDF centrados; abre los textos para explicar los contrastes." else "Correspondencias compara c\u00f3mo se reparte cada palabra entre las unidades de texto mediante distancias chi-cuadrado. Cerca del origen, su perfil es pr\u00f3ximo al promedio; lejos, es distinto en los ejes mostrados. La cercan\u00eda entre palabras bien representadas sugiere perfiles parecidos, sin demostrar sinonimia. Lee documentos con esas palabras y comprueba masa y contribuci\u00f3n: una palabra rara puede ocupar un extremo."," El signo puede invertirse sin cambiar el resultado. Estos m\u00e9todos no asignan grupos por s\u00ed solos.")
+}
+# Frases modelo para el informe de ACP, Correspondencias, LDA y grupos de documentos. Usan las cifras de la ejecuci\u00f3n vigente y declaran qu\u00e9 no se afirma.
+ordination_report_sentence <- function(fit, kind = "ACP", axes = c(1L, 2L)) {
+  if (is.null(fit) || is.null(fit$dimensions)) return("")
+  dm <- fit$dimensions; axes <- axes[axes %in% dm$eje]
+  if (length(axes) < 2L) return("")
+  pct <- sum(dm$porcentaje[match(axes, dm$eje)])
+  chance <- all(dm$supera_azar[match(axes, dm$eje)] %in% TRUE)
+  measure <- if (identical(kind, "ACP")) "varianza" else "inercia"
+  n_terms <- nrow(fit$terms)
+  paste0("El ", kind, " se calcul\u00f3 sobre ", n_terms, " t\u00e9rminos del vocabulario retenido. El plano formado por los ejes ", axes[1], " y ", axes[2], " recoge el ", fmt_es(pct, 1), " % de la ", measure, " total",
+    if (chance) ", y ambos ejes superan la referencia obtenida por permutaci\u00f3n" else ", pero al menos uno de los dos ejes no supera la referencia obtenida por permutaci\u00f3n, por lo que su lectura debe tomarse con cautela", ". ",
+    "Los ejes resumen contrastes entre perfiles de vocabulario; no son temas ni valoraciones, y el signo positivo o negativo de una posici\u00f3n solo indica el lado del contraste. Antes de interpretar un punto, comprueba que su cos\u00b2 en este plano sea suficiente y lee los textos que lo sustentan.")
+}
+lda_report_sentence <- function(fit) {
+  if (is.null(fit) || is.null(fit$prevalence) || !nrow(fit$prevalence)) return("")
+  d <- fit$prevalence; i <- which.max(d$proporcion_media)
+  terms <- head(fit$top$termino[fit$top$tema == d$tema[i]], 4)
+  paste0("Se estim\u00f3 un modelo LDA con ", fit$params$k, " temas, un n\u00famero fijado por el analista y no descubierto por el modelo. El tema ", d$tema[i], " (", paste(terms, collapse = ", "), ") es el de mayor proporci\u00f3n media de la mezcla, con el ", fmt_es(100 * d$proporcion_media[i], 1), " %. ",
+    "Cada documento se describe como una mezcla de temas, no como perteneciente a uno solo; los temas son distribuciones de palabras y su etiqueta es una interpretaci\u00f3n que debe contrastarse leyendo los documentos con mayor peso en cada uno. La soluci\u00f3n depende del n\u00famero de temas, de la semilla y del vocabulario retenido.")
+}
+density_report_sentence <- function(fit) {
+  if (is.null(fit) || is.null(fit$summary) || is.null(fit$assignments)) return("")
+  groups <- sum(fit$summary$grupo > 0); n <- nrow(fit$assignments); un <- sum(fit$assignments$grupo == 0)
+  paste0("La agrupaci\u00f3n por densidad (UMAP + HDBSCAN, representaci\u00f3n ", fit$representation$type %||% "no declarada", ") detect\u00f3 ", groups, if (groups == 1L) " grupo" else " grupos", " entre ", n, " documentos; ", un, " (", fmt_es(100 * un / n, 1), " %) quedaron sin asignar. ",
+    "Con minPts = ", fit$params$min_pts, " y semilla ", fit$params$seed, ". Los grupos son agrupaciones de documentos con vocabulario parecido, no temas validados; la membres\u00eda describe la estabilidad de la asignaci\u00f3n y no una probabilidad, y las distancias globales del mapa no deben leerse como distancias sem\u00e1nticas exactas. Lee los documentos representativos de cada grupo antes de nombrarlo.")
 }
 lda_result_reading <- function(fit) {
   d<-fit$prevalence

@@ -7,7 +7,7 @@ language_estimates<-reactive({
 language_route<-reactive({req(rv$raw);mapping<-list(text=input$col_text %||% "",language=input$col_language %||% "")
   route_document_languages(rv$raw,mapping,rv$language_overrides,language_estimates())
 })
-language_review<-reactive({req(rv$raw);r<-language_route();d<-language_diagnostics(rv$raw,settings()$mapping,r$overrides)
+language_review<-reactive({req(rv$raw);r<-language_route();d<-language_diagnostics(rv$raw,analysis_settings()$mapping,r$overrides)
   cbind(d,r$audit[setdiff(names(r$audit),c("fila","codigo_aplicado"))])
 })
 language_review_visible<-reactive({d<-language_review();filter<-input$language_review_filter %||% "pending"

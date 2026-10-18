@@ -1,6 +1,6 @@
 # Lectura inmediata, una sola versión por documento. Módulo de sesión.
 inspector_mapping <- reactive({
-  req(rv$raw); guessed <- guess_columns(rv$raw); chosen <- settings()$mapping
+  req(rv$raw); guessed <- guess_columns(rv$raw); chosen <- analysis_settings()$mapping
   for (f in names(guessed)) if (!nzchar(chosen[[f]] %||% "") || !chosen[[f]] %in% names(rv$raw)) chosen[[f]] <- guessed[[f]]
   chosen
 })

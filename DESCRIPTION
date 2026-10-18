@@ -1,7 +1,7 @@
 Package: bibliolab
 Type: Package
 Title: Guided Bibliometric Analysis and Text Mining
-Version: 5.0.3
+Version: 5.1.0
 Date: 2026-10-17
 Authors@R: 
     person("Manuel J.", "Sánchez-Franco", , "majesus@us.es", role = c("aut", "cre", "cph"),
@@ -60,7 +60,8 @@ Suggests:
     udpipe,
     uwot,
     withr,
-    writexl
+    writexl,
+    xml2
 Config/bibliolab/App-Suggests: cld2, dbscan, ggrepel, igraph, irlba, mgcv,
     readxl, slam, topicmodels, udpipe, uwot
 Config/testthat/edition: 3

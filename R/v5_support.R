@@ -108,7 +108,8 @@ rank_controls <- function(key, author = FALSE) tagList(
     selectInput(paste0(key, "_n"), "Registros que quieres explorar", c(10, 25, 50, 100, 250, 1000), selected = 25)),
     column(if (author) 4 else 6, numericInput(paste0(key, "_page"), "P\u00e1gina del gr\u00e1fico / 50 barras por p\u00e1gina", 1, 1, 20)),
     if (author) column(4, selectInput("authors_order", "Ordenar autores por", c("Documentos" = "documentos", "\u00cdndice h del corpus" = "h_corpus", "Suma de citas v\u00e1lidas" = "citas_suma")))),
-  hint("El gr\u00e1fico presenta hasta 50 filas por p\u00e1gina para mantener las etiquetas legibles. Elige 100 o 1.000 registros y cambia la p\u00e1gina. Ver tabla permite consultar y ordenar todas las filas."))
+  hint(paste0("Estos controles cambian lo que consultas, no los documentos ni los c\u00e1lculos. El gr\u00e1fico presenta hasta 50 filas por p\u00e1gina para mantener las etiquetas legibles. Elige 100 o 1.000 registros y cambia la p\u00e1gina. Ver tabla permite consultar y ordenar todas las filas.",
+    if (author) " Documentos es la presencia del autor en el corpus; citas v\u00e1lidas son las citas disponibles en los registros; el \u00edndice h se calcula solo con las publicaciones de este corpus. Ninguna de las tres medidas es una evaluaci\u00f3n integral de la persona.")))
 
 rank_slice <- function(d, n = 25L, page = 1L, metric = "documentos") {
   n <- suppressWarnings(as.integer(n)); page <- suppressWarnings(as.integer(page))
@@ -151,7 +152,8 @@ citation_categories <- function(citations, method = "quartile", cutoff = 10) {
 vocabulary_decision_text <- function() tagList(
   tags$p("Empieza con documentos completos, presencia m\u00ednima 2 y sin filtros de TF-IDF o entrop\u00eda. Examina t\u00e9rminos y documentos antes de eliminar palabras. Para un corpus grande, compara una presencia m\u00ednima de aproximadamente 0,5\u20131 %: es una comprobaci\u00f3n de sensibilidad, no un umbral universal."),
   tags$p("Frecuencia conserva palabras comunes; TF-IDF favorece t\u00e9rminos que distinguen textos; BM25 limita el efecto de repeticiones y corrige longitud. Ninguno valida un concepto. Conserva t\u00e9rminos centrales para tu pregunta aunque aparezcan en muchos documentos."),
-  tags$p("La media usa todas las unidades, incluidos ceros. La mediana y los percentiles resisten mejor valores extremos, pero suelen valer cero en matrices dispersas. Solo unidades con peso positivo describe el uso donde el t\u00e9rmino distingue textos; consulta tambi\u00e9n presencia para no favorecer una palabra aislada. MAD es mediana de desviaciones absolutas, sin factor 1,4826. Es dispersi\u00f3n, no un criterio de relevancia."))
+  tags$p("La media usa todas las unidades, incluidos ceros. La mediana y los percentiles resisten mejor valores extremos, pero suelen valer cero en matrices dispersas. Solo unidades con peso positivo describe el uso donde el t\u00e9rmino distingue textos; consulta tambi\u00e9n presencia para no favorecer una palabra aislada. MAD es mediana de desviaciones absolutas, sin factor 1,4826. Es dispersi\u00f3n, no un criterio de relevancia."),
+  tags$p("Las cifras de TF-IDF no coinciden entre pantallas porque cada salida usa su propia versi\u00f3n. Preparaci\u00f3n multiplica la frecuencia relativa de cada texto por ln(N / df). LSA y ACP usan la rareza suavizada ln((N + 1) / (df + 1)) + 1; el ACP, adem\u00e1s, centra y reescala cada columna. Lectura enlazada suma log(1 + frecuencia) \u00d7 ln(N / df) sobre las fichas. Compara el orden dentro de una misma pantalla, no la cifra entre pantallas."))
 
 keyword_availability <- function(prepared) {
   col <- prepared$mapping$keywords %||% ""; n <- sum(nzchar(prepared$documents$keywords))

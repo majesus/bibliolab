@@ -39,10 +39,10 @@ open_help <- function(key) {
   h <- help_catalog()[[key]]; lesson <- enrich_lesson(key,c(lesson_catalog(), extra_lesson_catalog())[[key]])
   if (is.null(h)) h <- list(title = lesson$title %||% "Redes / relaciones e indicadores", goal = lesson$goal %||% "Definir conexiones y entender sus indicadores.", sources = lesson$sources %||% c("igraph / centralidades" = "https://r.igraph.org/reference/harmonic_centrality.html"))
   showModal(modalDialog(title = h$title, size = "l", easyClose = TRUE,
-    tags$div(class = "lesson", tags$p(class = "modal-lead", lesson$goal %||% h$goal),
-      if(key=="tokens") tags$section(class="lesson-example",tags$h3("V5 / media, mediana, percentiles y dispersión"),vocabulary_decision_text()),
+    tags$div(class = "lesson", tags$p(class = "modal-lead", lesson$goal %||% h$goal), narrative_ui(key, open = TRUE),
+      if(key=="tokens") tags$section(class="lesson-example",tags$h3("Media, mediana, percentiles y dispersión"),vocabulary_decision_text()),
       if(key=="bm25") tags$section(class="lesson-example",tags$h3("Una primera decisión que puedes contrastar"),tags$p("Con resúmenes de longitud similar, empieza con TF-IDF. Si los textos tienen longitudes muy distintas o repiten mucho una palabra, compara BM25. Reduce el aporte de cada repetición adicional mediante el parámetro de repeticiones (k1) y ajusta el peso por longitud mediante el parámetro de longitud (b). Por ejemplo, cinco menciones no equivalen a cinco veces el peso de una mención. La app usa estos pesos para representar vocabulario; comprueba qué cambia leyendo textos y comparando estabilidad."),tags$p("En selección de vocabulario cambia el orden de términos; LDA y correspondencias usan conteos. En UMAP + LSA cambia la representación del modelo. Guarda ambas ejecuciones y compara sus resultados.")),
-      if(key=="bradford") tags$section(class="lesson-example",tags$h3("Leer el porcentaje acumulado"),tags$p("De 100 documentos con fuente conocida, la revista más frecuente tiene 30 y la segunda 20. En la posición 1 la curva marca 30 %; en la 2, 50 %. Si otros 10 documentos no tienen fuente, no entran en ese denominador. El gráfico muestra concentración de la búsqueda, no una prueba de Bradford ni calidad de revistas.")),
+      if(key=="bradford") tags$section(class="lesson-example",tags$h3("Leer el porcentaje acumulado"),tags$p("De 100 documentos con fuente conocida, la revista más frecuente tiene 30 y la segunda 20. En la posición 1 la curva marca 30 %; en la 2, 50 %. Si otros 10 documentos no tienen fuente, no entran en ese denominador. El gráfico muestra concentración de la búsqueda. Las zonas de Bradford se calculan en la pestaña Leyes bibliométricas; ninguna de las dos vistas prueba la ley ni mide la calidad de las revistas.")),
       tags$section(class = "lesson-section", tags$p(class = "eyebrow", "01 / COMPRENDER"), tags$h3("Qué estás haciendo y para qué sirve"), lapply(lesson$meaning,tags$p)),
       tags$section(class = "lesson-example", tags$p(class = "eyebrow", "02 / EJEMPLO ILUSTRATIVO"), tags$h3("Un caso para entenderlo"), lapply(lesson$example,tags$p),if(!is.null(lesson$worked)) HTML(html_table(lesson$worked,show_note=FALSE))),
       tags$section(class = "lesson-section", tags$h3("Del resultado a una interpretación"), lapply(lesson$reading,tags$p)),
@@ -55,7 +55,7 @@ open_help <- function(key) {
     footer = modalButton("Volver al análisis")))
 }
 helps <- c(help_load = "load", help_prepare = "prepare", help_explore = "explore", help_models = "models", help_export = "export",
-  help_lemma = "lemma", help_tokens = "tokens", help_tokens_explore = "tokens", help_density = "density", help_lda = "lda", help_ca = "ca", help_network = "networks", help_jsd = "jsd", help_pca = "pca", help_bm25="bm25",help_bm25_density="bm25",help_seed="seed",help_ngrams="ngrams",help_network_roles="roles",help_skills="skills",help_references="references",help_subgraphs="subgraphs",help_temporal="temporal",help_topic_labels="topic_labels",help_lda_time="lda_time",help_bradford="bradford",help_coverage="coverage",help_parallel="parallel")
+  help_lemma = "lemma", help_tokens = "tokens", help_tokens_explore = "tokens", help_density = "density", help_lda = "lda", help_ca = "ca", help_network = "networks", help_jsd = "jsd", help_pca = "pca", help_bm25="bm25",help_bm25_density="bm25",help_seed="seed",help_ngrams="ngrams",help_network_roles="roles",help_skills="skills",help_references="references",help_subgraphs="subgraphs",help_temporal="temporal",help_topic_labels="topic_labels",help_lda_time="lda_time",help_bradford="bradford",help_bradford_law="bradford",help_lotka="lotka",help_zipf="zipf",help_coverage="coverage",help_parallel="parallel")
 for (id in names(helps)) local({ button <- id; key <- helps[[id]]; observeEvent(input[[button]], open_help(key)) })
 for (key in c("load", "prepare", "explore", "models", "export")) local({ stage <- key
   observeEvent(input[[paste0("code_", stage)]], {
@@ -204,6 +204,9 @@ result_choices <- function(key) switch(key,
   lda = c("Palabras beta" = "lda_terms", "Proporciones medias" = "lda_prevalence"),
   ca = c("Coordenadas, contribuciones y cos²" = "ca_terms", "Inercia por eje" = "ca_dimensions"),
   density = c("Grupos y cobertura" = "density_summary", "Asignaciones por documento" = "density_assignments"),
+  law_lotka = c("Cifras del ajuste" = "law_lotka_resumen", "Autores por número de trabajos" = "law_lotka_tabla"),
+  law_bradford = c("Cifras del ajuste" = "law_bradford_resumen", "Zonas de Bradford" = "law_bradford_zonas", "Revistas ordenadas y acumulado" = "law_bradford_tabla"),
+  law_zipf = c("Cifras del ajuste" = "law_zipf_resumen", "Palabras por rango" = "law_zipf_tabla"),
   setNames(key, key))
 open_result_table <- function(key) {
   if (is.null(rv$prepared) || stale()) { showNotification("Prepara un corpus vigente para consultar resultados.", type = "warning"); return() }
@@ -216,6 +219,7 @@ open_result_table <- function(key) {
     if (key == "tokens") tagList(fluidRow(column(5, textInput("term_search", "Buscar término o motivo · admite búsqueda sin acentos", "")),
       column(3, selectInput("term_status", "Estado", c("Todos" = "all", "Retenidos" = "kept", "Excluidos" = "excluded"))),
       column(4, selectInput("term_reason", "Motivo de exclusión", c("Todos los motivos" = "all", setNames(term_reasons(rv$corpus$terms), term_reasons(rv$corpus$terms)))))),
+      hint("Retenidos: entran en los modelos. Excluidos: no entran, pero puedes consultarlos para comprobar qué se ha perdido. Excluido no significa que la palabra sea incorrecta: indica que no cumplió un criterio de los filtros."),
       uiOutput("term_count")),
     if(key %in% c("lda","lda_examples")) {fit<-lda_current();if(!is.null(fit)) selectInput("result_topic","Filtrar por tema LDA",c("Todos los temas"="all",setNames(as.character(seq_len(fit$params$k)),paste("Tema",seq_len(fit$params$k)))),selected="all")},
     DT::DTOutput("result_table"), uiOutput("result_reading"), footer = modalButton("Cerrar tabla")))
@@ -229,7 +233,7 @@ result_data <- reactive({ current(); key <- input$result_detail %||% unname(resu
   if (key == "issues") return(data.frame(avisos = c(rv$prepared$issues, rv$corpus$issues)))
   if (key == "duplicates") return(rv$prepared$duplicates)
   if (key == "filters") return(rv$corpus$filter_audit)
-  if (key == "tokens") return(filter_term_table(rv$corpus$terms, term_query(), input$term_status %||% "all", input$term_reason %||% "all"))
+  if (key == "tokens") { d <- filter_term_table(rv$corpus$terms, term_query(), input$term_status %||% "all", input$term_reason %||% "all"); d$tfidf_mean <- NULL; return(d) }  # tfidf_mean es un alias de compatibilidad de tfidf_medio: una sola columna a la vista
   if (startsWith(key, "jsd")) {
     f <- comparison_current(); validate(need(!is.null(f), "Calcula una comparación JSD vigente."))
     if (key == "jsd_summary") return(data.frame(indicador = c("JSD / bits base 2", "Distancia sqrt(JSD)"), valor = c(f$jsd, f$distancia)))
@@ -241,6 +245,7 @@ result_data <- reactive({ current(); key <- input$result_detail %||% unname(resu
     return(f[[sub("^jsd_", "", key)]])
   }
   if (startsWith(key, "pca")) { f <- pca_current(); validate(need(!is.null(f), "Calcula un ACP vigente.")); part<-sub("^pca_", "", key);d<-if(part %in% c("documents","terms"))pca_plane(f,part,pca_axes()) else f[[part]];if(part %in% c("documents","terms")){a<-pca_axes();names(d)[names(d)=="eje_1"]<-paste("Coordenada componente",a[1]);names(d)[names(d)=="eje_2"]<-paste("Coordenada componente",a[2]);names(d)[names(d)=="contribucion_eje_1"]<-paste("Contribución componente",a[1],"(%)");names(d)[names(d)=="contribucion_eje_2"]<-paste("Contribución componente",a[2],"(%)")};return(d) }
+  if (startsWith(key, "law_")) { t <- laws_tables(laws_current()); return(t[[sub("^law_", "ley_", key)]] %||% data.frame()) }
   if (key == "bigrams") return(gram_data())
   if (startsWith(key, "lda")) {
     fit <- lda_current(); validate(need(!is.null(fit), "Calcula LDA con parámetros vigentes."))
@@ -265,10 +270,11 @@ output$result_reading <- renderUI({
   p <- current(); doc <- p$documents[p$documents$doc_id == d$doc_id[rows[1]], ]; req(nrow(doc) == 1)
   tags$article(class = "document-reading", tags$h3(paste(doc$doc_id, "·", doc$title)), tags$p(doc$text))
 })
-tables <- c("audit", "annual", "sources", "authors", "citations", "tokens", "bigrams", "keywords", "lda", "lda_examples", "ca", "density", "density_terms", "density_examples", "jsd", "pca")
+tables <- c("audit", "annual", "sources", "authors", "citations", "tokens", "bigrams", "keywords", "lda", "lda_examples", "ca", "density", "density_terms", "density_examples", "jsd", "pca", "law_lotka", "law_bradford", "law_zipf")
 for (key in tables) local({ k <- key; observeEvent(input[[paste0("table_", k)]], open_result_table(k)) })
 observeEvent(input$table_tokens_prepare, open_result_table("tokens"))
 source_app_module("networks.R", environment())
+source_app_module("laws.R", environment())
 source_app_module("interactive.R", environment())
 source_app_module("comparisons.R", environment())
 source_app_module("pedagogy.R", environment())
@@ -279,7 +285,7 @@ figure_functions <- list(jsd = jsd_graph, jsd_cumulative = jsd_cumulative_graph,
   pca_documents = pca_documents_graph, pca_terms = pca_terms_graph, pca_variance = pca_variance_graph, ca_variance = ca_variance_graph,annual = annual_graph, sources = sources_graph, authors = authors_graph,
   citations = citations_graph, tokens = token_bars_graph, bigrams = bigrams_graph, keywords = keywords_graph,
   lda = lda_graph, lda_heatmap = lda_heatmap_graph, ca = ca_graph, density = density_graph,
-  density_terms = density_terms_graph, density_similarity = density_similarity_graph, density_time = density_time_graph, density_membership = density_membership_graph, network = network_graph,lda_time=lda_time_graph)
+  density_terms = density_terms_graph, density_similarity = density_similarity_graph, density_time = density_time_graph, density_membership = density_membership_graph, network = network_graph,lda_time=lda_time_graph,law_lotka=law_lotka_graph,law_bradford=law_bradford_graph,law_zipf=law_zipf_graph)
 for (key in names(figure_functions)) local({ k <- key; observeEvent(input[[paste0("expand_", k)]], {
   if (is.null(rv$prepared) || stale()) { showNotification("Prepara un corpus vigente antes de ampliar gráficos.", type = "warning"); return() }
   rv$figure_key <- k

@@ -419,7 +419,7 @@ lda_k_recommendation <- function(summ) {
 #' @param vectors,embedding_model Vectores importados, si la representacion es `"vectors"`.
 #' @param progress Funcion opcional `function(i, total)`.
 #'
-#' @details El ARI trata el grupo «sin asignar» como una clase mas, de modo que dos
+#' @details El ARI trata el grupo "sin asignar" como una clase mas, de modo que dos
 #'   agrupaciones sin ningun grupo coinciden (ARI = 1): eso expresa la misma ausencia de
 #'   grupos, no estabilidad de grupos tematicos. Si la referencia no forma grupos, la
 #'   lectura (`reading`) lo dice, `ari_asignados` de la referencia es `NA` y no se

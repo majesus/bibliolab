@@ -196,3 +196,15 @@
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', connect);
   else connect();
 })();
+
+// Un enlace interno que apunta a una sección plegada la abre antes de desplazarse a ella.
+(function () {
+  document.addEventListener('click', function (event) {
+    var link = event.target.closest && event.target.closest('a[href^="#"]');
+    if (!link || link.getAttribute('href').length < 2) return;
+    var target = document.getElementById(link.getAttribute('href').slice(1));
+    if (!target) return;
+    var fold = target.tagName === 'DETAILS' ? target : target.closest('details');
+    if (fold) fold.open = true;
+  });
+})();

@@ -120,6 +120,12 @@ methods_report <- function(prepared, corpus, bibliography, lda = NULL, ca = NULL
     md_table(bibliography$overview), "")
   nv <- bibliography$normalizacion
   if (!is.null(nv) && nrow(nv)) add(paste0("Se unificaron variantes de escritura en ", length(unique(paste(nv$campo, nv$elemento))), " etiquetas (", nrow(nv), " variantes). La tabla completa est\u00e1 en bibliografia_normalizacion.csv. No se resuelven hom\u00f3nimos ni abreviaturas distintas de una misma revista."), "")
+  laws <- bibliometric_laws(bibliography, corpus)
+  add("### 3.1 Leyes de Lotka, Bradford y Zipf", "",
+    "Se comparan la productividad de autores, la dispersi\u00f3n en fuentes y la frecuencia de palabras con tres patrones cl\u00e1sicos. El resultado es **descriptivo**: indica cu\u00e1nto se parece el corpus al patr\u00f3n seg\u00fan el criterio declarado y no confirma ninguna ley. Con pocos autores, fuentes o t\u00e9rminos no se calcula el ajuste.", "")
+  for (nm in names(laws)) { f <- laws[[nm]]
+    add(paste0("**", c(lotka = "Lotka (autores)", bradford = "Bradford (fuentes)", zipf = "Zipf (palabras)")[[nm]], ".** ", f$lectura), "",
+      if (nzchar(f$criterio)) paste0("Criterio: ", f$criterio), "", if (nrow(f$resumen)) md_table(f$resumen), "") }
   # 4. Modelos
   add("## 4. Modelos y an\u00e1lisis ejecutados", "")
   if (is.null(lda) && is.null(ca) && is.null(pca) && is.null(density) && is.null(network) && is.null(comparison)) add("No se ha ejecutado ning\u00fan modelo en esta sesi\u00f3n.", "")

@@ -8,6 +8,9 @@ network_revision<-reactiveVal(0L)
 observeEvent(input$network_type,{if(identical(input$network_type,"words")) {
   updateNumericInput(session,"network_nodes",value=30);updateNumericInput(session,"network_presence",value=3);updateNumericInput(session,"network_shared",value=3);updateNumericInput(session,"network_edges",value=120);updateSelectInput(session,"network_weight",selected="association");updateCheckboxInput(session,"network_motion",value=FALSE)
 }},ignoreInit=TRUE)
+observeEvent(input$network_type,{
+  label<-switch(input$network_type,authors="Publicaciones compartidas mínimas por conexión",words="Documentos mínimos con ambas palabras",sources="Palabras compartidas mínimas por revistas",references="Documentos mínimos que citan ambas obras",coupling="Referencias compartidas mínimas por documentos","Coincidencias mínimas por conexión")
+  updateNumericInput(session,"network_shared",label=label)},ignoreInit=TRUE)
 network_current <- reactive({ current(); if (is.null(rv$network) || !identical(rv$network_signature, network_settings())) return(NULL); rv$network })
 network_path<-reactive({f<-network_current();if(is.null(f)||!(input$network_path_from %||% "") %in% f$nodes$name||!(input$network_path_to %||% "") %in% f$nodes$name)return(NULL);network_shortest_path(f,input$network_path_from,input$network_path_to)})
 output$network_path_controls<-renderUI({f<-network_current();if(is.null(f)||!nrow(f$nodes))return(NULL);choices<-c("Elegir un nodo"="",setNames(f$nodes$name,f$nodes$name));tagList(fluidRow(column(6,selectizeInput("network_path_from","Camino más corto / desde",choices,selected=isolate(input$network_path_from %||% ""))),column(6,selectizeInput("network_path_to","Camino más corto / hasta",choices,selected=isolate(input$network_path_to %||% "")))),hint("Busca dos nodos para ver una ruta con el menor número de conexiones. Por ejemplo, Ana — Bruno — Carla tiene dos pasos; Bruno es el intermediario de esa ruta. Se cuentan pasos, no pesos: una coincidencia fuerte no equivale a un trayecto más largo. Puede haber otras rutas igualmente cortas."))})
@@ -25,6 +28,7 @@ observeEvent(input$run_network, task("Construyendo relaciones y calculando indic
 output$network_state <- renderUI({
   fit <- network_current(); if (is.null(fit)) return(empty_help("Selecciona el tipo y pulsa Calcular red. Si cambias los parámetros, vuelve a calcular."))
   tagList(tags$p(class = "chart-caption", fit$note), tags$div(class = "network-metrics", lapply(seq_len(5), function(i) tags$span(tags$strong(if (is.na(fit$summary$valor[i])) "—" else format(fit$summary$valor[i], digits = 3)), tags$small(fit$summary$indicador[i])))),
+    if (nrow(fit$edges)) tags$div(class="report-sentence",tags$h4("Cómo escribirlo en tu informe"),tags$blockquote(network_report_sentence(fit)),hint("Las cifras proceden de tu red vigente. Revisa que la redacción responda a tu pregunta antes de copiarla.")),
     if (!nrow(fit$edges)) hint("No hay conexiones que superen el umbral. Los puntos aislados son un resultado válido; reduce el umbral para explorar otras relaciones."))
 })
 make_network_graph <- function(fit) {
@@ -44,10 +48,18 @@ output$network_plot <- renderPlot(network_graph(), res = 120)
 make_network_widget<-function(fit) {
   validate(need(!is.null(fit),"Calcula una red para explorar sus relaciones."));validate(need(nrow(fit$nodes)>0,"No quedan nodos conectados. Conserva los aislados o reduce el umbral de conexiones."))
   d<-fit$nodes;d<-d[order(ascii_fold(tolower(d$name))),,drop=FALSE];ed<-fit$edges;palette<-swiss_colours(length(unique(d$comunidad)));colours<-palette[match(d$comunidad,sort(unique(d$comunidad)))]
+  # Escala de la disposición inicial: la envergura se normaliza a ~500 unidades para que el zoom de ajuste no reduzca los rotulos a un tamaño ilegible.
+  net_unit<-{span<-max(abs(c(d$x,d$y)),na.rm=TRUE);if(is.finite(span)&&span>0) 520/span else 100}
   path<-network_path();marked<-if(is.null(path))character() else path$nodes
   nodes<-data.frame(id=d$name,label=vapply(d$name,function(x) paste(strwrap(if(nchar(x)>62) paste0(substr(x,1,59),"…") else x,width=24),collapse="\n"),""),
     title=paste0("<strong>",escape_html(d$name),"</strong><br>Documentos: ",d$documentos,"<br>Grado: ",d$grado,"<br>Fuerza: ",round(d$fuerza,4),"<br>Intermediación: ",round(d$intermediacion,4),"<br>Comunidad: ",d$comunidad,"<br>",d$rol_observado),
-    color=colours,size=12+14*sqrt(d$documentos/max(d$documentos)),x=d$x*100,y=d$y*100,stringsAsFactors=FALSE)
+    color=colours,size=12+14*sqrt(d$documentos/max(d$documentos)),x=d$x*net_unit,y=d$y*net_unit,stringsAsFactors=FALSE)
+  # Rotulado como en Lectura enlazada: nombre visible en todos los nodos, con halo blanco para leerlo sobre aristas y colores.
+  # Los nodos destacados (mayor presencia o grado) llevan letra mayor; la casilla permite rotular solo estos si la red es densa.
+  base_font<-if(nrow(nodes)<=40L) 20 else if(nrow(nodes)<=80L) 16 else 13
+  prominent<-rank(-d$documentos,ties.method="first")<=15L|rank(-d$grado,ties.method="first")<=10L|nodes$id %in% marked
+  nodes$font.size<-ifelse(prominent,base_font+4,base_font);nodes$font.strokeWidth<-4;nodes$font.strokeColor<-"#ffffff"
+  if(!isTRUE(input$network_label_all %||% TRUE)) nodes$label<-ifelse(prominent,nodes$label,"")
   nodes$borderWidth<-ifelse(nodes$id %in% marked,4,0);nodes$color.background<-colours;nodes$color.border<-ifelse(nodes$id %in% marked,"#c7281e",colours)
   saved<-isolate(network_layout());nodes$fixed<-FALSE
   if(length(saved)) for(i in seq_len(nrow(nodes))) {z<-saved[[nodes$id[i]]];if(!is.null(z)){nodes$x[i]<-z$x;nodes$y[i]<-z$y;nodes$fixed[i]<-isTRUE(z$fixed)}}
@@ -56,7 +68,7 @@ make_network_widget<-function(fit) {
   selected_edges<-if(is.null(path))character() else key(path$edges$from,path$edges$to)
   edges$color<-ifelse(key(edges$from,edges$to) %in% selected_edges,"#c7281e","#b8b8b8");edges$width[key(edges$from,edges$to) %in% selected_edges]<-5
   widget<-visNetwork::visNetwork(nodes,edges,height="670px",width="100%")
-  widget<-visNetwork::visNodes(widget,shape="dot",font=list(face="Arial",size=16),borderWidth=0,shadow=FALSE)
+  widget<-visNetwork::visNodes(widget,shape="dot",font=list(face="Arial",size=base_font,strokeWidth=4,strokeColor="#ffffff"),borderWidth=0,shadow=FALSE)
   widget<-visNetwork::visEdges(widget,color=list(color="#b8b8b8",highlight="#245579"),smooth=FALSE)
   widget<-visNetwork::visInteraction(widget,dragNodes=TRUE,dragView=TRUE,zoomView=TRUE,hover=TRUE,navigationButtons=TRUE)
   widget<-visNetwork::visOptions(widget,highlightNearest=list(enabled=TRUE,degree=1,hover=FALSE),nodesIdSelection=list(enabled=TRUE,useLabels=TRUE,main="Buscar un nodo"))
@@ -116,9 +128,9 @@ observeEvent(input$network_remove_isolates,{if(is.null(rv$network)||is.null(rv$n
   task("Aplicando filtro de nodos aislados…",{rv$network<-run_network(rv$corpus,rv$prepared,now);rv$network_signature<-now;network_layout(NULL);network_revision(isolate(network_revision())+1L)})
 },ignoreInit=TRUE)
 
-output$network_definition<-renderUI(hint(switch(input$network_type %||% "authors",
+output$network_definition<-renderUI(tagList(hint(switch(input$network_type %||% "authors",
   authors="Cada conexión representa documentos firmados por ambos autores. Tener una publicación permite superar presencia mínima = 1, pero el máximo de nodos puede excluirte: primero entran los más presentes y los empates se resuelven alfabéticamente. Consulta cada entidad y su motivo. Revisa homónimos y variantes de nombre.",
   words="Cada conexión representa documentos que contienen ambas palabras retenidas. Repetir una palabra dentro del documento no aumenta esa coincidencia.",
   sources="Las conexiones comparan vocabularios binarios de fuentes: coincidencias = términos distintos compartidos; peso coseno. Es afinidad léxica, no cocitación.",
   references="Los nodos son referencias citadas. Una conexión cuenta documentos que citan las dos obras juntas. Requiere columna Referencias / CR; las variantes de escritura no se fusionan automáticamente.",
-  coupling="Los nodos son documentos del corpus con referencias. Una conexión cuenta referencias compartidas y el peso es coseno. Todos los nodos representan una publicación; si hay más del límite, se eligen los de mayor acoplamiento total y solo entran documentos que comparten alguna referencia. Requiere CR con cobertura suficiente.")))
+  coupling="Los nodos son documentos del corpus con referencias. Una conexión cuenta referencias compartidas y el peso es coseno. Todos los nodos representan una publicación; si hay más del límite, se eligen los de mayor acoplamiento total y solo entran documentos que comparten alguna referencia. Requiere CR con cobertura suficiente.")),if(identical(input$network_weight %||% "association","association")&&!(input$network_type %||% "authors") %in% c("sources","coupling"))hint("Peso elegido: fuerza de asociación. Es el número de coincidencias dividido entre el producto de las presencias de los dos nodos, de modo que un par poco frecuente que casi siempre coincide pesa más que un par muy frecuente que coincide por serlo. Es una normalización por presencia, no una prueba estadística: no calcula valores p ni controla falsos descubrimientos. Para comparar con otras ponderaciones, cambia el peso y observa si las conexiones fuertes se mantienen.")))

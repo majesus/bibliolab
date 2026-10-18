@@ -1,3 +1,66 @@
+# bibliolab 5.1.0
+
+Revision de usabilidad a partir de la auditoria "ayudas para decidir y simplificacion" (H01-H17)
+y de las correcciones ya aplicadas a la presentacion. El objetivo es que quien no es experto en
+bibliometria ni en estadistica pueda usar la aplicacion sin entender su mecanica interna.
+
+## Nuevo
+
+* Leyes bibliometricas (03 / Indicadores): pestanas **Lotka** (autores), **Bradford** (revistas)
+  y **Zipf** (palabras), en `R/leyes.R` y `inst/app/server/laws.R`. Lotka usa maxima verosimilitud
+  discreta truncada en el maximo observado, con distancia de Kolmogorov-Smirnov frente a
+  1,63/raiz(K); Bradford, tres zonas con ~1/3 de los documentos y multiplicadores k21 y k32;
+  Zipf, ajuste log-log sobre todos los terminos evaluados. Son descriptivas ("no confirman la
+  ley"), devuelven `estado = "insuficiente"` si faltan datos e entran en exportacion y script de
+  reproduccion.
+* Catalogo comun de fichas de decision (`R/decision_help.R`, 12 fichas) con el contrato
+  pregunta / empezar / cambiar / que cambia / como comprobar / ejemplo / tecnica.
+* Entrada por proposito en Modelos y selector de terminos en tres preguntas.
+
+## Cambios
+
+* Redes: las palabras aparecen sobre todos los nodos (como en Lectura enlazada), con halo blanco,
+  letra mayor para los nodos destacados y casilla para rotular solo estos en redes densas. La
+  disposicion inicial se normaliza para que el zoom de ajuste no reduzca los rotulos.
+* Explicacion de la fuerza de asociacion y de la leyenda del grafo de Lectura enlazada en lenguaje
+  no tecnico.
+* Se retira el spline de LDA por tiempo y los alias de TF-IDF por pantalla; se elimina la
+  referencia a "V5" en la interfaz.
+* Texto frente a calculo (P0: H02-H04, H06-H09, H12, H13, H17) corregido y cubierto por
+  `tests/testthat/test-auditoria-510.R` y `test-leyes.R`.
+
+## Ayudas y didactica
+
+* Catalogo de 27 fichas de decision (`R/decision_help.R`) que cubre D01-D12, con analogia y limite
+  de la analogia en 11 de ellas (`decision_help_extras()`).
+* Narrativas didacticas (`R/narrativas.R`, 12 conceptos): pregunta natural, que se calcula de verdad,
+  analogia con su limite, errores frecuentes y frase modelo. Guia de estilo en
+  `dev/guia_estilo_ayudas.md`.
+* Frases modelo para el informe, generadas con las cifras vigentes y sin lenguaje causal:
+  leyes (Lotka, Bradford, Zipf), comparacion de vocabulario (JSD), redes
+  (`network_report_sentence()`), ACP y Correspondencias (`ordination_report_sentence()`), LDA
+  (`lda_report_sentence()`) y agrupacion por densidad (`density_report_sentence()`). La frase de LDA
+  se prueba con un ajuste simulado porque `topicmodels` no esta instalado en el entorno de desarrollo.
+* Vista previa del vocabulario (D04, `R/vocab_preview.R`): antes de calcular muestra que terminos
+  entran y salen al cambiar los filtros, o declara que no puede estimarlo.
+* Ayudas operativas de D05 (consultar no es calcular; orden de autores; retenido frente a excluido),
+  D09 (cos2 y contribucion) y D12 (extractos desactivados por defecto).
+
+## Estructura de la interfaz
+
+* H10/H16: controles especializados de Redes y de UMAP + HDBSCAN plegados bajo "ajustes avanzados";
+  los enlaces internos abren el bloque plegado de destino.
+* H11: `analysis_settings()` (afecta al calculo) separado de `documentation_settings()`
+  (pregunta, procedencia, ejecucion). Cambiar solo la documentacion ya no marca el analisis como
+  desactualizado.
+* Procesamiento paralelo en "Rendimiento del equipo · opcional".
+
+## Limites de verificacion
+
+* Las rutas de LDA (`topicmodels`), lematizacion (`udpipe`) y deteccion de idioma (`cld2`) no pudieron
+  ejecutarse en el entorno de desarrollo; se prueban con los datos y el codigo disponibles.
+* `ejecutar_rscript()` (ayudante de pruebas) fallaba con `load_all()` cuando bibliolab no estaba instalado, en lugar de omitir la prueba; ahora la omite con un aviso. Las pruebas de reproduccion en proceso independiente solo se ejecutan con el paquete instalado y no se han podido ejecutar aqui.
+
 # bibliolab 5.0.3
 
 Revision a partir de la auditoria del commit f6a57da3 (version 5.0.2). Cada punto cita su

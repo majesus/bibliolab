@@ -57,8 +57,8 @@ output$kselect_use <- renderUI({
   ks <- f$params$k_range; sel <- f$recommendation$compromise; if (!is.finite(sel)) sel <- ks[1]
   tags$div(class = "row control-row",
     column(5, selectInput("kselect_choice", "Número de temas que quieres probar", ks, selected = sel)),
-    column(7, actionButton("use_k", "Fijar este k y volver a calcular LDA", class = "btn-primary"),
-      hint("Se actualiza el número de temas de arriba; pulsa Calcular LDA para ajustar el modelo final.")))
+    column(7, actionButton("use_k", "Usar este número de temas", class = "btn-primary"),
+      hint("Esto solo actualiza el número de temas de arriba. Ahora pulsa Calcular LDA para ajustar el modelo final.")))
 })
 observeEvent(input$use_k, { req(input$kselect_choice); updateNumericInput(session, "k", value = as.integer(input$kselect_choice)) })
 observeEvent(input$help_kselect, showModal(modalDialog(title = "Elegir el número de temas / leer la comparación", size = "l", easyClose = TRUE,
