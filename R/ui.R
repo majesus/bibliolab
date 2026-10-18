@@ -4,6 +4,12 @@ tools_row <- function(help_id, code_id) tags$div(class = "section-tools",
 result_tools <- function(key, label = "Ver tabla", guide=TRUE) tagList(if(guide)uiOutput(paste0("guide_",key)),tags$div(class = "figure-tools",
   actionButton(paste0("table_", key), label, class = "btn-quiet"),
   actionButton(paste0("expand_", key), "Ampliar gr\u00e1fico", class = "btn-quiet")))
+law_block <- function(key, question, help_id) tagList(
+  tags$p(tags$strong("Pregunta que responde: "), question),
+  actionButton(help_id, "Entender esta ley con un ejemplo", class = "btn-quiet"),
+  plotOutput(paste0("law_", key, "_plot"), height = "460px"),
+  uiOutput(paste0("law_", key, "_reading")),
+  result_tools(paste0("law_", key), "Ver las cifras del ajuste", guide = FALSE))
 build_ui <- function() fluidPage(
   tags$head(tags$meta(name = "viewport", content = "width=device-width, initial-scale=1"),
     tags$link(rel = "stylesheet", href = "assets_bibliolab/style.css"), tags$script(src = "assets_bibliolab/app.js")),
@@ -142,6 +148,12 @@ build_ui <- function() fluidPage(
           uiOutput("gram_explanation"),
           plotOutput("bigrams_plot", height = "auto"), result_tools("bigrams"),DT::DTOutput("ngrams_visible"))),
         tabPanel("Cobertura y referencias",panel("Qu\u00e9 permite estudiar este corpus",actionButton("help_references","Qu\u00e9 est\u00e1 midiendo cada tabla",class="btn-quiet"),actionButton("help_coverage","Por qu\u00e9 importa la cobertura",class="btn-quiet"),actionButton("help_bradford","Concentraci\u00f3n de fuentes / entender Bradford",class="btn-quiet"),selectInput("bibliography_extension","Resultado",c("Cobertura de metadatos"="cobertura","Referencias citadas por documentos del corpus"="referencias","Concentraci\u00f3n de fuentes / acumulado"="concentracion_fuentes","Citas relativas a la cohorte del mismo a\u00f1o"="citas_cohorte")),uiOutput("bibliography_extension_note"),DT::DTOutput("bibliography_extension_table"),conditionalPanel("input.bibliography_extension == 'concentracion_fuentes'",uiOutput("source_point_control"),plotly::plotlyOutput("source_concentration",height="540px"),uiOutput("source_point_reading")))),
+        tabPanel("Leyes bibliom\u00e9tricas", panel("Tres patrones cl\u00e1sicos de la bibliometr\u00eda",
+          tags$p(class = "hint", "Cada pesta\u00f1a compara tu corpus con un patr\u00f3n te\u00f3rico conocido. El resultado indica cu\u00e1nto se parece tu corpus a ese patr\u00f3n; no demuestra que la ley se cumpla. Si el corpus es peque\u00f1o, la aplicaci\u00f3n avisa de que faltan datos en lugar de ofrecer una cifra poco fiable."),
+          tabsetPanel(id = "laws_tabs",
+            tabPanel("Lotka / autores", law_block("lotka", "\u00bfMuchos autores firman un solo trabajo y muy pocos firman muchos? Se compara cu\u00e1ntos autores hay con 1, 2, 3\u2026 trabajos con el reparto que describe Lotka.", "help_lotka")),
+            tabPanel("Bradford / revistas", law_block("bradford", "\u00bfCu\u00e1ntas revistas hacen falta para reunir el primer tercio de los art\u00edculos y cu\u00e1ntas m\u00e1s para el segundo y el tercero?", "help_bradford_law")),
+            tabPanel("Zipf / palabras", law_block("zipf", "\u00bfUnas pocas palabras concentran la mayor\u00eda de las apariciones y la mayor\u00eda de las palabras aparece muy pocas veces?", "help_zipf"))))),
         tabPanel("Keywords", panel("Palabras clave declaradas",uiOutput("keywords_availability"),tags$h3("Comprobar los campos del archivo"),DT::DTOutput("keywords_fields"),uiOutput("keywords_result"))),wiki_ui()),
       btn_next("to_models", "Explorar modelos tem\u00e1ticos \u2192")),
     tabPanel("04 / Modelos", value = "models", tools_row("help_models", "code_models"),

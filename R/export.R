@@ -40,6 +40,9 @@ report_html <- function(prepared, corpus, bibliography, lda = NULL, ca = NULL, d
     part("Referencias citadas","Presencia por documento citante y cadena normalizada exacta, no citas recibidas ni desambiguaci\u00f3n aproximada.",bibliography$extensiones$referencias),
     part("Concentraci\u00f3n de fuentes","Porcentaje acumulado entre documentos con fuente; distribuci\u00f3n descriptiva sin contraste de Bradford.",bibliography$extensiones$concentracion_fuentes),
     part("Citas relativas al mismo a\u00f1o del corpus","Media positiva y al menos cinco registros v\u00e1lidos por cohorte. No normaliza por campo.",bibliography$extensiones$citas_cohorte))
+  laws<-bibliometric_laws(bibliography,corpus)
+  titles<-c(lotka="Ley de Lotka / productividad de autores",bradford="Ley de Bradford / dispersi\u00f3n en fuentes",zipf="Ley de Zipf / frecuencia de palabras")
+  sections<-c(sections,unlist(lapply(names(laws),function(nm){f<-laws[[nm]];part(titles[[nm]],escape_html(paste(f$lectura,if(nzchar(f$criterio))paste("Criterio:",f$criterio) else "")),if(nrow(f$resumen))f$resumen else NULL)}),use.names=FALSE))
   if(exists("model_comparison_table",mode="function")) sections<-c(sections,part("Resumen de modelos vigentes","Representaciones y resultados distintos; no existe un ganador por una puntuaci\u00f3n com\u00fan.",model_comparison_table(lda,density,pca,ca,prepared,corpus$pca_view$axes %||% c(1L,2L))))
   if (!is.null(lda)) sections <- c(sections,
     part("LDA: t\u00e9rminos por tema", paste0("Modelo exploratorio Gibbs; k = ", lda$params$k, "; semilla = ", lda$params$seed, "; iteraciones = ", lda$params$iterations,
@@ -168,6 +171,7 @@ export_bundle <- function(directory, prepared, corpus, bibliography, lda = NULL,
     autores = bibliography$authors, palabras_clave = bibliography$keywords, documentos_citados = bibliography$cited)
   if(!is.null(bibliography$extensiones)) tables <- c(tables,setNames(bibliography$extensiones,paste0("bibliografia_",names(bibliography$extensiones))))
   if(!is.null(bibliography$normalizacion)) tables$bibliografia_normalizacion <- bibliography$normalizacion
+  tables <- c(tables, laws_tables(bibliometric_laws(bibliography, corpus)))
   if(!is.null(prepared$language_audit)) tables$idiomas_asignacion<-prepared$language_audit
   if(!is.null(prepared$import_info)) tables$importacion_encabezados<-prepared$import_info$headers
   if(!is.null(corpus$processing)) tables$ejecucion_preprocesamiento<-corpus$processing

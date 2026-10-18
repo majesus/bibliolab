@@ -64,6 +64,9 @@ lesson_catalog <- function() list(
 )
 
 figure_explanation <- function(key) switch(key,
+  law_lotka = "Cada punto rojo es la proporci\u00f3n de autores que firman ese n\u00famero de trabajos; la l\u00ednea azul es el ajuste a tu corpus y la gris discontinua, el patr\u00f3n cl\u00e1sico (exponente 2). Si los puntos siguen la l\u00ednea, el reparto es parecido al de Lotka. Ambos ejes son logar\u00edtmicos: una recta indica un patr\u00f3n de potencia.",
+  law_bradford = "Las revistas se ordenan de la m\u00e1s a la menos productiva y se acumulan sus art\u00edculos. Los colores marcan tres zonas con aproximadamente un tercio de los art\u00edculos cada una. Si cada zona necesita varias veces m\u00e1s revistas que la anterior en proporci\u00f3n parecida, el reparto se acerca al de Bradford.",
+  law_zipf = "Cada punto es una palabra: su rango (1 = la m\u00e1s frecuente) frente a sus apariciones, ambos ejes logar\u00edtmicos. Una recta con pendiente cercana a \u22121 es el patr\u00f3n de Zipf. La l\u00ednea azul es el ajuste a tu corpus.",
   jsd = "JSD resume la diferencia de proporciones de palabras entre A y B. Estas barras descomponen esa diferencia: una barra m\u00e1s larga identifica una palabra que explica m\u00e1s del contraste total. Las palabras que pesan m\u00e1s en A se colocan a la izquierda; las que pesan m\u00e1s en B, a la derecha. Se muestran hasta veinte t\u00e9rminos y se indica qu\u00e9 parte de la diferencia explican juntos. La direcci\u00f3n no representa una diferencia negativa.",
   jsd_cumulative = "Ordenamos todas las palabras por aportaci\u00f3n y sumamos su porcentaje de JSD. La l\u00ednea del 80% ayuda a planificar lectura; no indica significaci\u00f3n estad\u00edstica.",
   jsd_matrix = "Cada celda contiene JSD entre dos categor\u00edas del corpus vigente; diagonal 0 y matriz sim\u00e9trica. El eje usa categor\u00edas completas en tablas y c\u00f3digos si son numerosas. No es una matriz de correlaci\u00f3n.",

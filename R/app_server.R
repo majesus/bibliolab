@@ -316,6 +316,7 @@ app_server <- function(input, output, session) {
     if (!is.null(lda)) add_graph("composicion_lda", lda_heatmap_graph())
     if(!is.null(lda) && nrow(lda_yearly(lda,p))) add_graph("lda_prevalencia_anual", lda_time_graph())
     if (nrow(rv$bib$authors)) add_graph("autores", authors_graph())
+    laws <- laws_current(); if (identical(laws$lotka$estado, "ok")) add_graph("ley_lotka", law_lotka_graph()); if (identical(laws$bradford$estado, "ok")) add_graph("ley_bradford", law_bradford_graph()); if (identical(laws$zipf$estado, "ok")) add_graph("ley_zipf", law_zipf_graph())
     if (nrow(rv$bib$keywords)) add_graph("keywords", keywords_graph())
     if (any(!is.na(rv$prepared$documents$citations))) add_graph("citas", citations_graph())
     if (nrow(rv$corpus$terms)) add_graph("seleccion_vocabulario", token_graph())
