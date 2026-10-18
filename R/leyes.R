@@ -16,7 +16,7 @@ law_insufficient <- function(law, motivo) {
   list(ley = law, estado = "insuficiente", motivo = motivo, tabla = data.frame(), resumen = data.frame(),
     lectura = paste0("No hay datos suficientes para ajustar esta ley. ", motivo,
       " Con pocos elementos cualquier curva parece ajustarse o no, y la cifra resultante enga\u00f1a: por eso no se calcula."),
-    criterio = "")
+    criterio = "", informe = "")
 }
 
 # ---- Lotka --------------------------------------------------------------------------------------
@@ -54,7 +54,10 @@ lotka_fit <- function(productivity) {
     else paste0("La curva observada se aparta de la curva de Lotka con ese exponente (distancia ", fmt_es(d_ks, 3), " frente a ", fmt_es(crit, 3), "): en este corpus la productividad no sigue ese patr\u00f3n con claridad."),
     if (abs(n_ls - n_ml) > 0.3) paste0(" Atenci\u00f3n: el m\u00e9todo cl\u00e1sico (m\u00ednimos cuadrados sobre el gr\u00e1fico logar\u00edtmico) da ", fmt_es(n_ls), ", porque subestima el exponente cuando muchos niveles tienen pocos autores; por eso se usa la m\u00e1xima verosimilitud. No cites el exponente con muchos decimales.") else "",
     " Cada firma cuenta una vez por art\u00edculo y el nombre se toma tal como est\u00e1 escrito: si un mismo autor figura con variantes del nombre, se contar\u00e1 como varias personas.")
-  list(ley = "lotka", estado = "ok", motivo = "", tabla = tabla, resumen = resumen, lectura = lectura,
+  informe <- paste0("En el corpus analizado, de ", k, " autores, el ", pct_es(unico), " firma un \u00fanico trabajo. El exponente de Lotka estimado por m\u00e1xima verosimilitud es ", fmt_es(n_ml),
+    " (distancia de Kolmogorov-Smirnov = ", fmt_es(d_ks, 3), "; valor de referencia = ", fmt_es(crit, 3), "). La distribuci\u00f3n observada ", if (coherente) "es compatible con la curva de Lotka con ese exponente" else "se aparta de la curva de Lotka con ese exponente",
+    ". Se trata de una descripci\u00f3n del ajuste y no de una confirmaci\u00f3n de la ley; los nombres de autor se han tomado tal como figuran en el archivo.")
+  list(ley = "lotka", estado = "ok", motivo = "", tabla = tabla, resumen = resumen, lectura = lectura, informe = informe,
     criterio = "Lotka: exponente por m\u00e1xima verosimilitud discreta truncada en el m\u00e1ximo observado (se informa tambi\u00e9n el m\u00e9todo cl\u00e1sico de m\u00ednimos cuadrados en escala logar\u00edtmica); discrepancia con Kolmogorov-Smirnov frente a 1,63/\u221aautores. Descriptivo, no confirma la ley.",
     exponente = n_ml, exponente_ls = n_ls, d_ks = d_ks, critico = crit, compatible = coherente, autores = k)
 }
@@ -84,7 +87,10 @@ bradford_fit <- function(sources) {
     "El n\u00famero de fuentes se multiplica por ", fmt_es(k21), " y luego por ", fmt_es(k32), ". ",
     if (parecidos) "Los dos multiplicadores son parecidos, que es lo que describe la ley de Bradford (1 : k : k\u00b2). " else "Los dos multiplicadores difieren mucho, de modo que el reparto no se parece al esquema 1 : k : k\u00b2 de Bradford. ",
     "Es una descripci\u00f3n de esta b\u00fasqueda: depende de c\u00f3mo se haya delimitado el tema y de que los nombres de las revistas est\u00e9n unificados. No prueba la ley ni la calidad de las revistas.")
-  list(ley = "bradford", estado = "ok", motivo = "", tabla = d, zonas = zonas, resumen = resumen, lectura = lectura,
+  informe <- paste0("Las ", zonas$fuentes[1], " revistas del n\u00facleo re\u00fanen el ", pct_es(zonas$porcentaje_documentos[1], 0), " de los art\u00edculos; se necesitan ", zonas$fuentes[2], " para la segunda zona y ", zonas$fuentes[3],
+    " para la tercera (multiplicadores ", fmt_es(k21), " y ", fmt_es(k32), "). Los multiplicadores ", if (parecidos) "son similares, por lo que el reparto se aproxima" else "difieren, por lo que el reparto no se aproxima",
+    " al esquema 1 : k : k\u00b2 de Bradford. La descripci\u00f3n se refiere a esta b\u00fasqueda y depende de que los nombres de las revistas est\u00e9n unificados.")
+  list(ley = "bradford", estado = "ok", motivo = "", tabla = d, zonas = zonas, resumen = resumen, lectura = lectura, informe = informe,
     criterio = "Bradford: tres zonas con \u2248 un tercio de los art\u00edculos cada una; multiplicadores de fuentes entre zonas comparados (parecidos si el mayor no supera al menor en m\u00e1s del 50 %). Descriptivo, no confirma la ley.",
     multiplicadores = c(k21, k32), compatible = parecidos)
 }
@@ -110,7 +116,10 @@ zipf_fit <- function(terms, frequency = NULL) {
     "El exponente ajustado es ", fmt_es(s), " y la recta explica ", pct_es(100 * r2, 0), " de la variaci\u00f3n. ",
     if (cercano) "Se aproxima al patr\u00f3n de Zipf (exponente cerca de 1). " else if (s < 0.8) "La frecuencia cae m\u00e1s despacio que en el patr\u00f3n de Zipf: el vocabulario est\u00e1 repartido de forma m\u00e1s uniforme (frecuente en corpus peque\u00f1os o con vocabulario filtrado). " else if (s > 1.2) "La frecuencia cae m\u00e1s r\u00e1pido que en el patr\u00f3n de Zipf: unas pocas palabras dominan. " else "La relaci\u00f3n no es lo bastante lineal en escala logar\u00edtmica para hablar de patr\u00f3n de Zipf. ",
     "Se calcula con los t\u00e9rminos que la app ha evaluado tras limpiar el texto (sin palabras vac\u00edas), no con el texto completo, y con res\u00famenes cortos el resultado es poco estable. Es una descripci\u00f3n, no una prueba.")
-  list(ley = "zipf", estado = "ok", motivo = "", tabla = tabla, resumen = resumen, lectura = lectura,
+  informe <- paste0("Con ", m, " t\u00e9rminos evaluados tras la limpieza del texto (sin palabras vac\u00edas), el exponente de Zipf estimado es ", fmt_es(s), " (R\u00b2 = ", fmt_es(r2), " en escala logar\u00edtmica), ",
+    if (cercano) "un valor cercano a 1" else if (s < 0.8) "un valor inferior a 0,8" else if (s > 1.2) "un valor superior a 1,2" else "con una relaci\u00f3n poco lineal para hablar de patr\u00f3n de Zipf",
+    ". Es una descripci\u00f3n del vocabulario evaluado y no una prueba de la ley.")
+  list(ley = "zipf", estado = "ok", motivo = "", tabla = tabla, resumen = resumen, lectura = lectura, informe = informe,
     criterio = "Zipf: ajuste por m\u00ednimos cuadrados de log(frecuencia) frente a log(rango) con los t\u00e9rminos evaluados; \"cercano\" si 0,8 \u2264 s \u2264 1,2 y R\u00b2 \u2265 0,90. Descriptivo, no confirma la ley.",
     exponente = s, r2 = r2, compatible = cercano)
 }

@@ -99,3 +99,39 @@ test_that("Redes rotula todos los nodos con halo blanco y permite rotular solo l
     if (nrow(n2) > 15) expect_true(any(!nzchar(n2$label)))
   })
 })
+
+test_that("Narrativa didactica: cada concepto declara pregunta, calculo, analogia con limite y errores", {
+  n <- narrative_catalog()
+  expect_true(all(c("lotka", "bradford", "zipf", "jsd", "lda", "density", "networks", "tokens", "pca", "ca", "bm25", "coverage") %in% names(n)))
+  for (k in names(n)) {
+    x <- n[[k]]
+    expect_true(all(c("natural", "calcula", "analogia", "limite", "errores") %in% names(x)), info = k)
+    expect_true(all(nzchar(c(x$natural, x$calcula, x$analogia, x$limite))), info = k)
+    expect_true(endsWith(trimws(x$natural), "?"), info = k)
+    expect_gte(length(x$errores), 2L)
+    expect_true(grepl("\\*\\*[^*]+\\*\\*", x$calcula) || k %in% c("coverage"), info = k)
+  }
+  html <- as.character(narrative_ui("lotka"))
+  expect_match(html, "Lo que quieres saber", fixed = TRUE)
+  expect_match(html, "Dónde deja de servir", fixed = TRUE)
+  expect_match(html, "<strong>exponente</strong>", fixed = TRUE)
+  expect_identical(as.character(rich_p("<b>x</b> **y**")), "<p>&lt;b&gt;x&lt;/b&gt; <strong>y</strong></p>")
+})
+
+test_that("Cada ley ofrece una frase de informe con las cifras del corpus y sin afirmar la ley", {
+  d <- read_biblio_csv(app_extdata("practica.csv"), ";")
+  p <- prepare_documents(d, guess_columns(d)); cp <- prepare_corpus(p)
+  L <- bibliometric_laws(biblio_summary(p), cp)
+  for (k in names(L)) {
+    f <- L[[k]]
+    if (identical(f$estado, "ok")) {
+      expect_true(nzchar(f$informe), info = k)
+      expect_false(grepl("confirma la ley|demuestra la ley|se cumple la ley", f$informe), info = k)
+      expect_match(f$informe, "descripción|descripción del|descripción de", info = k)
+    } else expect_identical(f$informe, "", info = k)
+  }
+  z <- zipf_fit(paste0("w", 1:60), round(1000 / (1:60)))
+  expect_match(z$informe, "60 términos evaluados", fixed = TRUE)
+  expect_match(z$informe, fmt_es(z$exponente), fixed = TRUE)
+  expect_identical(lotka_fit(c(1, 1, 2))$informe, "")
+})

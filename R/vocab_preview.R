@@ -69,8 +69,8 @@ vocabulary_preview_ui <- function(p, shown = 8L) {
   tag$div(class = "empty-help vocab-preview", tag$p(lead),
     tag$p(tag$strong(sprintf("Entrarían %d palabras (ahora %d). ", p$terminos_propuestos, p$terminos_vigentes)),
       sprintf("Conservarían el %s %% de las apariciones (ahora %s %%).", fmt(p$apariciones_propuestas_pct), fmt(p$apariciones_vigentes_pct))),
-    if (length(p$salen)) tag$p(tag$strong("Saldrían: "), names_of(p$salen), "."),
-    if (length(p$entran)) tag$p(tag$strong("Entrarían ahora: "), names_of(p$entran), "."),
+    if (length(p$salen)) tag$p(tag$strong("Saldrían: "), paste0(names_of(p$salen), ".")),
+    if (length(p$entran)) tag$p(tag$strong("Entrarían ahora: "), paste0(names_of(p$entran), ".")),
     empty_now,
     if (!p$recorta) tag$p("El máximo de términos no recorta con estos valores: el criterio de orden no cambia cuáles entran."))
 }
