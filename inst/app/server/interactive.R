@@ -22,12 +22,12 @@ output$ca_interactive <- plotly::renderPlotly({
 })
 output$ca_expanded<-plotly::renderPlotly({f<-ca_current();validate(need(!is.null(f),"Calcula correspondencias con parámetros vigentes."));ordination_widget(f$terms,f$dimensions,focus=input$expanded_ca_focus %||% input$ca_focus %||% "",max_labels=input$expanded_ca_labels %||% 40L,label_canvas=c(max(300,(session$clientData$output_ca_expanded_width %||% 1200)-170),max(250,(session$clientData$output_ca_expanded_height %||% 750)-115)))})
 density_membership_graph <- reactive({
-  fit <- density_current(); validate(need(!is.null(fit), "Calcula UMAP y HDBSCAN para estudiar membresías.")); d <- density_display(fit)
-  d <- d[d$grupo > 0, ]; validate(need(nrow(d)>0, "No hay grupos asignados para resumir membresías."))
+  fit <- density_current(); validate(need(!is.null(fit), "Calcula UMAP y HDBSCAN para estudiar el grado de pertenencia.")); d <- density_display(fit)
+  d <- d[d$grupo > 0, ]; validate(need(nrow(d)>0, "No hay grupos asignados para resumir el grado de pertenencia."))
   ggplot2::ggplot(d, ggplot2::aes(grupo_label, membresia)) + ggplot2::geom_boxplot(fill = "#eee", outlier.shape = NA, width = .55) +
     ggplot2::geom_jitter(alpha = .4, size = 1.6, colour = "#c7281e", position = ggplot2::position_jitter(width = .12, height = 0, seed = 2026)) +
     ggplot2::coord_flip() + ggplot2::scale_y_continuous(limits = c(0, 1)) +
-    ggplot2::labs(x = NULL, y = "Membresía HDBSCAN · no es probabilidad temática", title = "Distribución de membresías por grupo") + plot_theme()
+    ggplot2::labs(x = NULL, y = "Pertenencia al grupo (HDBSCAN) · no es probabilidad temática", title = "Distribución del grado de pertenencia por grupo") + plot_theme()
 })
 output$density_membership_plot <- renderPlot(density_membership_graph(), res = 96)
 
@@ -57,3 +57,4 @@ output$token_explanation<-renderUI(tagList(tags$div(class="concept-grid",
   tags$section(tags$h3("Especificidad / qué textos distingue"),tags$p("TF-IDF pondera el uso relativo en un texto y la rareza entre textos. Un término compartido por todos distingue poco; esto no implica que carezca de importancia para el estudio."))),
   tags$p("La media de TF-IDF es una forma de resumir pesos, no una convención obligatoria. Mediana y percentiles globales incluyen ceros y pueden empatar en cero en vocabularios dispersos; los resúmenes con peso positivo describen solo las unidades donde el peso es mayor que cero. Compara siempre presencia. El estadístico de Preparación conserva la elección que usaste al seleccionar vocabulario."),
   tags$p("Las tres barras de una fila corresponden al mismo término y tienen escalas distintas. La tercera usa el estadístico TF-IDF elegido; al ordenar por frecuencia o presencia muestra la media global. El mapa utiliza la media global para mantener su definición y muestra todos los términos del estado elegido.")))
+output$tfidf_zero_note<-renderUI({tx<-tfidf_zero_diagnosis(rv$corpus$terms);if(is.null(tx))return(NULL);tags$p(class="parameter-note",tx)})

@@ -171,3 +171,18 @@ keyword_field_audit <- function(raw,prepared) {
     Documentos_retenidos=vapply(raw[ix],function(z)sum(nzchar(clean_value(z[prepared$documents$source_row]))),1L),
     Asignado=names(raw)[ix]==(prepared$mapping$keywords %||% ""),stringsAsFactors=FALSE)
 }
+
+# Diagnostico del vocabulario vigente: cuantos terminos empatan en cero al ordenar por la mediana o el P75
+# globales (todas las unidades con texto). No juzga el calculo: informa del empate y de cuando importa.
+tfidf_zero_diagnosis <- function(terms) {
+  if (is.null(terms) || !is.data.frame(terms) || !nrow(terms) || !all(c("tfidf_median", "tfidf_q75", "motivo_exclusion") %in% names(terms))) return(NULL)
+  n <- nrow(terms); z50 <- sum(terms$tfidf_median <= 0); z75 <- sum(terms$tfidf_q75 <= 0)
+  fmt <- function(x) format(x, big.mark = ".", decimal.mark = ",", trim = TRUE)
+  limited <- sum(terms$motivo_exclusion == "L\u00edmite de vocabulario")
+  eligible <- sum(terms$motivo_exclusion %in% c("Retenido", "L\u00edmite de vocabulario"))
+  paste0("En la \u00faltima preparaci\u00f3n, ", fmt(z50), " de ", fmt(n), " t\u00e9rminos tienen mediana global 0 y ", fmt(z75), " de ", fmt(n), " tienen P75 0 (con todas las unidades con texto). ",
+    "Si ordenas por esa mediana o ese percentil, esos t\u00e9rminos quedan empatados y su orden lo decide la presencia en documentos y despu\u00e9s el nombre: no es un error de c\u00e1lculo ni exige eliminar los ceros. ",
+    if (limited > 0L) paste0("Esto importa porque el l\u00edmite de vocabulario deja fuera ", fmt(limited), " de ", fmt(eligible), " t\u00e9rminos elegibles: cambiar el orden cambia qu\u00e9 t\u00e9rminos se analizan, no solo c\u00f3mo se ordenan los gr\u00e1ficos. ")
+    else "En este corpus no hay l\u00edmite de vocabulario que excluya t\u00e9rminos elegibles, de modo que el orden no cambia qu\u00e9 t\u00e9rminos se analizan. ",
+    "Con la opci\u00f3n de solo unidades con peso positivo, el resumen se calcula entre las unidades donde aparece el t\u00e9rmino y el empate en cero desaparece.")
+}

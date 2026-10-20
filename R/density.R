@@ -230,11 +230,11 @@ run_density <- function(corpus, prepared, params = density_defaults(), vectors =
   names(temporal)[3] <- "documentos"
   issues <- c("UMAP 2D es una visualizaci\u00f3n independiente. HDBSCAN usa la reducci\u00f3n de mayor dimensi\u00f3n; no interpreta distancias globales del mapa como distancias sem\u00e1nticas exactas.",
     "minPts en dbscan controla tama\u00f1o y suavizado de densidad; no reproduce dos par\u00e1metros separados min_cluster_size/min_samples de otras implementaciones.",
-    "Membres\u00eda es estabilidad de asignaci\u00f3n, no probabilidad calibrada de pertenencia a un tema cient\u00edfico.",
+    "El grado de pertenencia al grupo es estabilidad de asignaci\u00f3n, no probabilidad calibrada de pertenencia a un tema cient\u00edfico.",
     sprintf("%d de %d documentos sin asignar; %d documentos del corpus sin vocabulario quedan fuera de este an\u00e1lisis.", sum(fit$cluster == 0), nrow(counts), nrow(prepared$documents) - nrow(counts)))
   if (!any(fit$cluster > 0)) issues <- c(issues, "No se han detectado grupos. Es un resultado v\u00e1lido: revisa minPts, representaci\u00f3n y corpus sin forzar temas.")
   quality <- data.frame(
-    indicador = c("Grupos detectados", "Documentos sin asignar (%)", "Membres\u00eda media de los asignados", "Documentos en el an\u00e1lisis"),
+    indicador = c("Grupos detectados", "Documentos sin asignar (%)", "Grado medio de pertenencia de los asignados", "Documentos en el an\u00e1lisis"),
     valor = c(length(grouped), 100 * mean(fit$cluster == 0), if (any(fit$cluster > 0)) mean(assignments$membresia[fit$cluster > 0]) else NA_real_, nrow(assignments)),
     stringsAsFactors = FALSE)
   list(assignments = assignments, summary = summary, terms = terms, examples = examples, quality = quality,

@@ -51,9 +51,9 @@ report_html <- function(prepared, corpus, bibliography, lda = NULL, ca = NULL, d
     part("Correspondencias: t\u00e9rminos", "Coordenadas principales, contribuci\u00f3n porcentual por eje y cos\u00b2 del plano. Cos\u00b2 bajo significa representaci\u00f3n insuficiente; no interpretes distancias entre t\u00e9rminos y documentos.", ca$terms))
   if (!is.null(density)) sections <- c(sections,
     part("UMAP / HDBSCAN: representaci\u00f3n", paste0(escape_html(density$representation$type), ". ", paste(escape_html(density$issues), collapse = "<br>"))),
-    part("UMAP / HDBSCAN: grupos", "Grupo 0 conserva los documentos sin asignar. La membres\u00eda es una medida de pertenencia estimada; no una probabilidad tem\u00e1tica calibrada.", density$summary),
+    part("UMAP / HDBSCAN: grupos", "Grupo 0 conserva los documentos sin asignar. El grado de pertenencia al grupo es una medida estimada; no una probabilidad tem\u00e1tica calibrada.", density$summary),
     part("Grupos: palabras c-TF-IDF", "TF normalizado por palabras de cada clase; IDF = log(1 + A/f_t). Las etiquetas requieren lectura de originales.", density$terms),
-    part("Grupos: documentos para leer", "Las membres\u00edas orientan selecci\u00f3n; no prueban representatividad del campo.", density$examples))
+    part("Grupos: documentos para leer", "Los grados de pertenencia orientan la selecci\u00f3n; no prueban representatividad del campo.", density$examples))
   if (!is.null(network)) sections <- c(sections, part("Red: definici\u00f3n y par\u00e1metros", escape_html(network$note), data.frame(parametro = names(network$params), valor = vapply(network$params,function(v)if(!length(v)) "Ninguna" else paste(fmt_value(v),collapse="; "),""))),
     part("Red: indicadores del grafo filtrado", paste("Centralidades sin pesos en rutas; fuerza y comunidades con pesos.",if(isTRUE(network$params$remove_isolates)) "Aislados retirados y m\u00e9tricas recalculadas." else "Aislados conservados."), network$summary),
     part("Red: selecci\u00f3n de nodos y conexiones", "Las m\u00e9tricas dependen de estos l\u00edmites.", network$audit), part("Red: nodos", "Tabla completa en CSV.", network$nodes),part("Red: candidatos de cobertura conjunta","Heur\u00edstica codiciosa a un salto incluyendo el propio nodo; no garantiza \u00f3ptimo global ni demuestra liderazgo.",network$keyplayers %||% data.frame()))

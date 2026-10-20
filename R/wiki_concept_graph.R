@@ -37,7 +37,7 @@ wiki_network_reading <- function(f) {
   cap<-if(!is.null(st$excluded_ceiling)&&st$excluded_ceiling>0)paste0(" Se han excluido ",st$excluded_ceiling," palabras presentes en m\u00e1s del ",format(100*pr$max_share,decimal.mark=",")," % de las fichas (",paste(quote_words(head(f$selection$excluded_labels,6)),collapse=""),if(st$excluded_ceiling>6)", entre otras" else "",").") else ""
   gen<-f$selection$general_labels;gen_txt<-if(length(gen))paste0(" Atenci\u00f3n: ",quote_words(head(gen,6)),if(length(gen)>6)" y otras" else ""," aparece",if(length(gen)>1)"n" else ""," en m\u00e1s del 30 % de las fichas; si forma",if(length(gen)>1)"n" else ""," parte de la ecuaci\u00f3n de b\u00fasqueda o del lenguaje general del corpus, tender\u00e1",if(length(gen)>1)"n" else ""," a conectarse con casi todo. El techo de fichas permite excluirla",if(length(gen)>1)"s" else "",".") else ""
   p1<-paste0("Se analizan las ",nrow(nodes)," palabras ",crit,if(!is.null(st$concepts_total)&&st$concepts_total>nrow(nodes))paste0(" (de las ",fmt(st$concepts_total)," del \u00edndice)") else "",".",cap,gen_txt," ",
-    "De los ",fmt(st$pairs)," pares posibles, ",fmt(st$significant)," aparecen juntos en las mismas fichas m\u00e1s de lo esperable por azar",if(!is.na(alpha))paste0(" (prueba hipergeom\u00e9trica con control de falsos descubrimientos al ",format(100*alpha,decimal.mark=",")," %)") else " (sin prueba de significaci\u00f3n)",
+    "De los ",fmt(st$pairs)," pares posibles, ",fmt(st$significant),if(!is.na(alpha))paste0(" aparecen juntos en las mismas fichas m\u00e1s de lo esperable por azar (prueba hipergeom\u00e9trica con control de falsos descubrimientos al ",format(100*alpha,decimal.mark=",")," %)") else " tienen coaparici\u00f3n observada en las mismas fichas (el filtro de significaci\u00f3n est\u00e1 desactivado: no se ha contrastado si superan lo esperable por azar)",
     if(!is.na(k))paste0("; para que el dibujo sea legible, cada palabra conserva sus ",k," relaciones m\u00e1s fuertes") else "",
     ". El resultado son ",fmt(st$kept)," relaciones entre ",nrow(active)," palabras",if(nrow(nodes)>nrow(active))paste0("; las otras ",nrow(nodes)-nrow(active)," no tienen ninguna relaci\u00f3n que cumpla estos criterios (comunidad 0).") else ".")
   if(!K)return(c(p1,"No hay comunidades que describir con estos criterios. Prueba a ampliar el n\u00famero de palabras, a relajar el nivel de significaci\u00f3n o a reducir el m\u00ednimo de fichas."))
@@ -182,4 +182,31 @@ wiki_concept_graph <- function(index,node,scope="global",community="all",min_sha
       if(is.na(f$params$alpha))"Sin prueba de significaci\u00f3n: se dibujan todas las coapariciones que cumplen el m\u00ednimo y el Jaccard." else paste0("Prueba hipergeom\u00e9trica unilateral por pares (marginales fijos: fichas de cada concepto) con control de la tasa de falsos descubrimientos de Benjamini-Hochberg al ",format(100*f$params$alpha,decimal.mark=",")," % sobre los ",format(f$stats$pairs,big.mark=".",decimal.mark=",",scientific=FALSE)," pares posibles",if(is.na(f$params$top_k))"." else paste0(". Cada palabra conserva sus ",f$params$top_k," relaciones significativas m\u00e1s fuertes por Jaccard; es una simplificaci\u00f3n para la legibilidad.")),
       "Guimer\u00e0 y Amaral (2005): eje si el grado dentro de su comunidad supera en 2,5 desviaciones t\u00edpicas la media de esa comunidad; puente seg\u00fan el coeficiente de participaci\u00f3n P (m\u00e1s de 0,62 sin ser eje; m\u00e1s de 0,30 siendo eje). Descriptivo y dependiente de las comunidades.",
       paste("Louvain / resoluci\u00f3n",resolution,"/ semilla",seed,"/ grupo 0 sin coapariciones. Pertenencia de la red completa; las notas no intervienen."),format(f$modularity,digits=4),"Una coaparici\u00f3n permite localizar lecturas conjuntas; no demuestra cita, acuerdo, sinonimia ni causalidad. Un backlink expl\u00edcito es la relaci\u00f3n inversa de un enlace escrito en una nota.")),note=f$note,roles=f$roles,reading=f$reading,stats=f$stats,selection=f$selection)
+}
+
+# Nivel de FDR de la red de conceptos: NULL si el filtro esta desactivado; si esta activado, un valor
+# dentro del rango que admite el motor. Un valor vacio o fuera de rango es un error, nunca un filtro apagado.
+wiki_fdr_level <- function(on, alpha) {
+  if (!isTRUE(on)) return(NULL)
+  if (length(alpha) != 1L || is.na(alpha) || !is.finite(alpha) || alpha < 0.001 || alpha > 0.5)
+    abort_user("El nivel de FDR debe estar entre 0,001 y 0,5. Para no filtrar por significaci\u00f3n, desmarca la casilla del filtro.")
+  alpha
+}
+
+# Sensibilidad al cambiar SOLO las relaciones por palabra (k): limitarlas es un filtro del analisis que se aplica antes de Louvain,
+# de modo que cambia el grafo, las comunidades, la modularidad y los roles. Devuelve NULL si no procede comparar.
+wiki_k_sensitivity_note <- function(prev_settings, prev_network, cur_settings, cur_network) {
+  if (is.null(prev_settings) || is.null(prev_network) || is.null(cur_network)) return(NULL)
+  strip <- function(s) { s$top_k <- NULL; s }
+  if (!identical(strip(prev_settings), strip(cur_settings))) return(NULL)
+  k_of <- function(s) if (is.null(s$top_k) || is.na(s$top_k) || s$top_k < 1L) NA_integer_ else as.integer(s$top_k)
+  k0 <- k_of(prev_settings); k1 <- k_of(cur_settings)
+  if (identical(k0, k1)) return(NULL)
+  lab <- function(k) if (is.na(k)) "todas" else as.character(k)
+  ncomm <- function(f) length(unique(f$nodes$community[f$nodes$community > 0]))
+  q <- function(f) if (is.null(f$modularity) || is.na(f$modularity)) "no definida" else format(round(f$modularity, 3), decimal.mark = ",", nsmall = 3)
+  paste0("Cambio de las relaciones por palabra (de ", lab(k0), " a ", lab(k1), "): este control es un filtro del an\u00e1lisis y se aplica antes de calcular las comunidades, de modo que modifica el grafo analizado. ",
+    "Los enlaces pasan de ", nrow(prev_network$edges), " a ", nrow(cur_network$edges), ", las comunidades de ", ncomm(prev_network), " a ", ncomm(cur_network),
+    " y la modularidad de ", q(prev_network), " a ", q(cur_network), ". Una modularidad mayor no indica por s\u00ed sola una soluci\u00f3n mejor; los roles tambi\u00e9n se recalculan sobre el grafo filtrado. ",
+    "Comprueba qu\u00e9 comunidades y qu\u00e9 palabras se mantienen con ambos valores antes de presentar un resultado.")
 }

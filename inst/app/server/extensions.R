@@ -36,26 +36,12 @@ output$processing_results<-table_render(function(){current();d<-rv$corpus$proces
 
 # Ayudas por paso y por método.
 open_help <- function(key) {
-  h <- help_catalog()[[key]]; lesson <- enrich_lesson(key,c(lesson_catalog(), extra_lesson_catalog())[[key]])
-  if (is.null(h)) h <- list(title = lesson$title %||% "Redes / relaciones e indicadores", goal = lesson$goal %||% "Definir conexiones y entender sus indicadores.", sources = lesson$sources %||% c("igraph / centralidades" = "https://r.igraph.org/reference/harmonic_centrality.html"))
-  showModal(modalDialog(title = h$title, size = "l", easyClose = TRUE,
-    tags$div(class = "lesson", tags$p(class = "modal-lead", lesson$goal %||% h$goal),
-      if(key=="tokens") tags$section(class="lesson-example",tags$h3("V5 / media, mediana, percentiles y dispersión"),vocabulary_decision_text()),
-      if(key=="bm25") tags$section(class="lesson-example",tags$h3("Una primera decisión que puedes contrastar"),tags$p("Con resúmenes de longitud similar, empieza con TF-IDF. Si los textos tienen longitudes muy distintas o repiten mucho una palabra, compara BM25. Reduce el aporte de cada repetición adicional mediante el parámetro de repeticiones (k1) y ajusta el peso por longitud mediante el parámetro de longitud (b). Por ejemplo, cinco menciones no equivalen a cinco veces el peso de una mención. La app usa estos pesos para representar vocabulario; comprueba qué cambia leyendo textos y comparando estabilidad."),tags$p("En selección de vocabulario cambia el orden de términos; LDA y correspondencias usan conteos. En UMAP + LSA cambia la representación del modelo. Guarda ambas ejecuciones y compara sus resultados.")),
-      if(key=="bradford") tags$section(class="lesson-example",tags$h3("Leer el porcentaje acumulado"),tags$p("De 100 documentos con fuente conocida, la revista más frecuente tiene 30 y la segunda 20. En la posición 1 la curva marca 30 %; en la 2, 50 %. Si otros 10 documentos no tienen fuente, no entran en ese denominador. El gráfico muestra concentración de la búsqueda, no una prueba de Bradford ni calidad de revistas.")),
-      tags$section(class = "lesson-section", tags$p(class = "eyebrow", "01 / COMPRENDER"), tags$h3("Qué estás haciendo y para qué sirve"), lapply(lesson$meaning,tags$p)),
-      tags$section(class = "lesson-example", tags$p(class = "eyebrow", "02 / EJEMPLO ILUSTRATIVO"), tags$h3("Un caso para entenderlo"), lapply(lesson$example,tags$p),if(!is.null(lesson$worked)) HTML(html_table(lesson$worked,show_note=FALSE))),
-      tags$section(class = "lesson-section", tags$h3("Del resultado a una interpretación"), lapply(lesson$reading,tags$p)),
-      tags$section(class = "lesson-section", tags$p(class = "eyebrow", "03 / DECIDIR"), tags$h3("Cómo continuar con tu corpus"), lapply(lesson$action,tags$p)),
-      tags$section(class = "lesson-example", tags$h3("Cómo explicarlo en tu trabajo"), lapply(lesson$reporting,tags$p)),
-      if(!is.null(lesson$study)) tags$details(class="visible-disclosure",tags$summary("Para estudiar el cálculo y sus límites"),lapply(lesson$study,tags$p)),
-      if (!is.null(lesson$decisions)) tags$div(class = "lesson-table", HTML(sub("<p class='muted'>[^<]*</p>", "", html_table(lesson$decisions)))),
-      if (!is.null(h$limits)) tags$details(tags$summary("Ampliación metodológica y límites"), lapply(h$steps, tags$p), tags$p(h$limits)),
-      if (length(h$sources)) tags$div(class = "source-links", tags$h3("Documentación para ampliar"), lapply(names(h$sources), function(label) tags$p(tags$a(href = h$sources[[label]], target = "_blank", rel = "noopener", label))))),
-    footer = modalButton("Volver al análisis")))
+  doc <- help_document(key)
+  if (is.null(doc)) { showNotification(paste0("No existe un documento de ayuda para «", key, "»."), type = "error"); return(invisible(NULL)) }
+  showModal(modalDialog(title = doc$meta$titulo, size = "l", easyClose = TRUE, help_modal_body(key), footer = modalButton("Volver al análisis")))
 }
 helps <- c(help_load = "load", help_prepare = "prepare", help_explore = "explore", help_models = "models", help_export = "export",
-  help_lemma = "lemma", help_tokens = "tokens", help_tokens_explore = "tokens", help_density = "density", help_lda = "lda", help_ca = "ca", help_network = "networks", help_jsd = "jsd", help_pca = "pca", help_bm25="bm25",help_bm25_density="bm25",help_seed="seed",help_ngrams="ngrams",help_network_roles="roles",help_skills="skills",help_references="references",help_subgraphs="subgraphs",help_temporal="temporal",help_topic_labels="topic_labels",help_lda_time="lda_time",help_bradford="bradford",help_coverage="coverage",help_parallel="parallel")
+  help_lemma = "lemma", help_tokens = "tokens", help_tokens_explore = "tokens_explore", help_density = "density", help_lda = "lda", help_ca = "ca", help_network = "networks", help_jsd = "jsd", help_pca = "pca", help_bm25="bm25",help_bm25_density="bm25",help_seed="seed",help_ngrams="ngrams",help_network_roles="roles",help_skills="skills",help_references="references",help_subgraphs="subgraphs",help_temporal="temporal",help_topic_labels="topic_labels",help_lda_time="lda_time",help_bradford="bradford",help_coverage="coverage",help_parallel="parallel")
 for (id in names(helps)) local({ button <- id; key <- helps[[id]]; observeEvent(input[[button]], open_help(key)) })
 for (key in c("load", "prepare", "explore", "models", "export")) local({ stage <- key
   observeEvent(input[[paste0("code_", stage)]], {
@@ -177,7 +163,7 @@ if (requireNamespace("plotly", quietly = TRUE)) {
     fit <- density_current(); validate(need(!is.null(fit), "Calcula UMAP y HDBSCAN para explorar documentos."))
     d <- density_display(fit); colours <- density_palette(d$plot_label)
     d$hover <- paste0(escape_html(d$doc_id), "<br>", escape_html(substr(d$title, 1, 180)), "<br>", d$grupo_label,
-      "<br>Membresía: ", sprintf("%.3f", d$membresia))
+      "<br>Pertenencia al grupo: ", sprintf("%.3f", d$membresia))
     chart <- plotly::plot_ly(source = "density_map")
     for (label in names(colours)) chart <- plotly::add_trace(chart, data = d[d$plot_label == label, ],
       x = ~umap_1, y = ~umap_2, type = "scatter", mode = "markers", name = label,

@@ -95,6 +95,7 @@ output$jsd_state <- renderUI({
         tags$span(tags$strong(format(round(u$p_value,3),nsmall=3)),tags$small("p de permutación")),
         tags$span(tags$strong(paste0("[",swiss_number(u$ci[1]),", ",swiss_number(u$ci[2]),"]")),tags$small(paste0("IC bootstrap ",round(100*u$conf),"%"))))
     },
+    if(!is.null(fit$uncertainty)) tags$p(class="chart-caption",jsd_uncertainty_reading(fit$jsd,fit$uncertainty)),
     tags$details(tags$summary("Cobertura y lectura metodológica"), lapply(fit$issues,tags$p)))
 })
 jsd_graph <- reactive({ f <- comparison_current(); validate(need(!is.null(f),"Calcula una comparación vigente.")); jsd_figure(f) })

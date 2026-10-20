@@ -37,7 +37,7 @@ reproducibility_record <- function(prepared, corpus = NULL, lda = NULL, ca = NUL
   list(
     software = list(bibliolab = BIBLIO_VERSION, R = R.version.string, paquetes = as.list(versions[!is.na(versions)])),
     entorno = list(plataforma = R.version$platform, sistema = unname(info[["sysname"]]), version_sistema = unname(info[["release"]]),
-      locale = Sys.getlocale("LC_CTYPE"), zona_horaria = Sys.timezone(), blas = unname(extSoftVersion()[["BLAS"]])),
+      ruta_bibliolab = tryCatch(find.package("bibliolab"), error = function(e) NA_character_), locale = Sys.getlocale("LC_CTYPE"), zona_horaria = Sys.timezone(), blas = unname(extSoftVersion()[["BLAS"]])),
     semillas = Filter(Negate(is.null), seeds),
     datos = list(fuente = prepared$source_name, md5_archivo = input_md5 %||% prepared$input_md5 %||% NA_character_,
       documentos_importados = if (!is.null(prepared$audit)) prepared$audit$documentos[1] else NA,

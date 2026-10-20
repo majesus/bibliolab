@@ -9,17 +9,11 @@ output$model_gate<-renderUI(analysis_gate("prepare_from_models"))
 observeEvent(input$prepare_from_indicators,updateTabsetPanel(session,"steps",selected="prepare"))
 observeEvent(input$prepare_from_models,updateTabsetPanel(session,"steps",selected="prepare"))
 observeEvent(input$help_jsd_weight, {
-  lesson <- enrich_lesson("jsd",lesson_catalog()$jsd)
-  showModal(modalDialog(title="Cómo pesa cada documento / elegir con criterio",size="l",easyClose=TRUE,
-    tags$div(class="lesson",tags$p(class="modal-lead","Las dos opciones comparan proporciones de palabras. La diferencia está en cuánto aporta un resumen largo frente a uno breve."),
-      tags$section(class="choice-card",tags$h3("Tokens agrupados / estudiar el uso total de palabras"),tags$p("Sumamos todas las apariciones del grupo y dividimos por su total. Un documento de 400 palabras aporta cuatro veces más palabras que uno de 100. Úsalo si quieres describir cómo se reparte el vocabulario total del corpus.")),
-      tags$section(class="lesson-example",tags$h3("El mismo grupo puede responder a dos preguntas"),tags$p("Un resumen breve contiene educación y salud una vez cada una. Otro contiene educación ocho veces y salud dos. Agrupando tokens, educación tiene 9 de 12 apariciones: 75%. Equilibrando los documentos, promediamos 50% y 80%: educación tiene 65%. Ningún resultado es erróneo: expresan preguntas distintas.")),
-      tags$section(class="choice-card",tags$h3("Documentos equilibrados / estudiar el perfil de un documento medio"),tags$p("Primero normalizamos cada documento; después promediamos. Cada documento con vocabulario aporta el mismo peso. Es una primera comparación útil cuando los resúmenes difieren mucho en longitud y te interesa comparar perfiles de publicaciones.")),
-      tags$section(class="lesson-example",tags$h3("Por qué una revisión extensa puede invertir la lectura"),tags$p(tail(lesson$example,1)),HTML(html_table(lesson$worked,show_note=FALSE))),
-      tags$p("El mismo cambio se verá en la orientación de los shifts: clínica apuntará hacia el conjunto donde tenga mayor proporción. La longitud de su barra indica su parte de la divergencia total, que depende de todas las palabras. No basta este ejemplo para afirmar que su barra será larga o que ha cambiado el interés de toda una disciplina."),
-      tags$p("Recomendación: elige según la pregunta, mantén la misma ponderación en A y B y comprueba cobertura. Para el trabajo académico conserva una segunda ejecución con la otra opción si la longitud puede condicionar la interpretación."),
-      radioButtons("jsd_weight_choice","Opción para esta comparación",c("Tokens agrupados"="tokens","Documentos equilibrados"="documents"),selected=input$jsd_weight %||% "tokens")),
-    footer=tagList(modalButton("Cancelar"),actionButton("apply_jsd_weight","Aplicar esta opción",class="btn-primary"))))
+  doc <- help_document("jsd_weight")
+  showModal(modalDialog(title = if (is.null(doc)) "Cómo pesa cada documento / elegir con criterio" else doc$meta$titulo, size = "l", easyClose = TRUE,
+    help_modal_body("jsd_weight"),
+    tags$div(class = "lesson help-doc", radioButtons("jsd_weight_choice", "Opción para esta comparación", c("Tokens agrupados" = "tokens", "Documentos equilibrados" = "documents"), selected = input$jsd_weight %||% "tokens")),
+    footer = tagList(modalButton("Cancelar"), actionButton("apply_jsd_weight", "Aplicar esta opción", class = "btn-primary"))))
 })
 observeEvent(input$apply_jsd_weight,{req(input$jsd_weight_choice %in% c("tokens","documents"));updateSelectInput(session,"jsd_weight",selected=input$jsd_weight_choice);removeModal()})
 output$ngrams_visible<-table_render(function(){head(gram_data(),25)})
@@ -52,3 +46,23 @@ output$gram_explanation<-renderUI({d<-gram_data();metric<-input$gram_metric %||%
   concentracion="Concentración es uno menos entropía normalizada. Cerca de uno, las apariciones se acumulan en pocos documentos; cerca de cero, se reparten de forma uniforme entre el corpus preparado. Complementa frecuencia y presencia, no mide calidad."),
   if(nrow(d))paste("De",nrow(d),"expresiones que cumplen la presencia mínima,",sum(d[[metric]]>0),"tienen este indicador mayor que cero y",sum(d[[metric]]==0),"valen cero. Se muestran hasta 25; los ceros tienen un punto y su cifra, aunque no tengan barra.") else "No hay expresiones que cumplan la presencia mínima.",
   if(metric %in% c("tfidf_mediana","tfidf_q75"))"Mediana y percentil se calculan para cada expresión entre documentos, no entre las expresiones del ranking. No filtran el 50 % o el 75 % de los términos. Ejemplo: una expresión con pesos 0, 0, 0, 0, 0, 0, 0, 0,2 en ocho documentos tiene mediana 0 y percentil 75 igual a 0. Sigue siendo un resultado válido y conserva su fila. Los empates se ordenan por presencia y después alfabéticamente." else ""))})
+
+output$model_route_card<-renderUI({
+  id<-input$model_route;routes<-model_routes()
+  if(is.null(id)||!length(id)||!id %in% names(routes))return(hint("Elige una pregunta para ver su ruta. Los controles de cada an\u00e1lisis est\u00e1n en las pesta\u00f1as siguientes."))
+  r<-routes[[id]]
+  tags$section(class="route-card",tags$h3(r$question),
+    tags$p(tags$strong("Qu\u00e9 devuelve. "),r$returns),tags$p(tags$strong("Qu\u00e9 decisi\u00f3n exige. "),r$decision),tags$p(tags$strong("Qu\u00e9 no permite concluir. "),r$limit),
+    tags$div(class="figure-tools",if(is.null(r$tabs))actionButton("finish_models",r$labels,class="btn-next")
+      else lapply(seq_along(r$tabs),function(i)actionButton(paste0("model_route_go_",i),r$labels[i],class="btn-next"))))
+})
+for(i in 1:2)local({k<-i;observeEvent(input[[paste0("model_route_go_",k)]],{
+  if(!isTRUE(input[[paste0("model_route_go_",k)]]>0))return()
+  r<-model_routes()[[input$model_route %||% ""]]
+  if(is.null(r)||is.null(r$tabs)||k>length(r$tabs))return()
+  updateTabsetPanel(session,"model_method",selected=r$tabs[k])
+})})
+observeEvent(input$reset_density_advanced,{
+  updateNumericInput(session,"lsa_dims",value=30);updateNumericInput(session,"umap_dims",value=5)
+  updateNumericInput(session,"umap_min_dist",value=0);updateSelectInput(session,"umap_epochs",selected="300")
+})

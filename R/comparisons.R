@@ -223,3 +223,17 @@ run_pca <- function(corpus, prepared, max_terms = 100L, standardize = FALSE, bas
     center = fit$center, scale = if (standardize) fit$scale else NULL,
     ran_at = format(Sys.time(), "%Y-%m-%d %H:%M:%S %Z"))
 }
+
+# Lectura breve de las cifras de incertidumbre de la JSD (observada, esperada por permutacion, exceso, p e intervalo).
+# Se genera siempre a partir de los valores calculados, para que la interpretacion no dependa de una frase fija.
+jsd_uncertainty_reading <- function(jsd, u) {
+  f <- function(x) format(round(x, 4), decimal.mark = ",", nsmall = 4, scientific = FALSE)
+  p <- if (is.finite(u$p_value) && u$p_value < .001) "menor que 0,001" else format(round(u$p_value, 3), decimal.mark = ",", nsmall = 3)
+  excess <- if (u$excess > 0) paste0("La JSD observada (", f(jsd), " bits) supera en ", f(u$excess), " la que producir\u00edan asignaciones al azar de los documentos entre A y B (", f(u$null_mean), "), de modo que la diferencia es mayor que la referencia de permutaci\u00f3n.")
+    else paste0("La JSD observada (", f(jsd), " bits) no supera la que producir\u00edan asignaciones al azar de los documentos entre A y B (", f(u$null_mean), "): el exceso (", f(u$excess), ") es la resta entre ambas, no una JSD negativa, y no se observa una diferencia mayor que la referencia de permutaci\u00f3n. Eso no prueba que A y B sean conceptualmente equivalentes.")
+  ci <- u$ci
+  boot <- paste0("El intervalo bootstrap [", f(ci[1]), "; ", f(ci[2]), "] remuestrea documentos dentro de cada grupo y hereda el sesgo al alza de la JSD con pocos datos")
+  boot <- paste0(boot, if (jsd < ci[1]) ": aqu\u00ed la JSD observada queda por debajo del intervalo, algo esperable con un estimador sesgado que no indica un error de c\u00e1lculo, y no debe leerse como intervalo de la diferencia verdadera. " else if (jsd > ci[2]) ": aqu\u00ed la JSD observada queda por encima del intervalo, lo que tampoco indica un error de c\u00e1lculo. " else ". ")
+  paste0(excess, " El valor p (", p, ") es la proporci\u00f3n de permutaciones con una JSD al menos igual a la observada, ajustada como (1 + n\u00famero de nulas \u2265 observada) / (B + 1). ", boot,
+    "Estas cifras no son cinco pruebas independientes de cambio tem\u00e1tico: la referencia, el exceso y el valor p proceden de las mismas permutaciones, y el intervalo, de otro remuestreo.")
+}

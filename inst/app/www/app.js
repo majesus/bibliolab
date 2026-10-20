@@ -193,6 +193,29 @@
       }
     });
   }
+  if (window.jQuery) {
+    (function ($) {
+      var seq = 0;
+      $(document).on('show.bs.modal', '.modal', function () {
+        var a = document.activeElement, host = a && a.closest ? a.closest('.modal') : null;
+        $(this).data('opener', host && host !== this ? $(host).data('opener') : (a && a !== document.body ? a : null));
+      });
+      $(document).on('shown.bs.modal', '.modal', function () {
+        var title = this.querySelector('.modal-title');
+        this.setAttribute('role', 'dialog');
+        this.setAttribute('aria-modal', 'true');
+        if (title) {
+          if (!title.id) title.id = 'modal-title-' + (++seq);
+          this.setAttribute('aria-labelledby', title.id);
+        }
+        if (!this.contains(document.activeElement) || document.activeElement === this) this.focus();
+      });
+      $(document).on('hidden.bs.modal', '.modal', function () {
+        var o = $(this).data('opener');
+        if (o && document.body.contains(o) && typeof o.focus === 'function') o.focus();
+      });
+    })(window.jQuery);
+  }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', connect);
   else connect();
 })();

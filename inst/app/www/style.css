@@ -109,3 +109,16 @@ table.dataTable tbody tr:nth-child(even){background:#f8f9fa}.dataTables_scrollHe
 .wiki-step{margin:16px 0}.wiki-step-details{margin:12px 0}
 .wiki-step-details>summary{font-weight:600}
 .wiki-step .wiki-network-reading h4{margin:4px 0 10px}
+/* Ayudas como documentos (inst/app/help/*.md) */
+.help-doc{max-width:1040px;margin:0 auto}.help-doc p,.help-doc li{overflow-wrap:anywhere}
+.help-section{border-top:1px solid #aaa;padding:4px 0}.help-section>summary{font-size:19px;font-weight:700;cursor:pointer;padding:12px 0;list-style:revert}
+.help-section-body{padding:2px 2px 16px}.help-doc h4{font-size:17px;margin:22px 0 8px}
+.help-doc ul,.help-doc ol{padding-left:26px;margin:8px 0 14px}.help-doc li{margin:5px 0}
+.help-doc blockquote{background:#f5f5f2;border-left:4px solid #c7281e;margin:18px 0;padding:16px 22px;font-size:inherit}.help-doc blockquote p:last-child{margin-bottom:0}
+.help-formula{font-family:Georgia,"Times New Roman",serif;font-size:1.05em;text-align:center;margin:14px 0;padding:10px 12px;background:#fafaf8;border:1px solid #ddd;overflow-x:auto}
+.help-scroll{overflow-x:auto;margin:14px 0;max-width:100%}.help-table{border-collapse:collapse;min-width:100%;font-size:14px}
+.help-table th,.help-table td{border:1px solid #ccc;padding:8px 10px;text-align:left;vertical-align:top}.help-table th{background:#edf1f3}
+.help-fold{border:1px solid #aaa;padding:10px 16px;margin:16px 0}.help-fold>summary{font-weight:700;cursor:pointer}
+.help-doc code{font-size:.92em;background:#f0f0ec;padding:1px 5px}.help-doc code{overflow-wrap:anywhere}.help-scroll:focus-visible{outline:2px solid #111;outline-offset:2px}
+@media(max-width:600px){.help-table{min-width:520px}.help-table th,.help-table td{padding:6px 8px}.help-scroll{-webkit-overflow-scrolling:touch}.help-section>summary{font-size:15px}.help-doc h4{font-size:14px}.help-table{font-size:12px}.help-doc blockquote{padding:12px 14px}}
+.next-steps-row{display:flex;flex-wrap:wrap;gap:12px;margin:16px 0}.route-card{border-left:4px solid var(--red);background:#f7f7f4;padding:14px 18px;margin:14px 0}.route-card h3{margin:0 0 8px;font-size:18px}.route-card p{margin:0 0 8px}

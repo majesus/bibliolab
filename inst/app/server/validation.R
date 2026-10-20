@@ -61,19 +61,7 @@ output$kselect_use <- renderUI({
       hint("Se actualiza el número de temas de arriba; pulsa Calcular LDA para ajustar el modelo final.")))
 })
 observeEvent(input$use_k, { req(input$kselect_choice); updateNumericInput(session, "k", value = as.integer(input$kselect_choice)) })
-observeEvent(input$help_kselect, showModal(modalDialog(title = "Elegir el número de temas / leer la comparación", size = "l", easyClose = TRUE,
-  tags$div(class = "lesson",
-    tags$p(class = "modal-lead", "La comparación ajusta cada k varias veces (semillas distintas) y resume cuatro aspectos. Ninguno decide por sí solo: sirven para reducir el rango y, después, leer los temas."),
-    tags$section(class = "lesson-section", tags$h3("Qué mide cada criterio"),
-      tags$p(tags$strong("Coherencia NPMI: "), "si las palabras principales de un tema tienden a aparecer en los mismos documentos. Mayor es mejor. Se calcula con los propios documentos, así que orienta pero no reemplaza a un juicio humano."),
-      tags$p(tags$strong("Diversidad: "), "proporción de palabras principales distintas entre temas. Si baja, los temas se repiten entre sí."),
-      tags$p(tags$strong("Estabilidad: "), "cuánto coinciden los temas entre semillas (solapamiento de palabras principales con emparejamiento óptimo). Baja estabilidad indica que el modelo no encuentra una estructura firme con ese k."),
-      tags$p(tags$strong("Perplejidad reservada: "), "qué tan bien predice documentos que no usó. Suele mejorar al aumentar k y no equivale a interpretabilidad (Chang et al., 2009); por eso no entra en el valor de compromiso.")),
-    tags$section(class = "lesson-example", tags$h3("El valor de compromiso"),
-      tags$p("Es el k que maximiza el peor de los tres criterios (coherencia, estabilidad, diversidad) tras reescalarlos entre 0 y 1. Evita que uno solo domine, pero es un resumen: dos valores cercanos son prácticamente equivalentes.")),
-    tags$section(class = "lesson-section", tags$h3("Cómo decidir"),
-      tags$p("Elige dos o tres valores candidatos, ajusta cada uno, lee los documentos más representativos y quédate con el que permita etiquetas defendibles y no mezcle ideas distintas. Documenta el rango comparado, los criterios y por qué elegiste ese k: el informe metodológico lo registra."))),
-  footer = modalButton("Cerrar"))))
+observeEvent(input$help_kselect, open_help("kselect"))
 
 # ---- Calidad del LDA ajustado -------------------------------------------------
 output$lda_quality_state <- renderUI({
@@ -120,17 +108,7 @@ output$dsens_clusters <- table_render(function() { f <- dsens_current(); validat
   d <- f$cluster_stability; names(d) <- c("Grupo", "Documentos", "Jaccard medio", "Jaccard mínimo"); d })
 output$dsens_runs <- table_render(function() { f <- dsens_current(); validate(need(!is.null(f), "Evalúa la estabilidad para ver las repeticiones."))
   d <- f$runs; names(d) <- c("Tipo", "Semilla", "Vecinos", "minPts", "Grupos", "Sin asignar (%)", "ARI con la referencia", "ARI solo asignados", "Estado", "Causa"); d })
-observeEvent(input$help_stability, showModal(modalDialog(title = "Estabilidad de la agrupación / cómo interpretarla", size = "l", easyClose = TRUE,
-  tags$div(class = "lesson",
-    tags$p(class = "modal-lead", "UMAP incluye azar y HDBSCAN depende de minPts: dos ejecuciones razonables pueden dar agrupaciones distintas. Medirlo evita presentar como hallazgo lo que es una de varias soluciones posibles."),
-    tags$section(class = "lesson-section", tags$h3("Qué es el ARI"),
-      tags$p("El índice de Rand ajustado compara dos agrupaciones del mismo conjunto de documentos: 1 significa que coinciden; 0, lo esperable entre asignaciones al azar. Aquí el grupo «sin asignar» cuenta como una clase más. La columna «solo asignados» ignora los documentos sin grupo en alguna de las dos."),
-      tags$p("Una convención orientativa (Steinley, 2004) habla de acuerdo excelente por encima de 0,90, bueno desde 0,80 y moderado desde 0,65. No es un contraste de hipótesis. Si la referencia no forma ningún grupo, un ARI de 1 solo indica que las repeticiones también dejan todos los documentos sin asignar: es la misma ausencia de grupos, no estabilidad de grupos temáticos.")),
-    tags$section(class = "lesson-example", tags$h3("Persistencia de cada grupo"),
-      tags$p("Para cada grupo de la referencia se busca, en cada otra semilla, el grupo que más documentos comparte y se calcula el solapamiento (Jaccard). Un grupo con Jaccard medio alto reaparece; uno con valores bajos es probablemente un artefacto de esa semilla.")),
-    tags$section(class = "lesson-section", tags$h3("Qué hacer con el resultado"),
-      tags$p("Si la estabilidad es baja, prueba otra representación (BM25), más vecinos o un minPts mayor, o informa solo los grupos persistentes. Documenta las repeticiones: el informe metodológico las incluye."))),
-  footer = modalButton("Cerrar"))))
+observeEvent(input$help_stability, open_help("stability"))
 
 # ---- Diagnostico de vocabulario -------------------------------------------------
 vocab_diag <- reactive({ p <- current(); vocabulary_diagnostics(rv$corpus, p) })

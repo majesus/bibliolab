@@ -73,6 +73,11 @@ app_server <- function(input, output, session) {
   output$processing_controls<-renderUI(tagList(checkboxInput("parallel_enabled","Usar procesamiento paralelo en tareas grandes",TRUE),
     conditionalPanel("input.parallel_enabled",numericInput("parallel_workers","M\u00e1ximo de trabajadores R locales",min(2L,processing_worker_limit()),1,processing_worker_limit())),
     hint("Se deja al menos un n\u00facleo libre y se usan como m\u00e1ximo cuatro trabajadores. Para lotes peque\u00f1os se evita iniciar procesos. M\u00e1s trabajadores tambi\u00e9n requieren m\u00e1s memoria.")))
+  outputOptions(output, "processing_controls", suspendWhenHidden = FALSE)
+  observeEvent(input$reset_processing, {
+    updateCheckboxInput(session, "parallel_enabled", value = TRUE)
+    updateNumericInput(session, "parallel_workers", value = min(2L, processing_worker_limit()))
+  })
   settings <- reactive({
     fields <- c("text", "title", "id", "year", "source", "authors", "citations", "keywords", "doi", "language", "translated", "references")
     mapping <- setNames(lapply(fields, function(nm) input[[paste0("col_", nm)]] %||% ""), fields)
@@ -264,7 +269,7 @@ app_server <- function(input, output, session) {
     if (entry$requires == "text") validate(need(nrow(rv$corpus$terms) > 0, "Este prompt necesita palabras retenidas. Revisa la limpieza."))
     if (entry$requires == "lda") validate(need(!is.null(lda_current()), "Este prompt necesita temas LDA vigentes. Calc\u00falalos en el paso 4."))
     if (entry$requires == "ca") validate(need(!is.null(ca_current()), "Este prompt necesita un mapa vigente. Calc\u00falalo en el paso 4."))
-    if (entry$requires == "comparison") validate(need(!is.null(comparison_current()), "Este prompt necesita una comparaci\u00f3n JSD vigente. Calc\u00falala en Indicadores / JSD shifts."))
+    if (entry$requires == "comparison") validate(need(!is.null(comparison_current()), "Este prompt necesita una comparaci\u00f3n JSD vigente. Calc\u00falala en Indicadores / Comparar vocabulario (JSD)."))
     if (entry$requires == "pca") validate(need(!is.null(pca_current()), "Este prompt necesita ACP vigente. Calc\u00falalo en Modelos / ACP."))
     if (entry$requires == "network") validate(need(!is.null(network_current()), "Este prompt necesita una red vigente. Calc\u00falala en Indicadores / Redes."))
     if (entry$requires == "density") validate(need(!is.null(density_current()), "Este prompt necesita UMAP y HDBSCAN vigentes. Calc\u00falalos en el paso 04."))
@@ -346,7 +351,7 @@ app_server <- function(input, output, session) {
     write_bundle_manifest(dir)
     zip::zipr(file, files = list.files(dir, full.names = TRUE), include_directories = TRUE)
   })
-  transitions <- c(to_prepare = "prepare", to_explore = "explore", to_models = "models", to_export = "export")
+  transitions <- c(to_prepare = "prepare", to_explore = "explore", to_models = "models", to_export = "export", finish_description = "export", finish_models = "export")
   for (id in names(transitions)) local({ key <- id; target <- transitions[[id]]
     observeEvent(input[[key]], {
       if (target == "prepare" && is.null(rv$raw)) { showNotification("Carga un CSV o usa el ejemplo de pr\u00e1ctica.", type = "warning"); return() }

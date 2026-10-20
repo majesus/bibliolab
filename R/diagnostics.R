@@ -527,11 +527,24 @@ density_sensitivity <- function(corpus, prepared, params = list(), seeds = NULL,
   else paste0("Estabilidad entre semillas: ", band(med(sd_runs$ari)), ". Sensibilidad a parametros: ", band(med(pm_runs$ari)),
     ". Las bandas son una convencion orientativa (Steinley, 2004) y no un contraste. ",
     "Si la estabilidad es baja, trata los grupos como una exploracion y apoyate solo en los que persisten (tabla de persistencia).")
-  reading <- paste0(reading,
+  reading <- paste0(reading, if (!trivial) density_zero_group_note(runs),
     if (any(runs$estado == "fallida")) sprintf(" Atencion: %d de %d repeticiones fallaron y no entran en los resumenes; consulta la causa en la tabla de repeticiones.", sum(runs$estado == "fallida"), nrow(runs)) else "")
   list(reference = ref, runs = runs, summary = summary, cluster_stability = cluster_stability, reading = reading,
     params = list(base = p, seeds = seeds, neighbors = neighbors, min_pts = min_pts),
     ran_at = format(Sys.time(), "%Y-%m-%d %H:%M:%S %Z"))
+}
+
+# Una mediana del ARI puede ocultar repeticiones que pierden todos los grupos: se declaran aparte, separando
+# la estabilidad entre semillas de la sensibilidad a decisiones metodologicas (vecinos, minPts).
+density_zero_group_note <- function(runs) {
+  ok <- runs$estado == "ejecutada" & runs$tipo != "Referencia" & !is.na(runs$grupos)
+  zero <- ok & runs$grupos == 0L
+  if (!any(zero)) return("")
+  worst <- min(runs$ari[ok], na.rm = TRUE)
+  where <- c(if (any(zero & runs$tipo == "Semilla")) sprintf("%d de %d con otra semilla", sum(zero & runs$tipo == "Semilla"), sum(ok & runs$tipo == "Semilla")),
+    if (any(zero & runs$tipo == "Parametros")) sprintf("%d de %d al variar vecinos o minPts", sum(zero & runs$tipo == "Parametros"), sum(ok & runs$tipo == "Parametros")))
+  sprintf(" Atenci\u00f3n: %d de %d repeticiones ejecutadas no detectan ning\u00fan grupo (%s); el ARI mediano no las refleja (peor ARI: %s). Una configuraci\u00f3n extrema no invalida por s\u00ed sola la soluci\u00f3n, pero revisa minPts y el n\u00famero de vecinos antes de dar por buena la sensibilidad.",
+    sum(zero), sum(ok), paste(where, collapse = "; "), format(round(worst, 3), decimal.mark = ","))
 }
 
 # ---- Incertidumbre de la divergencia de Jensen-Shannon ----------------------

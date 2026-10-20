@@ -70,7 +70,7 @@ app_open_url <- function(url) {
   sistema <- Sys.info()[["sysname"]]
   abierto <- tryCatch({
     if (identical(sistema, "Windows")) {
-      shell_exec <- get0("shell.exec", envir = asNamespace("utils"), inherits = FALSE)
+      shell_exec <- get0("shell.exec", envir = baseenv(), inherits = FALSE)
       if (is.function(shell_exec)) { shell_exec(url); TRUE } else FALSE
     } else if (identical(sistema, "Darwin")) {
       system2("open", shQuote(url), stdout = FALSE, stderr = FALSE) == 0L
