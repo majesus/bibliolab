@@ -13,16 +13,25 @@ prepare_documents(d, mapping, config = default_config())
 
 \item{config}{Lista parcial de opciones; ver \code{\link[=default_config]{default_config()}}. Se rechazan
 las opciones desconocidas (suelen ser erratas) y las opciones logicas que no
-sean \code{TRUE} o \code{FALSE}.}
+sean \code{TRUE} o \code{FALSE}.
+\code{corpus_selection} admite \code{fields} (columnas auxiliares de
+\code{document_type}, \code{abstract}, \code{language}, \code{country} y \code{early_access}),
+\code{types}, \code{sources}, \code{languages}, \code{countries}, los requisitos logicos
+\code{doi}, \code{abstract}, \code{text}, \code{exclude_current_year}, y \code{early}
+(\code{"all"}, \code{"only"}, \code{"exclude"}).
+\code{selection_preview = TRUE} permite describir una seleccion vacia, solo para
+previsualizacion documental; no calcula vocabulario ni modelos.}
 }
 \value{
 Lista con \code{documents}, \code{audit}, \code{duplicates} (con el criterio, el
 registro conservado y los campos completados), \code{ambiguous} (coincidencias no eliminadas), \code{issues},
 \code{config}, \code{mapping} e \code{input_md5} (huella del archivo leido con
 \code{\link[=read_biblio_csv]{read_biblio_csv()}}, o \code{NULL}).
+Con \code{corpus_selection}, incluye \code{selection}: pasos, exclusiones por fila
+original, resumen, distribucion anual y desgloses de metadatos.
 }
 \description{
-Aplica, en este orden, filtro por valor, filtro temporal, deduplicacion
+Aplica, en este orden, filtro por valor, filtro temporal, filtros documentales opcionales, deduplicacion
 (DOI, titulo normalizado, texto normalizado) y muestreo con semilla. Los
 valores ausentes de anio o citas se conservan como \code{NA} (nunca como cero).
 }

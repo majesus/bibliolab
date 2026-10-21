@@ -52,14 +52,14 @@ output$kselect_table <- table_render(function() { f <- kselect_current(); valida
   d <- f$table; d$puntuacion_compromiso <- f$recommendation$scores$puntuacion_compromiso[match(d$k, f$recommendation$scores$k)]
   d <- d[c("k", "coherencia_npmi", "coherencia_umass", "diversidad", "estabilidad", "perplejidad", "tema_minimo_pct", "puntuacion_compromiso")]
   names(d) <- c("Temas (k)", "Coherencia NPMI", "Coherencia UMass", "Diversidad", "Estabilidad", "Perplejidad", "Tema menos prevalente (%)", "Compromiso (maximin 0-1)"); d })
-output$kselect_use <- renderUI({
+output$kselect_use <- renderUI(model_parameter_guidance({
   f <- kselect_current(); if (is.null(f)) return(NULL)
   ks <- f$params$k_range; sel <- f$recommendation$compromise; if (!is.finite(sel)) sel <- ks[1]
   tags$div(class = "row control-row",
     column(5, selectInput("kselect_choice", "Número de temas que quieres probar", ks, selected = sel)),
     column(7, actionButton("use_k", "Fijar este k y volver a calcular LDA", class = "btn-primary"),
       hint("Se actualiza el número de temas de arriba; pulsa Calcular LDA para ajustar el modelo final.")))
-})
+}))
 observeEvent(input$use_k, { req(input$kselect_choice); updateNumericInput(session, "k", value = as.integer(input$kselect_choice)) })
 observeEvent(input$help_kselect, open_help("kselect"))
 

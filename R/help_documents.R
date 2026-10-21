@@ -186,6 +186,6 @@ help_modal_body <- function(key) {
   tags$div(class = "lesson help-doc",
     if (nzchar(doc$meta$objetivo)) tags$p(class = "modal-lead", doc$meta$objetivo),
     htmltools::HTML(doc$html),
-    if (length(sources)) tags$div(class = "source-links", tags$h3("Documentación para ampliar"),
+    if (length(sources)) tags$div(class = "source-links", tags$h3("Documentaci\u00f3n para ampliar"),
       lapply(names(sources), function(label) tags$p(tags$a(href = sources[[label]], target = "_blank", rel = "noopener", label)))))
 }

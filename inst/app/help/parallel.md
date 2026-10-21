@@ -7,17 +7,13 @@ fuentes:
 
 ## 1. Conceptos fundamentales: más procesos no implican otro análisis
 
+**Para situarte.** Secuencial significa procesar el trabajo en un solo proceso de R. Paralelo significa repartir lotes de documentos entre varios procesos locales, llamados trabajadores. Un lote es una parte del conjunto que se procesa de una vez. Estas opciones afectan a los recursos y al tiempo, no a las reglas del análisis.
+
 **Lo que quieres saber.** Si activar el procesamiento paralelo acelera la preparación de tu corpus y si cambia algún resultado.
 
 **Lo que se calcula realmente.** Un **trabajador** es un proceso local de R (tipo PSOCK, compatible con Windows). Varios trabajadores examinan a la vez lotes independientes de documentos para estimar idiomas, limpiar texto, lematizar o normalizar, y los resultados vuelven a sus posiciones originales. El método de cada etapa y la selección de documentos son los mismos con uno o con varios trabajadores: repartir el trabajo no añade documentos ni altera significados.
 
 Iniciar procesos, cargar modelos y comunicar resultados también consume tiempo y memoria. Por eso la aplicación decide, etapa por etapa, si compensa repartir: solo lo hace cuando hay volumen suficiente. Con un corpus pequeño aparece *Secuencial* aunque la casilla esté marcada. Si un trabajador falla, se retoma por la vía secuencial y se registra la recuperación.
-
-> **La analogía cotidiana:**
->
-> Es como repartir la corrección de un montón de exámenes entre varios profesores: con muchos exámenes, el reparto ahorra tiempo; con tres, explicar las normas a los demás cuesta más que corregirlos uno mismo.
->
-> **Dónde deja de servir la analogía:** los profesores pueden aplicar criterios distintos. Aquí cada trabajador ejecuta exactamente el mismo procedimiento, y el resultado final debe coincidir con el de la vía secuencial.
 
 ## 2. Ejemplo práctico: 36 resúmenes frente a 5.000
 

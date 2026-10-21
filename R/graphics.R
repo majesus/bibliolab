@@ -51,7 +51,7 @@ ordination_figure <- function(d, dimensions, title, label_field = "termino", cir
     ggplot2::scale_colour_gradient(low = "#b7b7b7", high = "#c7281e", limits = c(0,1)) +
     label_layer(d[top, ], ggplot2::aes(label = .data[[label_field]]), size = 3.5, colour = "#222222", seed = 2026,
       repel = list(max.overlaps = Inf, max.time = 2, max.iter = 20000, force = 2, point.padding = .4, min.segment.length = 0, box.padding = .6, segment.colour = "#aaaaaa")) +
-    ggplot2::coord_equal() + ggplot2::labs(title = title, subtitle = if (circle) "Correlaciones de t\u00e9rminos con componentes / flechas principales" else "Coordenadas calculadas por el modelo / etiquetas de mayor contribuci\u00f3n",
+    ggplot2::coord_equal() + ggplot2::labs(title = title, subtitle = if (circle) "Correlaciones de t\u00e9rminos con componentes / flechas principales" else "Coordenadas del modelo / nombres de los puntos con mayor aportaci\u00f3n a los ejes",
       x = xlab, y = ylab, colour = "Cos\u00b2 del plano") + swiss_theme()
 }
 

@@ -7,17 +7,13 @@ fuentes:
 
 ## 1. Conceptos fundamentales: cambiar el universo de análisis
 
+**Para situarte.** Un subgrafo es una parte seleccionada de una red. Un nodo es un punto de esa red y sus vecinos son los puntos conectados directamente con él. Una comunidad es una agrupación propuesta por el algoritmo; una componente es una parte conectada, que puede contener varias comunidades.
+
 **Lo que quieres saber.** Qué ocurre en una zona concreta de la red: con quién se conecta un nodo, qué integra una comunidad o qué une una selección.
 
 **Lo que se calcula realmente.** Un **subgrafo inducido** conserva los nodos elegidos y todas las conexiones de la red de origen entre ellos, con sus pesos originales. Puedes elegir un **vecindario** (los nodos a una distancia de 0 a 3 saltos de uno de referencia), una **comunidad**, una **componente** o una **selección manual**. La red completa sigue disponible.
 
 Los indicadores que dependen del conjunto de nodos se **recalculan** dentro del subgrafo: grado, fuerza, densidad, intermediación, centralidad armónica, componentes, comunidades y key players. En cambio, los pesos de las conexiones y la presencia documental de cada nodo siguen referidos al corpus de origen, y la tabla conserva `grado_origen` y `comunidad_origen` para comparar. No se han creado datos nuevos.
-
-> **La analogía cotidiana:**
->
-> Es como fijarse solo en una planta de un edificio de oficinas: ves quién habla con quién en esa planta, pero alguien que parece aislado en ella puede ser, en el edificio entero, el que enlaza con otras plantas.
->
-> **Dónde deja de servir la analogía:** en un edificio, las demás plantas siguen ahí aunque no las mires. En un subgrafo inducido, las conexiones con los nodos no elegidos desaparecen del cálculo, de modo que las medidas describen únicamente lo que has conservado.
 
 ## 2. Ejemplo práctico: Eva dentro y fuera de su vecindario
 

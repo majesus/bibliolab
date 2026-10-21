@@ -36,6 +36,8 @@ test_that("los encabezados repetidos se corrigen y se registran", {
 test_that("una hoja inexistente o un libro danado producen errores claros", {
   x <- libro_prueba()
   expect_error(read_biblio_file(x$path, "libro.xlsx", sheet = "NoExiste"), "ya no existe")
+  expect_error(read_biblio_file(x$path, "libro.xlsx", sheet = NA_character_), "ya no existe")
+  expect_error(read_biblio_file(x$path, "libro.xlsx", sheet = c("Datos", "Duplicados")), "ya no existe")
   malo <- withr::local_tempfile(fileext = ".xlsx")
   writeLines("esto no es un libro de Excel", malo)
   expect_error(read_biblio_file(malo, "malo.xlsx"))

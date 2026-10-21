@@ -8,15 +8,11 @@ fuentes:
 
 ## 1. Conceptos fundamentales: tres preguntas distintas sobre la misma palabra
 
-**Lo que quieres saber.** Qué palabras son importantes en tu corpus. La aplicación no puede responder a esa pregunta tal como está formulada, porque «importante» no es una cantidad medible. Lo que sí mide son tres cosas diferentes, y cada una responde a una pregunta distinta.
+**Para situarte.** Término significa palabra después de la limpieza. Presencia cuenta documentos distintos con esa palabra; frecuencia cuenta sus apariciones, incluidas las repeticiones. Una unidad es un documento completo o una frase, según 02: algunos pesos se calculan por unidad y la presencia sigue contándose por documento.
+
+**Lo que quieres saber.** Qué palabras son importantes en tu corpus. La aplicación no puede responder a esa pregunta tal como está formulada, porque esta pantalla no dispone de una medida única de importancia científica. Lo que sí mide son tres cosas diferentes, y cada una responde a una pregunta distinta.
 
 La **frecuencia** responde a «¿cuánto se repite?»: cuenta apariciones. Diez repeticiones en un solo resumen suman diez, aunque exista un único documento. La **presencia** responde a «¿en cuántos textos aparece?»: cuenta documentos distintos, de modo que esas diez repeticiones en el mismo resumen cuentan como presencia en un documento. La **especificidad** responde a «¿qué textos distingue?»: el **TF-IDF** pondera el uso relativo de la palabra en cada texto (TF) por su rareza entre los textos (IDF), de modo que una palabra que comparten todos los textos pesa cero.
-
-> **La analogía cotidiana:**
->
-> Es como describir a los asistentes a una fiesta. «Cuánto habla» (frecuencia) no es lo mismo que «con cuántos grupos habla» (presencia), y ninguna de las dos dice «qué grupo reconocería al instante si escuchara su voz» (especificidad).
->
-> **Dónde deja de servir la analogía:** una persona puede ser a la vez habladora, sociable y reconocible. En un corpus, una palabra muy frecuente y presente en todos los textos tiene, por construcción, especificidad cero: las tres medidas tiran en direcciones distintas, y esa es la información útil.
 
 ## 2. Ejemplo práctico: cuatro palabras, cuatro perfiles
 
@@ -33,7 +29,7 @@ La tabla de términos que obtiene la aplicación es la siguiente.
 
 ### Interpretación
 
-«Datos» es la palabra más repetida y aparece en todos los textos, pero no distingue ninguno: su TF-IDF medio es cero. «Hospital» solo se repite cuatro veces, pero las concentra en un único documento, y por eso es la que más separa un texto de los demás: su TF-IDF medio es 0,139. «Salud» ocupa un lugar intermedio. Un valor cero no significa que una palabra sea inútil: «datos» puede ser un concepto indispensable para describir el campo; significa únicamente que no ayuda a diferenciar estos cuatro textos entre sí.
+«Datos» es la palabra más repetida y aparece en todos los textos, pero no distingue ninguno: su TF-IDF medio es cero. «Hospital» solo se repite cuatro veces, pero las concentra en un único documento, y obtiene el mayor TF-IDF medio entre estas cuatro palabras: 0,139. Eso describe su peso en esta ponderación; no comprueba un tema. «Salud» ocupa un lugar intermedio. Un valor cero no significa que una palabra sea inútil: «datos» puede ser un concepto indispensable para describir el campo; significa únicamente que no ayuda a diferenciar estos cuatro textos entre sí.
 
 ## 3. Flujo de trabajo en la aplicación: paso a paso
 
@@ -44,6 +40,8 @@ La tabla de términos que obtiene la aplicación es la siguiente.
 5. **Consulta la tabla.** Contiene las cifras exactas (frecuencia, presencia, TF-IDF medio, desviación típica, mediana, MAD, cuartiles, percentil 90, BM25 medio y entropía) y si el término está retenido. Usa *Ver tabla* cuando necesites una cifra para el informe.
 
 ## 4. Cómo leer los indicadores sin errores de interpretación
+
+**Cómo leer los resúmenes numéricos.** La media suma los pesos y divide por el número de unidades; la mediana es el valor central ordenado (o la media de los dos centrales). El percentil 75 es el valor de referencia por debajo del que queda aproximadamente el 75 % de los pesos ordenados. La desviación típica y la MAD describen dispersión: la MAD toma la mediana de las distancias absolutas respecto a la mediana. No miden calidad ni significado.
 
 **El TF-IDF no mide importancia científica.** Mide uso relativo y rareza entre las unidades de este corpus. Un término compartido por todos distingue poco; eso no implica que carezca de importancia para tu pregunta.
 

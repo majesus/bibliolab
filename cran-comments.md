@@ -1,44 +1,28 @@
-## Entorno de prueba (version 5.0.3)
+## Test environment for bibliolab 5.0.5
 
-* Linux (R 4.3.3), tarball construido con `R CMD build` y comprobado con
-  `R CMD check --as-cran --no-manual` (modo CRAN, `NOT_CRAN=false`).
-* Segunda comprobacion con `_R_CHECK_DEPENDS_ONLY_=true` y `NOT_CRAN=true` (solo dependencias
-  duras; ejecuta todas las pruebas, ejemplos y la vineta).
-* Suite completa fuera de CRAN con todas las dependencias opcionales (locale UTF-8) y, en el
-  locale C, los archivos de pruebas de la auditoria, de la entrega, de integridad y de preparacion.
-* La integracion continua de GitHub prueba Linux (release, oldrel-1 y R-devel), macOS y Windows,
-  una ejecucion solo con dependencias duras y R 4.1.0 (la version minima declarada) tambien con
-  solo dependencias duras: `dbscan`, un paquete opcional, exige R >= 4.3.0 y impedia resolver las
-  dependencias de ese trabajo. Los resultados de R-devel, R 4.1.0, macOS y Windows se consultan
-  en esa integracion; no se ejecutaron localmente.
+* Windows 11, R 4.6.1: source tarball built with `R CMD build`; checked with
+  `R CMD check --as-cran`, including the PDF and HTML manuals, examples,
+  `--run-donttest`, tests and vignette.
+* Result: 0 ERRORs, 0 WARNINGs, 1 NOTE. The NOTE is the expected
+  "New submission" incoming check.
+* The complete local `testthat::test_local()` suite also passed with 5.0.5
+  installed in a temporary library. One test requiring an externally
+  downloaded UDPipe model was skipped because `BIBLIOLAB_TEST_MODEL` was not
+  configured.
+* A supplementary Windows R 4.2.3 check installed the package and passed
+  its examples, tests and vignette. It reported one warning from that older
+  Windows R syntax check while translating escaped Unicode UI strings to
+  native encoding, and one note because three suggested packages were not
+  installed in that R library. No source syntax or test failure was reported.
 
-## Resultado de R CMD check
+## Notes for CRAN reviewers
 
-`R CMD check --as-cran --no-manual` (R 4.3.3, Linux, sin acceso a Internet): 0 errores,
-0 avisos y 2 notas, ambas atribuibles a la falta de red del entorno de prueba:
-
-* NOTE "CRAN incoming feasibility": no se pudo consultar el indice de CRAN (estado 403) y
-  aparecen los datos del mantenedor.
-* NOTE "unable to verify current time" en "checking for future file timestamps".
-
-Con `_R_CHECK_DEPENDS_ONLY_=true` y `NOT_CRAN=true`: `Status: OK` (0 errores, 0 avisos,
-0 notas). El manual en PDF no se compilo en este entorno (`--no-manual`).
-
-## Notas para los revisores
-
-* Primera entrega: la nota "New submission" es esperable.
-* La aplicacion Shiny (`run_app()`) no se ejecuta en pruebas ni ejemplos; sus modulos de
-  sesion se comprueban con `shiny::testServer()` (omitido en CRAN).
-* Los modelos de lematizacion UDPipe no se incluyen ni se descargan durante las pruebas
-  ni los ejemplos; el paquete solo los descarga por orden expresa del usuario
-  (`download_language_model()`), nunca al arrancar. Son materiales externos con su propia
-  licencia (CC BY-NC-SA 4.0, repositorio udpipe.models.ud.2.5), distinta de la MIT del codigo;
-  la funcion y la aplicacion lo advierten antes de descargar y cada modelo usado queda
-  registrado con archivo, MD5, origen y licencia.
-* `run_app()` no instala paquetes salvo con `install_missing = TRUE`, en sesion interactiva
-  y con confirmacion del usuario.
-* Los paquetes de `Suggests` se usan siempre de forma condicional
-  (`requireNamespace()`), tambien en ejemplos y vineta. `ggrepel` es opcional: sin el, las
-  etiquetas de los graficos usan `ggplot2::geom_text(check_overlap = TRUE)`.
-* La version minima de R del nucleo es 4.1.0; la capacidad UMAP + HDBSCAN requiere R >= 4.3.0
-  por `dbscan` (consta en README y en `biblio_check_dependencies()`).
+* This is a first submission. The Shiny application is not launched in
+  examples or CRAN tests; server modules are covered by `shiny::testServer()`
+  tests outside CRAN.
+* UDPipe models are not bundled or downloaded by installation, examples or
+  tests. `download_language_model()` acts only after an explicit user request
+  and explains the external model license. The model source, MD5 and license
+  are recorded when used.
+* Optional packages are guarded by `requireNamespace()`. The application
+  computes locally and does not require an Internet connection to start.

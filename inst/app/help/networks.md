@@ -8,17 +8,13 @@ fuentes:
 
 ## 1. Conceptos fundamentales: una red es una definición, no un dibujo
 
+**Para situarte.** Un nodo es un elemento dibujado como punto, por ejemplo un autor. Una conexión es una línea entre dos nodos y responde a la relación elegida, como firmar el mismo artículo. Su peso es el valor numérico asignado a esa relación. Grafo y red se refieren aquí al mismo conjunto de nodos y conexiones.
+
 **Lo que quieres saber.** Quién o qué está conectado con quién, y qué posición ocupa cada elemento.
 
 **Lo que se calcula realmente.** Una **red** representa entidades como **nodos** y una relación definida como **conexiones**. Los autores se conectan por coautoría (firman un mismo documento); las palabras, por copresencia (aparecen en un mismo documento); las referencias, por cocitación (un mismo documento las cita a ambas); los documentos, por acoplamiento bibliográfico (comparten referencias); y las revistas, en esta aplicación, por afinidad léxica (comparten términos retenidos entre sus artículos). Son preguntas distintas, aunque todas se dibujen como puntos y líneas.
 
-La **disposición** solo ayuda a ver conexiones: arrastrar un nodo no cambia la relación medida, sus pesos ni los indicadores. Las **comunidades** se calculan a partir del grafo, no por cercanía visual. Los indicadores dependen de los nodos y las conexiones que has conservado.
-
-> **La analogía cotidiana:**
->
-> Es como el plano de un metro: muestra qué estaciones están conectadas y cuántas líneas pasan por cada una, pero no las distancias reales ni lo concurrida que está cada estación.
->
-> **Dónde deja de servir la analogía:** en un plano de metro, la posición de cada estación está fijada por la geografía. En una red bibliográfica la posición la decide un algoritmo de dibujo; solo las conexiones y sus pesos son datos.
+La **disposición** solo ayuda a ver conexiones: arrastrar un nodo no cambia la relación medida, sus pesos ni los indicadores. Las **comunidades** se calculan a partir de las conexiones y sus pesos, no por cercanía visual. Los indicadores dependen de los nodos y las conexiones que has conservado.
 
 ## 2. Ejemplo práctico: coautoría con conteo completo y fraccionado
 
@@ -41,8 +37,8 @@ Ana y Eva tienen la misma fuerza (4), pero Eva tiene un vecino más (grado 3) y 
 ## 3. Flujo de trabajo en la aplicación: paso a paso
 
 1. **Elige la entidad y la relación.** *Entidades y relación* define los nodos y la regla de conexión. Las redes de referencias y de documentos necesitan la columna de referencias citadas.
-2. **Elige el peso de las conexiones.** *Completo* cuenta coincidencias; *Fraccionado* hace que cada documento aporte 1 repartido entre sus parejas; *Coseno* normaliza por la presencia de cada nodo; *Fuerza de asociación* compara las coincidencias con las esperables por azar dadas las presencias de los dos nodos. Las redes de revistas y de acoplamiento usan siempre el coseno.
-3. **Fija los filtros.** *Presencia mínima*, *máximo de nodos* (se eligen los más presentes), *coincidencias mínimas por conexión* y *máximo de conexiones de mayor peso* (0 = todas) reducen el grafo a algo legible. Son filtros exploratorios, no pruebas de significación; para palabras, la primera vista empieza con 30 nodos, 120 conexiones, presencia y coincidencia mínimas de 3 y fuerza de asociación.
+2. **Elige el peso de las conexiones.** *Completo* cuenta coincidencias; *Fraccionado* hace que cada documento aporte 1 repartido entre sus parejas; *Coseno* normaliza por la presencia de cada nodo; *Fuerza de asociación* divide las coincidencias por el producto de las presencias documentales de los dos nodos: una misma coincidencia recibe distinto peso según lo extendidos que estén. Ese peso no es una probabilidad ni una prueba de asociación. Las redes de revistas y de acoplamiento usan siempre el coseno.
+3. **Fija los filtros.** *Presencia mínima*, *máximo de nodos* (se eligen los más presentes), *coincidencias mínimas por conexión* y *máximo de conexiones de mayor peso* (0 = todas) reducen el grafo a algo legible. Estos filtros cambian la red sobre la que se calculan los indicadores y las comunidades; no simplifican solo el dibujo ni son pruebas estadísticas; para palabras, la primera vista empieza con 30 nodos, 120 conexiones, presencia y coincidencia mínimas de 3 y fuerza de asociación.
 4. **Elige el método de comunidades** (Louvain, con su resolución, o Walktrap) y la semilla de la disposición y de las comunidades. Pulsa *Calcular red*.
 5. **Lee primero la definición de la conexión** que muestra la aplicación, después el resumen de indicadores y por último el dibujo.
 6. **Comprueba las conclusiones** del dibujo en la tabla de conexiones y en la auditoría (cuántos nodos y conexiones se descartaron en cada filtro).
@@ -54,17 +50,17 @@ Ana y Eva tienen la misma fuerza (4), pero Eva tiene un vecino más (grado 3) y 
 |---|---|---|
 | Grado / fuerza | Número de vecinos / suma de pesos | Conectividad e intensidad son cosas distintas |
 | Densidad | Conexiones observadas entre las posibles | Depende del número de nodos conservados |
-| Componentes | Partes conectadas entre sí; aislados | Varias componentes pueden deberse a los umbrales |
+| Componentes | Partes separadas: dentro de cada una se puede ir de un nodo a otro siguiendo conexiones; un aislado forma una por sí solo | Varias componentes pueden deberse a los umbrales |
 | Intermediación | Fracción normalizada de caminos mínimos que pasan por el nodo | Se calcula en saltos, sin pesos |
 | Centralidad armónica | Media de los inversos de las distancias en saltos | Los nodos inalcanzables aportan cero |
-| Agrupamiento / transitividad | Proporción de triángulos cerrados | El local vale cero si faltan vecinos; el global puede no ser evaluable |
-| Louvain / modularidad | Partición exploratoria que busca concentración interna | No demuestra grupos sociales reales |
+| Agrupamiento / transitividad | Mide si dos vecinos de un nodo también están conectados entre sí, formando un triángulo | El local vale cero si faltan vecinos; el global puede no ser evaluable |
+| Louvain / modularidad | Louvain propone comunidades; la modularidad compara sus conexiones internas con un reparto de referencia de la red | No demuestra grupos sociales reales |
 
 **La disposición no es un indicador.** Si dos nodos parecen cercanos al arrastrarlos, solo ha cambiado el dibujo.
 
 **Los filtros modifican los indicadores.** Limitar el número de conexiones cambia métricas y comunidades: contrasta otros límites.
 
-**La semilla da repetibilidad, no calidad.** Fijar la semilla hace que Louvain y la disposición se repitan; no corrige problemas de conectividad ni mejora las comunidades. La estabilidad de la partición se mide aparte: con Louvain, el resumen incluye el ARI medio entre 20 ejecuciones con semillas distintas.
+**La semilla da repetibilidad, no calidad.** Fijar la semilla hace que Louvain y la disposición se repitan; no corrige problemas de conectividad ni mejora las comunidades. La estabilidad de la partición se mide aparte: con Louvain, el resumen incluye el acuerdo medio entre 20 ejecuciones con semillas distintas, medido mediante ARI: 1 indica la misma agrupación y 0 el acuerdo esperado por azar, teniendo en cuenta los tamaños de los grupos.
 
 **Una centralidad alta describe una posición en esta red.** Atribuir liderazgo o prestigio exige evidencia adicional.
 

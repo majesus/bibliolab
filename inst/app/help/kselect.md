@@ -7,17 +7,13 @@ fuentes:
 
 ## 1. Conceptos fundamentales: cuatro criterios, ninguno decisivo
 
+**Para situarte.** k es el número de temas que se pide estimar a LDA. Una solución es un resultado calculado con un k y unas opciones concretas. Una semilla cambia el inicio aleatorio del cálculo; comparar varias permite observar si aparecen patrones parecidos.
+
 **Lo que quieres saber.** Cuántos temas debe tener el modelo LDA para que sean interpretables y no dependan del azar de una ejecución.
 
-**Lo que se calcula realmente.** La comparación ajusta el modelo para cada valor de k con varias semillas y resume cuatro aspectos. La **coherencia NPMI** mide si las palabras principales de un tema (diez por defecto) tienden a aparecer en los mismos documentos: para cada par se calcula la información mutua puntual normalizada, que vale −1 si nunca coinciden y se acerca a 1 si coinciden siempre; los pares cuyas dos palabras aparecen en todos los documentos no informan y se excluyen. La **diversidad** es la proporción de palabras principales distintas entre todos los temas. La **estabilidad** es el solapamiento (Jaccard) de las palabras principales entre semillas, tras emparejar de forma óptima los temas de cada par de ejecuciones. La **perplejidad reservada** mide qué tan bien predice el modelo documentos que no usó para entrenar; solo se calcula cuando se reserva una fracción de los documentos.
+**Lo que se calcula realmente.** La comparación ajusta el modelo para cada valor de k con varias semillas y resume cuatro aspectos. La **coherencia NPMI** mide si las palabras principales de un tema (diez por defecto) tienden a aparecer en los mismos documentos: para cada par se calcula la información mutua puntual normalizada, que vale −1 si nunca coinciden y puede llegar a 1 si ambas tienen el mismo patrón de presencia y no aparecen en todos los documentos; los pares cuyas dos palabras aparecen en todos los documentos no informan y se excluyen. No son probabilidades de que un tema sea correcto. La **diversidad** es la proporción de palabras principales distintas entre todos los temas. La **estabilidad** es la semejanza de las listas de palabras principales entre semillas, medida como palabras compartidas divididas entre palabras distintas de ambas listas (Jaccard), tras emparejar de forma óptima los temas de cada par de ejecuciones. La **perplejidad reservada** mide qué tan bien predice el modelo documentos que no usó para entrenar; solo se calcula cuando se reserva una fracción de los documentos.
 
-El **valor de compromiso** es el k que maximiza el peor de los tres primeros criterios (coherencia NPMI, estabilidad y diversidad) tras reescalarlos entre 0 y 1. La perplejidad no entra en él.
-
-> **La analogía cotidiana:**
->
-> Es como elegir cuántas secciones debe tener un periódico: demasiado pocas mezclan asuntos distintos, demasiadas separan lo que va junto. Ninguna medida sustituye a leer las secciones y decidir si el reparto tiene sentido.
->
-> **Dónde deja de servir la analogía:** las secciones de un periódico las diseña una persona. Los temas de LDA los estima un algoritmo con componente aleatoria, de modo que distintas semillas pueden producir temas diferentes con el mismo k.
+El **valor de compromiso** es el k que maximiza el peor de los tres primeros criterios (coherencia NPMI, estabilidad y diversidad) tras reescalarlos entre 0 y 1 dentro del intervalo comparado: 0 representa el menor valor observado y 1 el mayor de cada criterio, cuando hay variación. Ampliar el intervalo puede cambiar esas puntuaciones y la propuesta. La perplejidad no entra en él.
 
 ## 2. Ejemplo práctico: dos escenarios
 
@@ -45,13 +41,13 @@ El compromiso es un resumen, no una elección: en el segundo escenario ningún c
 
 **La coherencia se calcula con tus propios documentos.** Orienta, pero no reemplaza el juicio humano sobre si un tema tiene sentido.
 
-**La estabilidad baja indica que el modelo no encuentra una estructura firme con ese k.** Con una sola semilla no puede evaluarse.
+**La estabilidad baja indica que las palabras principales cambian entre las semillas probadas con ese k.** No demuestra por sí sola ausencia de estructura ni explica por qué cambia. Con una sola semilla no puede evaluarse.
 
 **La perplejidad no equivale a interpretabilidad.** Por eso no entra en el compromiso.
 
 **Valores cercanos son prácticamente equivalentes.** No elijas entre ellos por una diferencia pequeña de puntuación.
 
-**Qué comprobar.** Que los valores candidatos permiten etiquetas defendibles, que no mezclan ideas distintas en un mismo tema y que el resultado se mantiene con otras semillas.
+**Qué comprobar.** Que los valores candidatos permiten nombres de temas defendibles, que no mezclan ideas distintas en un mismo tema y que el resultado se mantiene con otras semillas.
 
 ## 5. Pautas para documentar y redactar tu decisión
 

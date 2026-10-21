@@ -66,7 +66,7 @@ app_server <- function(input, output, session) {
         tags$summary("Metadatos bibliom\u00e9tricos \u00b7 detectados autom\u00e1ticamente"), lapply(c("year", "source", "authors", "citations", "doi", "references"), make)),
       tags$details(tags$summary("Traducciones y corpus de varios idiomas \u00b7 opcional"), make("translated"),
         selectInput("col_language", "Columna con el idioma de cada documento", c("No se necesita para un \u00fanico idioma" = "", setNames(langs, langs)), selected = if(nzchar(guesses$language)) guesses$language else if(length(langs)==1) langs[1] else ""),
-        hint("Si los textos est\u00e1n en una lengua, elige esa lengua en Normalizaci\u00f3n ling\u00fc\u00edstica. Para varios idiomas, CLD2 estima el idioma del texto seleccionado. Esta columna es opcional: contiene etiquetas de idioma, no t\u00edtulos ni res\u00famenes. La tabla permite revisar estimaciones y corregir casos dudosos sin modificar el CSV.")))
+        hint("Si los textos est\u00e1n en una lengua, elige esa lengua en Normalizaci\u00f3n ling\u00fc\u00edstica. Para varios idiomas, CLD2 estima el idioma del texto seleccionado. Esta columna es opcional: contiene nombres o c\u00f3digos de idioma, como espa\u00f1ol o es, no t\u00edtulos ni res\u00famenes. La tabla permite revisar estimaciones y corregir casos dudosos sin modificar el CSV.")))
   })
   output$filter_ui <- renderUI({ req(rv$raw); selectInput("filter_col", "Columna del filtro", names(rv$raw)) })
   execution_settings<-reactive(processing_execution(list(enabled=if(is.null(input$parallel_enabled)) TRUE else isTRUE(input$parallel_enabled),workers=input$parallel_workers %||% min(2L,processing_worker_limit()))))
@@ -95,7 +95,8 @@ app_server <- function(input, output, session) {
       lemma_language = input$lemma_language %||% "es", pos_filter = isTRUE(input$pos_filter), pos_keep = if (isTRUE(input$pos_filter)) input$pos_keep %||% character() else c("NOUN", "PROPN", "ADJ"),
       normalize_labels = isTRUE(input$normalize_labels %||% TRUE), remove_boilerplate = isTRUE(input$remove_boilerplate %||% TRUE),
       metadata_sep = input$metadata_sep %||% ";", authors_sep=input$authors_sep %||% "auto", keywords_sep=input$keywords_sep %||% "auto", filter_col = if (isTRUE(input$value_filter)) input$filter_col %||% "" else "",
-      filter_value = if (isTRUE(input$value_filter)) input$filter_value %||% "" else "")
+      filter_value = if (isTRUE(input$value_filter)) input$filter_value %||% "" else "",
+      corpus_selection = selection_settings())
     provenance <- list(base_de_datos = input$source_db %||% "", ecuacion_busqueda = input$search_query %||% "",
       fecha_extraccion = input$extraction_date %||% "", criterios = input$inclusion %||% "")
     list(mapping = mapping, config = config, question = input$question %||% "", provenance = provenance)
@@ -298,6 +299,8 @@ app_server <- function(input, output, session) {
     export_corpus$lda_document_view<-if(!is.null(lda))list(ids=lda_display_documents()$doc_id,criterio=if(identical(input$lda_document_mode,"selected"))"Selecci\u00f3n expl\u00edcita por ID, t\u00edtulo o DOI" else "P\u00e1gina / orden de la tabla del modelo") else NULL
     export_bundle(dir, p, export_corpus, rv$bib, lda, ca, prompt, density = density, raw = rv$raw, network = network, comparison = comparison, pca = pca,subgraph=subgraph,reader=wiki_export_current(),
       lda_selection = kselect_current(), density_sens = dsens_current())
+    thematic <- thematic_current()
+    if (!is.null(thematic)) write_thematic_bundle(file.path(dir, "mapa_tematico"), thematic)
     graphs <- list(); omitted <- data.frame(grafico = character(), motivo = character(), stringsAsFactors = FALSE)
     why <- function(e) if (inherits(e, "shiny.silent.error") || !nzchar(conditionMessage(e))) "No disponible con el estado actual de la aplicaci\u00f3n." else conditionMessage(e)
     note_omitted <- function(name, reason) omitted <<- rbind(omitted, data.frame(grafico = name, motivo = reason, stringsAsFactors = FALSE))
@@ -314,6 +317,9 @@ app_server <- function(input, output, session) {
     if(nrow(token_view())) add_graph("terminos_comparacion", token_bars_graph())
     if (nrow(rv$bib$annual)) add_graph("evolucion_anual", annual_graph())
     if (nrow(rv$bib$sources)) add_graph("fuentes", sources_graph())
+    regularities <- regularities_current()
+    for (kind in c("lotka", "bradford", "zipf"))
+      add_graph(paste0("regularidad_", kind), regularity_plot(regularities, kind))
     if (nrow(rv$corpus$terms)) add_graph("palabras", terms_graph())
     if (nrow(gram_data())) add_graph("ngramas", bigrams_graph())
     if (!is.null(lda)) add_graph("temas_lda", lda_graph())
@@ -360,6 +366,10 @@ app_server <- function(input, output, session) {
     })
   })
   source_app_module("extensions.R", environment())
+  source_app_module("model_parameter_help.R", environment())
+  source_app_module("corpus_selection.R", environment())
+  source_app_module("regularities.R", environment())
+  source_app_module("thematic.R", environment())
   source_app_module("wiki.R", environment())
   source_app_module("v5_guidance.R", environment())
 }

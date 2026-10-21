@@ -31,9 +31,9 @@ density_membership_graph <- reactive({
 })
 output$density_membership_plot <- renderPlot(density_membership_graph(), res = 96)
 
-output$ca_search <- renderUI({ fit <- ca_current(); if (is.null(fit)) return(NULL)
+output$ca_search <- renderUI(model_parameter_guidance({ fit <- ca_current(); if (is.null(fit)) return(NULL)
   selectizeInput("ca_focus", "Localizar un término · útil cuando varios puntos coinciden", c("Vista general" = "", setNames(fit$terms$termino, fit$terms$termino)), selected = "")
-})
+}))
 output$ca_detail <- renderUI({ fit <- ca_current(); req(!is.null(fit)); term <- input$ca_focus %||% ""; if (!term %in% fit$terms$termino) return(hint("Pasa el cursor o busca un término. Los términos con perfiles idénticos pueden coincidir en el plano; la tabla permite consultar todos."))
   d <- fit$terms[fit$terms$termino == term, ]
   tags$p(class = "chart-caption", sprintf("%s · cos² %.3f · contribución eje 1 %.2f%% · contribución eje 2 %.2f%% · masa %.4f. Cos² indica calidad de representación; contribución indica participación en el eje.", term, d$cos2_plano, d$contribucion_eje_1, d$contribucion_eje_2, d$masa))

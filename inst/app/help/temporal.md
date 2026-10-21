@@ -8,17 +8,13 @@ fuentes:
 
 ## 1. Conceptos fundamentales: volumen, peso relativo y curva
 
+**Para situarte.** El grupo es una agrupación ya calculada por UMAP + HDBSCAN. Fijo significa que se mantiene la misma asignación de documentos al comparar años. Un denominador anual es el total de documentos del modelo con ese año válido, incluidos los no asignados a ningún grupo.
+
 **Lo que quieres saber.** Si un grupo de documentos gana o pierde presencia con el tiempo.
 
 **Lo que se calcula realmente.** Los grupos de UMAP con HDBSCAN se estimaron una sola vez con el corpus completo; estas figuras no entrenan un tema nuevo para cada fecha. Las **barras** cuentan los documentos de cada grupo fijo por año, y responden a «¿cuántos?». Las **proporciones** dividen los documentos de un grupo entre todos los documentos del modelo con ese año, incluidos los sin asignar, y responden a «¿qué parte del año?». Son dos historias distintas: volumen y peso relativo.
 
-Una **spline penalizada** resume cambios de forma suave en lugar de conectar los puntos con segmentos rígidos. La aplicación ajusta un modelo de un grupo frente al resto, con enlace logit y dispersión estimada; la penalización limita las curvas excesivamente onduladas. Su validez depende de la cobertura, de la clasificación, de los supuestos y de los residuos: más suavidad no garantiza más verdad.
-
-> **La analogía cotidiana:**
->
-> Es como mirar la audiencia de un programa: puede aumentar el número de espectadores y, a la vez, disminuir su cuota si todos los programas ganan público. Cantidad y cuota son lecturas legítimas, pero distintas.
->
-> **Dónde deja de servir la analogía:** una cuota de audiencia se mide con datos continuos y ciclos regulares. Aquí cada punto es un año de publicación agregado: se pierde lo ocurrido dentro del año, y la curva solo une puntos anuales.
+Una **spline penalizada** resume cambios de forma suave en lugar de conectar los puntos con segmentos rígidos. La aplicación ajusta un modelo de un grupo frente al resto, estimando proporciones entre 0 y 1 y permitiendo que su variabilidad difiera de la de un modelo binomial simple; la penalización limita la ondulación que no queda respaldada por los datos. Los detalles matemáticos están en la nota técnica. Su validez depende de la cobertura, de la clasificación, de los supuestos y de los residuos: más suavidad no garantiza más verdad.
 
 ## 2. Ejemplo práctico: el volumen se duplica, el peso baja
 
@@ -35,12 +31,12 @@ La **estacionalidad** es la repetición ligada a un ciclo regular, como cada mes
 1. **Empieza por los puntos y la tabla.** Elige *Documentos por año* o *Proporciones observadas* y consulta la tabla de conteos y denominadores.
 2. **Lee juntas cantidad y proporción.** Veinte documentos pueden ser más que diez y, a la vez, representar una parte menor si el corpus anual creció mucho.
 3. **Ajusta una spline solo si procede.** La opción *Spline penalizada* exige al menos 10 años observados y, en cada uno, al menos 5 documentos del modelo con año válido; además, el grupo no puede estar ausente ni reunir todos los documentos de todos los años. Son límites de la herramienta para evitar curvas con pocos puntos, no garantías estadísticas.
-4. **Revisa los diagnósticos.** La tabla de diagnósticos incluye los años observados, los grados de libertad efectivos del suavizado, la dispersión estimada y la autocorrelación residual a un año.
+4. **Revisa los diagnósticos.** La tabla informa de los años observados y de la flexibilidad efectivamente utilizada (grados de libertad). También resume la variabilidad no explicada y si los errores de un año se relacionan con los del siguiente (autocorrelación residual). Error o residuo es la diferencia entre lo observado y lo que estima la curva; una relación temporal entre errores exige revisar sus supuestos.
 5. **Consulta el vocabulario por año.** La tabla de palabras muestra el vocabulario observado dentro de un grupo en cada año; no equivale a estimar que la distribución temática evolucione dentro de un modelo dinámico.
 
 ## 4. Cómo leer la figura sin errores de interpretación
 
-**La banda no incluye todos los errores posibles.** Es una banda puntual (±1,96 errores típicos en la escala logit, llevada a proporción) y condicional: no integra la incertidumbre de la búsqueda, de la clasificación ni de una dependencia temporal no modelada.
+**La banda no incluye todos los errores posibles.** Describe la incertidumbre aproximada de la proporción estimada en cada momento, bajo el modelo ajustado. No es una garantía simultánea para toda la curva. Es condicional: no integra la incertidumbre de la búsqueda, de la clasificación ni de una dependencia temporal no modelada.
 
 **La curva no es un pronóstico ni una prueba de causalidad.** Resume proporciones observadas con suavidad cuando la cobertura permite ajustarla; si faltan años o hay pocas observaciones, los puntos y sus denominadores ofrecen una lectura más defendible que una curva forzada.
 

@@ -6,17 +6,13 @@ fuentes:
 
 ## 1. Conceptos fundamentales: la base de cada cálculo
 
+**Para situarte.** El corpus preparado es el conjunto de documentos conservados en 02. Cada campo es una columna, como año o revista. El denominador es la cantidad por la que se divide al calcular un porcentaje: 30 documentos con dato entre 100 preparados dan una cobertura del 30 %.
+
 **Lo que quieres saber.** Cuántos documentos sostienen realmente cada resultado, y si los que faltan alteran la lectura.
 
 **Lo que se calcula realmente.** La **cobertura** es la disponibilidad de datos para un cálculo: el total preparado indica cuántos documentos estudias, y los recuentos por campo (con año, con autores, con fuente, con referencias, con citas) indican cuántos pueden contribuir a cada análisis. Una cifra calculada con una parte del corpus describe esa parte; no representa automáticamente a los registros que no tienen el dato.
 
 Un dato **ausente** no equivale a cero ni a «no existe»: significa que no está disponible en tu archivo. Por eso la aplicación no rellena valores ausentes con ceros ni con nombres inferidos.
-
-> **La analogía cotidiana:**
->
-> Es como calcular la nota media de una clase cuando solo han entregado el examen treinta alumnos de cien: la media describe a esos treinta, y los setenta restantes no tienen nota cero, tienen nota desconocida.
->
-> **Dónde deja de servir la analogía:** en una clase sabes quién falta. En un archivo bibliográfico los registros incompletos suelen concentrarse en una fuente o un periodo, y la parte conocida puede tener una composición distinta de la parte desconocida.
 
 ## 2. Ejemplo práctico: cien documentos, treinta con referencias
 
@@ -42,7 +38,7 @@ Dos preguntas orientan la lectura. La primera es qué fracción del corpus aport
 
 **La cobertura puede cambiar entre bases de datos.** Un campo bien informado en una exportación puede venir vacío en otra.
 
-**Qué comprobar.** Que la base de cada resultado está declarada, que los faltantes no se concentran en un subconjunto y que ninguna cifra interpreta lo ausente como cero.
+**Qué comprobar.** Que la base de cada resultado está declarada, si los datos ausentes se concentran en determinados años o fuentes y cómo limita eso el resultado y que ninguna cifra interpreta lo ausente como cero.
 
 ## 5. Pautas para documentar y redactar tu decisión
 

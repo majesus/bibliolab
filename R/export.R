@@ -15,6 +15,8 @@ report_html <- function(prepared, corpus, bibliography, lda = NULL, ca = NULL, d
     part("Pregunta de investigaci\u00f3n", escape_html(prepared$question %||% "No indicada")),
     if(!is.null(prepared$import_info)) part("Importaci\u00f3n Excel",paste0("Se ley\u00f3 la hoja ",escape_html(prepared$import_info$sheet)," mediante readxl ",escape_html(prepared$import_info$reader_version),". Se conservaron las columnas y sus valores; se muestran los encabezados ajustados para evitar ambig\u00fcedad. La relaci\u00f3n completa est\u00e1 en importacion_encabezados.csv. ",escape_html(prepared$import_info$note)),prepared$import_info$headers[prepared$import_info$headers$corregido,,drop=FALSE]),
     part("Trazabilidad", paste0("Fuente local: ", escape_html(prepared$source_name), ". Fecha de preparaci\u00f3n: ", escape_html(prepared$prepared_at), "."), prepared$audit),
+    if (!is.null(prepared$selection)) part("Selecci\u00f3n documental / qu\u00e9 queda y qu\u00e9 se excluye",
+      "Cada exclusi\u00f3n se atribuye al primer paso que retira el registro. Las medianas utilizan los valores v\u00e1lidos; los datos ausentes no son ceros. Los filtros aplicados constan tambi\u00e9n en seleccion_documental/.", prepared$selection$steps),
     part("Procedencia y b\u00fasqueda", "Los campos vac\u00edos deben completarse antes de presentar un trabajo acad\u00e9mico.",
       if (length(prepared$provenance)) data.frame(campo = names(prepared$provenance), valor = unlist(prepared$provenance)) else data.frame()),
     part("Decisiones de preparaci\u00f3n", "Los par\u00e1metros siguientes describen esta ejecuci\u00f3n; deben acompa\u00f1ar a las tablas.", params),
@@ -24,7 +26,7 @@ report_html <- function(prepared, corpus, bibliography, lda = NULL, ca = NULL, d
       if (length(corpus$models)) data.frame(idioma = names(corpus$models), modelo = vapply(corpus$models, `[[`, "", "file"), md5 = vapply(corpus$models, `[[`, "", "md5"),
         licencia = vapply(corpus$models, function(m) m$licencia %||% "no registrada", ""), origen = vapply(corpus$models, function(m) m$origen %||% "no registrado", "")) else data.frame()),
     part("Asignaci\u00f3n de columnas", "Campos elegidos en el archivo importado.", data.frame(campo = names(prepared$mapping), columna = unlist(prepared$mapping))),
-    if(!is.null(prepared$language_audit)) part("Idiomas / estimaci\u00f3n y decisiones", if(is.null(cfg$language_detection)) "Estimaci\u00f3n autom\u00e1tica desactivada: se aplican etiquetas reconocidas del archivo y correcciones manuales." else "CLD2 analiza localmente cada texto. Se conservan etiquetas reconocidas del archivo y las correcciones manuales tienen prioridad. Proporci\u00f3n clasificada no es probabilidad de acierto. Los casos inciertos, breves, mezclados o sin modelo requieren revisi\u00f3n.", prepared$language_audit),
+    if(!is.null(prepared$language_audit)) part("Idiomas / estimaci\u00f3n y decisiones", if(is.null(cfg$language_detection)) "Estimaci\u00f3n autom\u00e1tica desactivada: se aplican nombres o c\u00f3digos de idioma reconocidos en el archivo y correcciones manuales." else "CLD2 analiza localmente cada texto. Se conservan nombres o c\u00f3digos de idioma reconocidos en el archivo y las correcciones manuales tienen prioridad. Proporci\u00f3n clasificada no es probabilidad de acierto. Los casos inciertos, breves, mezclados o sin modelo requieren revisi\u00f3n.", prepared$language_audit),
     part("Calidad y cobertura", paste(escape_html(c(prepared$issues, corpus$issues)), collapse = "<br>")),
     part("Indicadores del corpus", "Los datos faltantes se excluyen de los c\u00e1lculos de citas. El \u00edndice h de esta tabla describe el corpus completo. La tabla de autores ofrece h restringido a las publicaciones de cada autor en esta b\u00fasqueda, junto con cobertura de citas; no describe su carrera completa.", bibliography$overview),
     part("Evoluci\u00f3n anual", "Frecuencia entre documentos con a\u00f1o v\u00e1lido. Un a\u00f1o ausente en esta tabla no prueba ausencia de publicaciones del campo. El \u00faltimo a\u00f1o puede ser parcial.", bibliography$annual),
@@ -35,6 +37,13 @@ report_html <- function(prepared, corpus, bibliography, lda = NULL, ca = NULL, d
     part("Frecuencias y TF-IDF", paste0("Presencia por documento; TF-IDF por ", if (cfg$split_sentences) "frase" else "documento", ". IDF = log(N/df), media sobre todas las unidades con palabras antes del filtro de vocabulario. Frecuencias mostradas antes del filtro de modelos."), corpus$terms),
     part("Bigramas", "Pares de palabras adyacentes en el original, sin unir a trav\u00e9s de puntuaci\u00f3n o palabras eliminadas. Se cuenta presencia una vez por documento.", corpus$bigrams))
   if(!is.null(corpus$ngrams)) sections<-c(sections,part("N-gramas / frecuencia y distribuci\u00f3n","Secuencias adyacentes normalizadas, antes del l\u00edmite de vocabulario de modelos. TF-IDF y entrop\u00eda por documento; no son pruebas de colocaci\u00f3n.",corpus$ngrams))
+  regularities <- biblio_regularities(prepared, corpus, bibliography)
+  sections <- c(sections,
+    part("Regularidades / cobertura", "Distribuciones descriptivas de la preparaci\u00f3n vigente; no se realiza un contraste estad\u00edstico de leyes.", regularities$cobertura),
+    part("Lotka / productividad de autores", "Referencia de exponente 2 normalizada al total de autores, sobre 1 hasta la productividad m\u00e1xima observada. Conteo completo de firmas; no representa carreras completas.", regularities$lotka),
+    part("Bradford / tres zonas", "Fuentes completas ordenadas por documentos; cada corte incluye la primera fuente que alcanza un tercio o dos tercios. Los tercios pueden ser desiguales y puede haber zonas vac\u00edas. Empates resueltos por nombre; las razones no prueban una ley.", regularities$bradford$zonas),
+    part("Bradford / fuentes y asignaci\u00f3n", "Se excluyen documentos sin fuente. Una fuente no se divide entre zonas.", regularities$bradford$fuentes),
+    part("Zipf / rango y frecuencia", "Referencia de exponente 1 normalizada a las apariciones de todo el vocabulario evaluado tras limpiar el texto, antes del filtro de modelos. No usa TF-IDF ni presencia documental. Las decisiones de limpieza condicionan la distribuci\u00f3n.", regularities$zipf))
   if(!is.null(bibliography$extensiones)) sections<-c(sections,
     part("Cobertura de metadatos bibliogr\u00e1ficos","La falta de referencias impide analizar cocitaci\u00f3n o acoplamiento.",bibliography$extensiones$cobertura),
     part("Referencias citadas","Presencia por documento citante y cadena normalizada exacta, no citas recibidas ni desambiguaci\u00f3n aproximada.",bibliography$extensiones$referencias),
@@ -43,7 +52,7 @@ report_html <- function(prepared, corpus, bibliography, lda = NULL, ca = NULL, d
   if(exists("model_comparison_table",mode="function")) sections<-c(sections,part("Resumen de modelos vigentes","Representaciones y resultados distintos; no existe un ganador por una puntuaci\u00f3n com\u00fan.",model_comparison_table(lda,density,pca,ca,prepared,corpus$pca_view$axes %||% c(1L,2L))))
   if (!is.null(lda)) sections <- c(sections,
     part("LDA: t\u00e9rminos por tema", paste0("Modelo exploratorio Gibbs; k = ", lda$params$k, "; semilla = ", lda$params$seed, "; iteraciones = ", lda$params$iterations,
-      "; alpha = ",lda$params$alpha,"; delta = ",lda$params$delta,"; burn-in = ",lda$params$burnin,"; thin = ",lda$params$thin,". Usa conteos enteros. Las etiquetas requieren lectura y revisi\u00f3n de estabilidad. Beta es P(palabra|tema)."), lda$top),
+      "; alpha = ",lda$params$alpha,"; delta = ",lda$params$delta,"; burn-in = ",lda$params$burnin,"; thin = ",lda$params$thin,". Usa conteos enteros. Los nombres propuestos para los temas requieren lectura de documentos y comprobaci\u00f3n de sensibilidad entre ejecuciones. Beta es P(palabra|tema)."), lda$top),
     part("LDA: proporciones medias", "Media entre documentos; con frases se promedian primero las proporciones entre frases retenidas de cada documento.", lda$prevalence),
     part("LDA: documentos para leer", "La proporci\u00f3n tem\u00e1tica orienta la selecci\u00f3n, sin demostrar representatividad del campo.", lda$examples))
   if (!is.null(ca)) sections <- c(sections,
@@ -52,7 +61,7 @@ report_html <- function(prepared, corpus, bibliography, lda = NULL, ca = NULL, d
   if (!is.null(density)) sections <- c(sections,
     part("UMAP / HDBSCAN: representaci\u00f3n", paste0(escape_html(density$representation$type), ". ", paste(escape_html(density$issues), collapse = "<br>"))),
     part("UMAP / HDBSCAN: grupos", "Grupo 0 conserva los documentos sin asignar. El grado de pertenencia al grupo es una medida estimada; no una probabilidad tem\u00e1tica calibrada.", density$summary),
-    part("Grupos: palabras c-TF-IDF", "TF normalizado por palabras de cada clase; IDF = log(1 + A/f_t). Las etiquetas requieren lectura de originales.", density$terms),
+    part("Grupos: palabras c-TF-IDF", "TF normalizado por palabras de cada clase; IDF = log(1 + A/f_t). Los nombres propuestos para los grupos requieren leer sus documentos originales.", density$terms),
     part("Grupos: documentos para leer", "Los grados de pertenencia orientan la selecci\u00f3n; no prueban representatividad del campo.", density$examples))
   if (!is.null(network)) sections <- c(sections, part("Red: definici\u00f3n y par\u00e1metros", escape_html(network$note), data.frame(parametro = names(network$params), valor = vapply(network$params,function(v)if(!length(v)) "Ninguna" else paste(fmt_value(v),collapse="; "),""))),
     part("Red: indicadores del grafo filtrado", paste("Centralidades sin pesos en rutas; fuerza y comunidades con pesos.",if(isTRUE(network$params$remove_isolates)) "Aislados retirados y m\u00e9tricas recalculadas." else "Aislados conservados."), network$summary),
@@ -74,7 +83,7 @@ report_html <- function(prepared, corpus, bibliography, lda = NULL, ca = NULL, d
     "</style></head><body><p>BIBLIOMETR\u00cdA \u00b7 CUADERNO DE RESULTADOS</p><h1>Informe de la ejecuci\u00f3n</h1><p>Versi\u00f3n ", BIBLIO_VERSION,
     ". Este informe contiene descripciones y tablas; las interpretaciones cient\u00edficas requieren revisi\u00f3n humana.</p>",
     if (isTRUE(prepared$is_demo)) "<p><strong>PR\u00c1CTICA: datos sint\u00e9ticos ficticios. No utilizar como evidencia acad\u00e9mica real.</strong></p>" else "",
-    paste(sections, collapse = "\n"), "<section><h2>Informaci\u00f3n por completar para el m\u00e9todo</h2><p>Base de datos, consulta completa, fecha de extracci\u00f3n, criterios de inclusi\u00f3n/exclusi\u00f3n y validaci\u00f3n de etiquetas tem\u00e1ticas. La aplicaci\u00f3n no puede inferirlos del archivo.</p></section></body></html>")
+    paste(sections, collapse = "\n"), "<section><h2>Informaci\u00f3n por completar para el m\u00e9todo</h2><p>Base de datos, consulta completa, fecha de extracci\u00f3n, criterios de inclusi\u00f3n/exclusi\u00f3n y revisi\u00f3n de los nombres propuestos para los temas. La aplicaci\u00f3n no puede inferirlos del archivo.</p></section></body></html>")
 }
 #' Exporta una entrega reproducible
 #'
@@ -166,6 +175,8 @@ export_bundle <- function(directory, prepared, corpus, bibliography, lda = NULL,
     anotacion_linguistica = corpus$annotation, bigramas = corpus$bigrams, ngramas = corpus$ngrams %||% data.frame(),
     indicadores = bibliography$overview, evolucion_anual = bibliography$annual, fuentes = bibliography$sources,
     autores = bibliography$authors, palabras_clave = bibliography$keywords, documentos_citados = bibliography$cited)
+  tables <- c(tables, regularity_tables(biblio_regularities(prepared, corpus, bibliography)))
+  if (!is.null(prepared$selection)) selection_export(file.path(directory, "seleccion_documental"), prepared)
   if(!is.null(bibliography$extensiones)) tables <- c(tables,setNames(bibliography$extensiones,paste0("bibliografia_",names(bibliography$extensiones))))
   if(!is.null(bibliography$normalizacion)) tables$bibliografia_normalizacion <- bibliography$normalizacion
   if(!is.null(prepared$language_audit)) tables$idiomas_asignacion<-prepared$language_audit

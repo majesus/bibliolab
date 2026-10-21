@@ -2,8 +2,8 @@ cff-version: 1.2.0
 message: "Si utiliza este software, cítelo con estos metadatos."
 title: "bibliolab: análisis bibliométrico y de textos, guiado y reproducible"
 type: software
-version: 5.0.3
-date-released: 2026-10-17
+version: 5.0.5
+date-released: 2026-10-20
 license: MIT
 repository-code: "https://github.com/majesus/bibliolab"
 authors:

@@ -1,3 +1,35 @@
+# bibliolab 5.0.5
+
+- Revisa la claridad de las 32 guías, las ayudas contextuales y las lecturas
+  de resultados: define términos en su contexto y distingue medidas numéricas,
+  estabilidad entre ejecuciones e interpretación científica, sin cambiar cálculos.
+- Revisa las fichas y guías de los cinco análisis de 04 / Modelos y añade
+  orientación contextual a sus decisiones: significado, punto de partida,
+  efecto del cambio, comprobaciones y límites, sin modificar los cálculos.
+- Distingue ajustes, controles de lectura y análisis temporal; precisa la
+  resolución de Louvain y el uso de minPts, alpha y min_dist en esta aplicación.
+- Añade una previsualización documental de los filtros en 02, con trazabilidad
+  secuencial, resumen del corpus retenido y excluido, y distribución anual.
+- Los filtros documentales adicionales se aplican al preparar y se conservan
+  en la reproducción, con correspondencia explícita para Scopus y WoS.
+- Mantiene los cálculos de los modelos y los criterios previos de duplicados
+  y muestreo; los nuevos filtros son opcionales.
+
+# bibliolab 5.0.4
+
+- Incorpora en 04 / Modelos un mapa temático de centralidad y densidad de
+  Callon, con copresencia documental, índice de equivalencia y Louvain.
+  Permite palabras clave o vocabulario preparado, documenta cortes y límites,
+  y exporta figuras, tablas y reproducción sin modificar los motores previos.
+- Incorpora en 03 / Indicadores las regularidades descriptivas de Lotka,
+  Bradford y Zipf, con cobertura, tablas completas, gráficos y referencias
+  clásicas explícitas. No se presentan como contrastes estadísticos de leyes.
+- Organiza la interfaz en bloques y subbloques titulados y numerados,
+  con bordes finos y fondos suaves. Conserva controles, valores y condiciones.
+- Añade las tablas de regularidades al informe y a la entrega reproducible,
+  y permite descargarlas desde su propia pestaña.
+- Mantiene los motores anteriores de preparación y análisis.
+
 # bibliolab 5.0.3
 
 Revision a partir de la auditoria del commit f6a57da3 (version 5.0.2). Cada punto cita su

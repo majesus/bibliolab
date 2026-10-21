@@ -7,17 +7,13 @@ fuentes:
 
 ## 1. Conceptos fundamentales: qué describen los indicadores
 
+**Para situarte.** El corpus preparado contiene los documentos conservados en 02. Fuente significa el lugar de publicación, por ejemplo una revista o un libro. Un porcentaje necesita una base: si solo 80 documentos tienen revista conocida, un porcentaje por revista puede estar calculado sobre esos 80 y no sobre todo el corpus.
+
 **Lo que quieres saber.** Cuántos documentos hay, cuándo se publicaron, dónde, quién los firma y cuánto se citan, y hasta qué punto puedes fiarte de esas cifras.
 
 **Lo que se calcula realmente.** Los indicadores **describen el corpus preparado**, es decir, los documentos que han superado los filtros de 02. La producción cuenta documentos por año. Las fuentes, los autores y las palabras clave cuentan en cuántos documentos aparece cada elemento (**presencia documental**: un autor que firma un documento dos veces cuenta una vez). Las citas registradas provienen de la base de datos y de la fecha de extracción.
 
 La **cobertura** es la disponibilidad de información. Si falta el año de un documento, no se sabe dónde situarlo en el tiempo; si falta su número de citas, no se sabe si recibió cero citas o si el dato no se exportó. Los resultados que dependen de un campo se calculan solo con los registros válidos para ese campo, y la cobertura permite ver cuántos son.
-
-> **La analogía cotidiana:**
->
-> Es como el cuadro de mandos de un coche: cada indicador es útil, pero ninguno dice nada sobre el motor si el sensor no está conectado. Un cuadro con la aguja a cero puede significar «sin consumo» o «sensor desconectado».
->
-> **Dónde deja de servir la analogía:** en un coche, el sensor desconectado suele avisar con un piloto. Aquí, un valor ausente se muestra como ausente en la cobertura, pero nada te avisa de que la búsqueda original dejó fuera documentos relevantes.
 
 ## 2. Ejemplo práctico: dos autores, diez citas y un índice h
 
@@ -45,7 +41,7 @@ Un ranking es una puerta de entrada a los documentos, no una conclusión. Si una
 
 **Las citas recibidas no son las referencias citadas.** Las primeras vienen de la base de datos y cuentan cuántas veces se cita un documento; las segundas son la bibliografía que el documento utiliza. Ninguna prueba calidad por sí sola.
 
-**Producción y citas no prueban calidad, causalidad ni exhaustividad.** Un aumento de documentos sobre un tema describe el corpus recuperado; solo sustenta un aumento de interés del campo si has comprobado que la producción total, la búsqueda y la completitud del último año no explican el cambio.
+**Producción y citas no prueban calidad, causalidad ni exhaustividad.** Un aumento de documentos sobre un tema describe el corpus recuperado; requiere contrastar producción total, búsqueda, cobertura y si el último año está completo antes de relacionarlo con el interés del campo. Aun así, el recuento por sí solo no identifica las razones del cambio.
 
 **Un ranking no es una evaluación.** Antes de hablar de una tendencia del campo, distingue lo observado en esta búsqueda de lo que podría ocurrir fuera de ella.
 

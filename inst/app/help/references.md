@@ -7,17 +7,13 @@ fuentes:
 
 ## 1. Conceptos fundamentales: citas recibidas no son referencias citadas
 
+**Para situarte.** Campo significa columna del archivo. Cobertura indica cuántos documentos tienen el dato que necesita un cálculo. Cohorte del mismo año significa los documentos del corpus publicados en ese año: no es una población externa de referencia.
+
 **Lo que quieres saber.** Qué información bibliográfica tiene tu corpus y qué análisis permite, antes de construir redes de referencias o comparar citas.
 
 **Lo que se calcula realmente.** Las **citas recibidas** son el número que comunica la base de datos para cada documento (la columna de citas). Las **referencias citadas** son las obras que figuran en la bibliografía de cada documento (la columna de referencias, separadas por el delimitador que elegiste). Una cifra no permite reconstruir la otra: saber que un documento recibió 10 citas no dice qué obras cita.
 
 Esta pestaña ofrece cuatro tablas. La **cobertura** cuenta, por campo, cuántos documentos tienen un valor válido. El **ranking de referencias** cuenta en cuántos documentos del corpus figura cada obra citada. La **concentración de fuentes** acumula documentos por revista (ver su guía). Las **citas relativas a la cohorte** dividen las citas de cada documento entre la media de citas válidas del mismo año en este corpus.
-
-> **La analogía cotidiana:**
->
-> Es la diferencia entre saber cuántas personas te han mencionado en una conversación (citas recibidas) y tener la lista de personas a las que has mencionado tú (referencias citadas): dos listas distintas que no se deducen una de otra.
->
-> **Dónde deja de servir la analogía:** en una conversación identificas a cada persona sin ambigüedad. Aquí una misma obra puede estar escrita de varias maneras, y la aplicación solo identifica cadenas de texto iguales tras normalizar espacios y mayúsculas.
 
 ## 2. Ejemplo práctico: un corpus de diez documentos
 
@@ -50,7 +46,7 @@ La tabla de cobertura limita lo que puedes afirmar: con bibliografía en el 40 %
 
 ## 4. Cómo leer las tablas sin errores de interpretación
 
-**Ausente no significa cero.** Un documento sin citas registradas no tiene cero citas: no se conoce su cifra. Lo mismo vale para referencias, año o fuente.
+**Ausente no significa cero.** Un documento sin dato de citas tiene una cifra desconocida. Es distinto de un documento cuyo dato de citas es 0. Lo mismo vale para referencias, año o fuente.
 
 **El ranking cuenta documentos del corpus, no citas globales.** Una obra muy citada en la literatura puede aparecer poco si tu búsqueda recoge pocos documentos que la citen.
 

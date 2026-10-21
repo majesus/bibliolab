@@ -7,17 +7,13 @@ fuentes:
 
 ## 1. Conceptos fundamentales: prevalencia anual de un tema fijo
 
+**Para situarte.** La prevalencia anual es la media de las proporciones de un tema entre los documentos de ese año. Por ejemplo, proporciones de 20 % y 60 % en dos documentos dan una media del 40 %. No significa que el 40 % de los artículos pertenezca exclusivamente a ese tema.
+
 **Lo que quieres saber.** Si un tema ocupa más o menos espacio en los documentos con el paso de los años.
 
 **Lo que se calcula realmente.** La LDA de la aplicación se ajusta **una sola vez** con el corpus completo. Las distribuciones de palabras de cada tema permanecen fijas durante toda la ejecución. Después, las mezclas de temas de los documentos se agrupan por año y se calcula la **proporción media** de cada tema entre los documentos de ese año. Eso responde a «¿cuánto participa el tema en los documentos de cada año?», sin cambiar la definición del tema.
 
-Un **modelo dinámico de temas** hace otra pregunta: introduce el tiempo en el proceso generativo y permite que las distribuciones de palabras de cada tema evolucionen entre periodos (Blei y Lafferty, 2006). Ajustar varias LDA por separado, una por periodo, tampoco lo sustituye: los identificadores y las distribuciones de los temas pueden cambiar entre ajustes, y habría que alinearlos y validarlos.
-
-> **La analogía cotidiana:**
->
-> Es como medir cuántos libros de una estantería con etiqueta fija («cocina») se prestan cada año. Puedes decir que el préstamo de esa sección aumentó, pero no que el contenido de los libros de cocina haya cambiado.
->
-> **Dónde deja de servir la analogía:** una estantería asigna cada libro a una sola sección. En LDA, cada documento es una mezcla de temas, y la media anual es una media de mezclas: no equivale a contar artículos que pertenezcan exclusivamente a un tema.
+Un **modelo dinámico de temas** hace otra pregunta: incorpora el tiempo dentro de la estimación del modelo y permite que las probabilidades asignadas a las palabras de cada tema evolucionen entre periodos (Blei y Lafferty, 2006). Ajustar varias LDA por separado, una por periodo, tampoco lo sustituye: los identificadores y las distribuciones de los temas pueden cambiar entre ajustes, y habría que alinearlos y validarlos.
 
 ## 2. Ejemplo práctico: de 20 % a 35 %
 
@@ -29,10 +25,10 @@ Es un cambio de prevalencia de un tema fijo: en los documentos del segundo año,
 
 ## 3. Flujo de trabajo en la aplicación: paso a paso
 
-1. **Calcula primero la LDA** y revisa y etiqueta los temas (ver la guía de etiquetas).
+1. **Calcula primero la LDA** y revisa los temas y propón sus nombres leyendo palabras y documentos (ver Nombrar un tema).
 2. **Abre *Prevalencia por año*.** Los puntos y la tabla conservan las medias anuales observadas.
 3. **Decide si usas líneas suavizadas.** La opción *Líneas spline* redondea los segmentos mediante interpolación cúbica: mantiene los extremos y la suma de los temas, y se interrumpe en los años sin datos. Desmarcada, la figura une los puntos con segmentos rectos. En ningún caso estima tendencias, incertidumbre ni valores de años ausentes.
-4. **Consulta la tabla** para ver cuántos documentos respaldan cada año; una media calculada con pocos documentos es inestable.
+4. **Consulta la tabla** para ver cuántos documentos respaldan cada año; con pocos documentos, uno solo puede modificar mucho la media; comprueba el efecto antes de describir una tendencia.
 5. **Registra la cobertura.** Solo cuentan los documentos con año válido, y los cambios de búsqueda o de idioma a lo largo del tiempo pueden mover la prevalencia.
 
 ## 4. Cómo leer la figura sin errores de interpretación

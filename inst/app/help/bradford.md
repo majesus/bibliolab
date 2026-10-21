@@ -7,17 +7,13 @@ fuentes:
 
 ## 1. Conceptos fundamentales: describir una concentración no es contrastar una ley
 
+**Para situarte.** Fuente es el lugar de publicación que consta en el archivo, por ejemplo una revista. Productividad significa aquí número de documentos de este corpus, no calidad de la revista. Acumulado significa sumar los documentos desde la primera fuente hasta la posición que estás leyendo.
+
 **Lo que quieres saber.** En cuántas revistas se concentra la mayor parte de los documentos de tu corpus.
 
 **Lo que se calcula realmente.** La **curva de concentración de fuentes** ordena las revistas desde la que tiene más documentos, suma sus documentos hasta cada posición y divide esa suma entre todos los documentos *con fuente conocida*. El resultado es el **porcentaje acumulado**: qué parte del corpus reúnen las primeras *k* fuentes. Las líneas del 50 % y del 80 % son referencias descriptivas, no umbrales universales.
 
-La **ley de Bradford** es un planteamiento clásico: ordenadas las revistas por productividad, pueden formarse tres zonas con una cantidad aproximadamente igual de artículos, y el número de revistas que necesita cada zona crece en una razón regular. **Contrastar** esa ley exige definir las zonas, formular un modelo y evaluar su ajuste y sus supuestos. La aplicación presenta el acumulado observado; no realiza ese contraste.
-
-> **La analogía cotidiana:**
->
-> Es como ordenar las tiendas de una ciudad por ventas y ver qué porcentaje del total reúnen las primeras: describes cuánto se concentra el negocio, pero no has comprobado que siga una regla matemática concreta.
->
-> **Dónde deja de servir la analogía:** las ventas de una ciudad son una población completa. Tu corpus es el resultado de una búsqueda, de modo que la concentración que ves depende de cómo la formulaste y de la base de datos consultada.
+La **ley de Bradford** es un planteamiento clásico: ordenadas las revistas por productividad, pueden formarse tres zonas con una cantidad aproximadamente igual de artículos, y el número de revistas que necesita cada zona crece en una razón regular. **Contrastar** esa ley exige definir las zonas, formular un modelo y evaluar su ajuste y sus supuestos. En *Cobertura y referencias* la aplicación presenta el acumulado observado. En *03 / Indicadores → Regularidades → Bradford / fuentes* también forma tres zonas y muestra sus razones descriptivas; no realiza un contraste estadístico.
 
 ## 2. Ejemplo práctico: cinco revistas y ocho documentos
 
@@ -33,7 +29,7 @@ Los resultados proceden de ejecutar el cálculo de la aplicación sobre un corpu
 
 ### Interpretación
 
-La primera revista reúne el 37,5 % de los documentos con fuente conocida; las dos primeras, el 62,5 %. Hacen falta dos fuentes para alcanzar al menos el 50 % y cuatro para alcanzar al menos el 80 %. Los dos documentos sin fuente no entran en el denominador: el 37,5 % es 3 de 8, no 3 de 10. Esta descripción de concentración no estima zonas ni ajusta un modelo: con ocho documentos y cinco revistas no habría base para estimar una razón de zonas.
+La primera revista reúne el 37,5 % de los documentos con fuente conocida; las dos primeras, el 62,5 %. Hacen falta dos fuentes para alcanzar al menos el 50 % y cuatro para alcanzar al menos el 80 %. Los dos documentos sin fuente no entran en el denominador: el 37,5 % es 3 de 8, no 3 de 10. Esta descripción de concentración no estima zonas ni ajusta un modelo: con tan pocos documentos, las zonas serían muy sensibles a cómo se reparten los empates y las fronteras. Aquí se informa solo del acumulado.
 
 ## 3. Flujo de trabajo en la aplicación: paso a paso
 
@@ -63,5 +59,5 @@ Escribe lo observado: «Las primeras [k] fuentes acumularon el [p] % de los docu
 Es una redacción modelo que debes completar con tus cifras. Reserva expresiones como «se confirmó la ley de Bradford» para un contraste específico, con sus zonas, su modelo y su ajuste documentados.
 
 +++ Nota técnica: cálculo
-`bibliography_extensions()` cuenta documentos por fuente (con unificación de variantes de mayúsculas, acentos y puntuación cuando la opción de normalizar etiquetas está activa, como ocurre por defecto), ordena de mayor a menor y calcula `porcentaje_acumulado = 100 · cumsum(documentos) / sum(documentos)`, de modo que el denominador es el total de documentos con fuente no vacía.
+`bibliography_extensions()` cuenta documentos por fuente (con unificación de variantes de mayúsculas, acentos y puntuación cuando la opción de unificar variantes de escritura de nombres está activa, como ocurre por defecto), ordena de mayor a menor y calcula `porcentaje_acumulado = 100 · cumsum(documentos) / sum(documentos)`, de modo que el denominador es el total de documentos con fuente no vacía.
 +++

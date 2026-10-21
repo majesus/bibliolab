@@ -7,15 +7,11 @@ fuentes:
 
 ## 1. Conceptos fundamentales: dos preguntas sobre el mismo conjunto
 
+**Para situarte.** Ponderación es la regla que determina cuánto aporta cada documento al reparto de palabras. Tokens son apariciones de palabras, incluidas las repetidas. Normalizar un documento, en esta comparación, significa convertir sus recuentos de palabras en proporciones que suman 100 %.
+
 **Lo que quieres saber.** Cuánto debe pesar un resumen largo frente a uno breve cuando se describe el vocabulario de un conjunto.
 
 **Lo que se calcula realmente.** Las dos opciones comparan proporciones de palabras; difieren en cómo se construye el reparto de cada conjunto. Con **tokens agrupados** se suman todas las apariciones del conjunto y se dividen por su total: un documento de 400 palabras aporta cuatro veces más palabras que uno de 100. Responde a «¿cómo se reparte el vocabulario total del conjunto?». Con **documentos equilibrados** se normaliza primero cada documento y luego se promedian los repartos: cada documento con vocabulario aporta el mismo peso. Responde a «¿cuál es el perfil de un documento medio?».
-
-> **La analogía cotidiana:**
->
-> Es la diferencia entre el voto por escaños y el voto por personas: según la regla, una circunscripción grande pesa más o pesa igual. Ninguna regla es «la correcta»; cada una responde a una pregunta distinta.
->
-> **Dónde deja de servir la analogía:** en unas elecciones, cada voto es una persona. Aquí la unidad que pesa es la palabra o el documento, y el resultado no equivale a contar qué piensa la mayoría de los autores.
 
 ## 2. Ejemplo práctico: educación y salud
 
@@ -46,7 +42,7 @@ Al agrupar tokens, «clínica» ocupa 2.099 de 19.900 palabras (10,55 %), por en
 
 **Ninguna opción garantiza una verdad conceptual.** Ninguna equivale a medir lo que piensan los autores.
 
-**La dirección de una barra puede depender de la ponderación.** Si una palabra cambia de lado al cambiar de opción, la diferencia está sostenida por pocos documentos largos.
+**La dirección de una barra puede depender de la ponderación.** Si una palabra cambia de lado al cambiar de opción, el resultado depende de la relación entre la longitud de los documentos y el uso de esa palabra. Puede deberse a unos pocos textos extensos o a diferencias de longitud repartidas entre varios; hay que consultar los documentos para distinguirlo.
 
 **Qué comprobar.** Qué documentos aportan la mayor parte de las apariciones de la palabra que te interesa y si el resultado cambia al excluirlos.
 

@@ -6,17 +6,13 @@ fuentes:
 
 ## 1. Conceptos fundamentales: una skill es un protocolo, no un autor
 
+**Para situarte.** Una skill es un conjunto de instrucciones para una herramienta de asistencia; un prompt es la petición que se le entrega. El registro de afirmaciones es una tabla que relaciona cada cifra del texto con el archivo y el cálculo que la respaldan. Ninguno de estos recursos comprueba por sí solo una interpretación científica.
+
 **Lo que quieres saber.** Cómo usar las skills para redactar o revisar un texto a partir de los resultados de bibliolab sin comprometer la autoría ni la veracidad.
 
-**Lo que se calcula realmente.** Una **skill** es una carpeta de instrucciones reutilizables (un archivo `SKILL.md` con sus referencias) que organiza una tarea. Bibliolab incluye dos: `bibliometria-paper`, que ayuda a preparar Métodos y Resultados y a construir un **registro de afirmaciones** (cada cifra atada a un archivo, una columna y un denominador), y `bibliometria-review`, que ayuda a revisar un borrador contrastándolo con la entrega, con roles de revisión (metodólogo, auditor de reproducibilidad, benevolente, abogado del diablo). No se ejecuta ningún servicio de IA desde la aplicación: nada se envía ni se publica automáticamente.
+**Lo que se calcula realmente.** Una **skill** es una carpeta de instrucciones reutilizables (un archivo `SKILL.md` con sus referencias) que organiza una tarea. Bibliolab incluye dos: `bibliometria-paper`, que ayuda a preparar Métodos y Resultados y a construir un **registro de afirmaciones** (cada cifra atada a un archivo, una columna y un denominador), y `bibliometria-review`, que ayuda a revisar un borrador contrastándolo con la entrega, con revisiones centradas en el método, la reproducción de los cálculos, la claridad de la exposición y las posibles objeciones. No se ejecuta ningún servicio de IA desde la aplicación: nada se envía ni se publica automáticamente.
 
 La pregunta, el argumento, el método, la interpretación y la versión final pertenecen a autores humanos que responden por ellos. Un sistema de IA no puede figurar como autor ni asumir responsabilidad científica.
-
-> **La analogía cotidiana:**
->
-> Es como pedir a un ayudante de laboratorio que prepare una tabla de resultados y señale posibles errores: su trabajo ordena el examen, pero quien firma el informe comprueba las cifras y responde de él.
->
-> **Dónde deja de servir la analogía:** un ayudante humano suele saber cuándo duda. Un borrador asistido puede ser fluido y convincente aun conteniendo una cifra equivocada, una cita inexistente o una conclusión no sostenida, y por eso cada elemento debe comprobarse contra los datos y las fuentes.
 
 ## 2. Ejemplo práctico: de una cifra a una afirmación verificada
 
@@ -47,7 +43,7 @@ La segunda cifra confunde los documentos importados con los analizados: el scrip
 
 **La asistencia no convierte una afirmación en evidencia.** Un texto fluido no es un texto verificado.
 
-**La revisión benevolente aclara; la crítica adversarial busca objeciones.** Ninguno de esos roles valida un resultado por sí mismo: tú decides qué objeción tiene fundamento y compruebas cada corrección.
+**Las revisiones tienen objetivos distintos.** Una ayuda a aclarar el texto; otra busca objeciones y afirmaciones sin respaldo. Ninguno de esos roles valida un resultado por sí mismo: tú decides qué objeción tiene fundamento y compruebas cada corrección.
 
 **Los resultados de bibliolab son descriptivos o exploratorios.** No constituyen prueba confirmatoria ni inferencia causal, y las carencias del corpus (cobertura, sesgos de la base de datos, idioma, normalización de autores) deben declararse en el manuscrito.
 

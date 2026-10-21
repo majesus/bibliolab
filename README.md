@@ -5,16 +5,21 @@
 <!-- badges: end -->
 
 Análisis bibliométrico y de minería de textos, **guiado** para personas sin formación
-técnica y **reproducible** para su uso en investigación. Versión 5.0.3.
+técnica y **reproducible** para su uso en investigación. Versión 5.0.5.
 
 > **Aviso de integridad académica.** bibliolab y sus skills asisten el trabajo del investigador; no sustituyen su criterio ni asumen autoría. Toda salida requiere verificación humana contra las fuentes originales, el uso de IA generativa debe declararse según exijan la institución y la revista, y los resultados son descriptivos o exploratorios, no confirmatorios. Las exportaciones de bases de datos con licencia (Web of Science, Scopus) se rigen por sus términos. El aviso completo, alineado con el Código Europeo de Conducta para la Integridad en la Investigación (ALLEA, 2023), las directrices de la Comisión Europea sobre IA generativa en investigación, el Reglamento (UE) 2024/1689 y el RGPD, está en [`inst/skills/INTEGRIDAD_ACADEMICA.md`](inst/skills/INTEGRIDAD_ACADEMICA.md).
 
 ## Instalación
 
+Para trabajar con la versión utilizada en clase, instala R y ejecuta:
+
 ```r
-# install.packages("remotes")
-remotes::install_github("majesus/bibliolab", dependencies = TRUE)
+install.packages("remotes")
+remotes::install_github("majesus/bibliolab@v5.0.5", dependencies = NA)
 ```
+
+El código fuente de esa versión también puede
+[descargarse como ZIP](https://github.com/majesus/bibliolab/archive/refs/tags/v5.0.5.zip).
 
 Después de instalar el paquete:
 

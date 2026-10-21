@@ -6,17 +6,13 @@ fuentes:
 
 ## 1. Conceptos fundamentales: cuatro formas de contar una misma expresión
 
+**Para situarte.** Un término es una palabra después de la limpieza; un lema es su forma de diccionario, como estudiante para estudiantes. Un n-grama es una secuencia de una, dos o tres palabras consecutivas de ese texto. No se unen palabras que estaban separadas por puntuación o por palabras eliminadas.
+
 **Lo que quieres saber.** Qué expresiones (secuencias de palabras adyacentes) caracterizan tu corpus, y si destacan por repetirse, por estar extendidas o por distinguir unos textos de otros.
 
 **Lo que se calcula realmente.** Un **unigrama** es una unidad léxica; un **bigrama**, dos consecutivas; un **trigrama**, tres. La aplicación cuenta secuencias del texto normalizado, sin cruzar puntuación ni palabras eliminadas. Si has lematizado, las secuencias contienen lemas; si importas raíces ya truncadas (*stems*), contienen esas raíces, y no se recuperan las palabras originales.
 
-Cada expresión recibe cuatro indicadores que responden a preguntas distintas. Las **apariciones totales** cuentan todas las repeticiones. La **presencia documental** cuenta documentos distintos, una vez por documento. El **TF-IDF** pondera cuánto ocupa la expresión en cada documento y cuán rara es entre documentos. La **concentración** vale uno menos la entropía normalizada de Shannon de su reparto entre los documentos del corpus: es 1 si todas las apariciones están en un solo documento y baja cuando se reparten.
-
-> **La analogía cotidiana:**
->
-> Es como valorar cuánto suena una canción: puedes contar las reproducciones totales, cuántas personas distintas la han escuchado, si la escuchan siempre las mismas o si la conocen solo en un grupo concreto de oyentes.
->
-> **Dónde deja de servir la analogía:** una canción se escucha completa. Aquí cada «reproducción» es una coincidencia literal de palabras tras tus filtros, y una expresión de peso alto puede ser una fórmula de escritura, ruido o vocabulario propio de un caso.
+Cada expresión recibe cuatro indicadores que responden a preguntas distintas. Las **apariciones totales** cuentan todas las repeticiones. La **presencia documental** cuenta documentos distintos, una vez por documento. El **TF-IDF** pondera cuánto ocupa la expresión en cada documento y cuán rara es entre documentos. La **concentración** resume cómo se reparten las apariciones entre documentos y se calcula como uno menos la entropía normalizada de Shannon: es 1 si todas las apariciones están en un solo documento y baja cuando se reparten.
 
 ## 2. Ejemplo práctico: dos expresiones con la misma frecuencia
 

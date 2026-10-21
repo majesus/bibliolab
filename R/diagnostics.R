@@ -198,14 +198,14 @@ lda_quality_reading <- function(fit) {
   informative<-any(is.finite(topics$coherencia_npmi))
   best<-if(informative) topics$tema[which.max(topics$coherencia_npmi)] else NA_integer_;weak<-if(informative) topics$tema[which.min(topics$coherencia_npmi)] else NA_integer_
   data.frame(Aspecto=c("Coherencia NPMI","Coherencia UMass","Diversidad","Mezcla tem\u00e1tica","Tema menos prevalente","Traza del ajuste"),
-    Lectura=c(if(informative) sprintf("La NPMI media es %.3f; tema %d tiene la mayor y tema %d la menor. Valores positivos describen coocurrencia superior a la independencia; no hay un corte universal de calidad. Los pares cuyos dos t\u00e9rminos aparecen en todos los documentos no tienen variaci\u00f3n y no cuentan (columna pares_npmi).",v[1],best,weak)
+    Lectura=c(if(informative) sprintf("La NPMI media es %.3f; tema %d tiene la mayor y tema %d la menor. Valores positivos indican que las palabras aparecen juntas m\u00e1s de lo esperado seg\u00fan sus presencias individuales; no hay un corte universal de calidad. Los pares cuyos dos t\u00e9rminos aparecen en todos los documentos no tienen variaci\u00f3n y no cuentan (columna pares_npmi).",v[1],best,weak)
       else "La NPMI no es informativa en esta ejecuci\u00f3n: los t\u00e9rminos principales de todos los temas aparecen en todos los documentos, de modo que su coocurrencia no puede superar la esperada por independencia. No se asigna un valor m\u00e1ximo a esa ausencia de variaci\u00f3n; revisa el vocabulario (presencia m\u00e1xima) o ampl\u00eda el corpus.",
       sprintf("UMass media = %.3f. Compara valores mayores (menos negativos) solo con el mismo corpus, vocabulario y n\u00famero de palabras principales.",v[2]),
       sprintf("Diversidad = %.1f %% de posiciones de palabras principales ocupadas por palabras distintas. El resto repite t\u00e9rminos entre temas; diversidad alta no garantiza temas interpretables.",100*v[3]),
       sprintf("El tema dominante acumula, en promedio, %.1f %% de la mezcla de cada unidad. %.1f %% ser\u00eda una mezcla uniforme con k = %d. El prior alpha y la longitud de los textos tambi\u00e9n condicionan la concentraci\u00f3n.",100*v[4],100/fit$params$k,fit$params$k),
       sprintf("El tema de menor prevalencia re\u00fane %.2f %% de la mezcla media. Un tema peque\u00f1o puede ser espec\u00edfico, redundante o poco definido; el porcentaje por s\u00ed solo no permite decidir.",v[5]),
       if(is.na(d$convergence$converged))"Hay menos de seis estados \u00fatiles; la traza no permite evaluar deriva." else sprintf("La media de log-verosimilitud cambia %.2f %% entre mitades. El criterio de deriva inferior al 1 %% es una comprobaci\u00f3n heur\u00edstica; una sola cadena no demuestra convergencia.",100*d$convergence$relative_change)),
-    Siguiente_paso=c("Lee documentos representativos de los temas de mayor y menor coherencia; comprueba que las palabras sostienen una etiqueta defendible.",
+    Siguiente_paso=c("Lee documentos representativos de los temas de mayor y menor coherencia; comprueba que las palabras sostienen un nombre de tema respaldado por lectura de documentos.",
       "Compara otros k y semillas conservando la preparaci\u00f3n; acompa\u00f1a UMass con NPMI y lectura humana.",
       "Revisa palabras compartidas y solapamiento de documentos; evita elegir k solo para aumentar diversidad.",
       "Consulta las mezclas y contrasta alpha antes de interpretar cada documento como perteneciente a un \u00fanico tema.",
@@ -396,7 +396,7 @@ lda_k_recommendation <- function(summ) {
   spread <- if (any(!is.na(used))) diff(range(used, na.rm = TRUE)) else NA
   conflict <- isTRUE(spread >= 2)
   text <- paste0(
-    if (!is.na(compromise)) paste0("Valor de compromiso (maximin sobre coherencia NPMI, estabilidad y diversidad): k = ", compromise, ". ") else "",
+    if (!is.na(compromise)) paste0("Valor de compromiso (busca la mejor puntuaci\u00f3n del criterio peor situado, entre coherencia de palabras, estabilidad y diversidad): k = ", compromise, ". ") else "",
     if (conflict) "Los criterios apuntan a valores de k distintos: no hay un k dominante; decide leyendo los temas de las soluciones candidatas. " else "Los criterios principales coinciden de forma aproximada, pero confirma el resultado leyendo los temas. ",
     "La perplejidad se muestra a titulo informativo: suele mejorar al aumentar k y no equivale a interpretabilidad (Chang et al., 2009).")
   summary <- criteria[c("criterio", "k_mejor", "valor")]

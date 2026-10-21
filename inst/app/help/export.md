@@ -6,17 +6,13 @@ fuentes:
 
 ## 1. Conceptos fundamentales: qué es una entrega reproducible
 
+**Para situarte.** Una ejecución es un análisis con un archivo y unas decisiones concretas. Vigente significa que las opciones actuales coinciden con las utilizadas para calcularlo. La huella de un archivo es un código, como MD5, que permite comprobar si su contenido ha cambiado; no certifica que los datos sean correctos.
+
 **Lo que quieres saber.** Qué debes guardar y compartir para que tu análisis pueda comprobarse, y cómo usar los borradores asistidos sin comprometer su validez.
 
 **Lo que se calcula realmente.** Una entrega académica debe permitir comprobar qué datos entraron, qué decisiones se aplicaron y de dónde sale cada afirmación. El archivo ZIP reúne las tablas completas en CSV, los parámetros y las advertencias de cada paso (`parametros.json`), el informe en HTML, el informe metodológico (HTML y Markdown), el registro de reproducibilidad con versiones, semillas y huellas de los datos, la entrada original completa en RDS y el script de reproducción. El informe y los gráficos organizan la lectura; las tablas y los parámetros sostienen cada afirmación.
 
 La autoría y la responsabilidad pertenecen siempre a autores humanos. La IA no es autora ni valida resultados: cualquier cifra, referencia, interpretación o texto asistido debe comprobarse contra los datos y las fuentes originales. Usar una respuesta sin esa comprobación puede producir errores o atribuciones falsas. Las *skills* y el banco de prompts son guías de trabajo para el investigador, no sustitutos de su criterio.
-
-> **La analogía cotidiana:**
->
-> Es como entregar un experimento de laboratorio con su cuaderno: no basta con el resultado, hay que dejar el protocolo, las cantidades y los materiales para que otra persona pueda repetirlo y llegar al mismo punto.
->
-> **Dónde deja de servir la analogía:** un cuaderno de laboratorio recoge lo que hiciste, no lo que debiste hacer. La entrega documenta tus decisiones, pero no las valida: que el análisis sea reproducible no significa que sea correcto ni que responda bien a tu pregunta.
 
 ## 2. Ejemplo práctico: de una cifra a una afirmación
 
@@ -32,7 +28,7 @@ La fluidez de un texto asistido no sustituye su verificación. Empieza por una t
 
 1. **Prepara la entrega.** Las descargas se activan cuando hay un corpus preparado y vigente. Un análisis descriptivo puede terminar aquí, sin modelos temáticos. La pantalla agrupa las descargas por objetivo (revisar resultados, informar los métodos, reproducir el cálculo o conservar toda la ejecución). Descarga una entrega por ejecución; conservarlas todas permite comparar decisiones.
 2. **Abre primero el informe HTML** y comprueba una cifra contra su CSV completo. Después verifica que el ZIP incluye los parámetros, la entrada original y el script de reproducción. Si faltan insumos, la entrega se declara parcial y no incluye el script.
-3. **Lee el informe metodológico.** Resume procedimientos, parámetros, diagnósticos de validez y limitaciones, y puede servir de base para el apartado de método.
+3. **Lee el informe metodológico.** Resume procedimientos, parámetros, comprobaciones internas y limitaciones; esas comprobaciones no certifican validez científica, y puede servir de base para el apartado de método.
 4. **Si usas lemas**, se registran el archivo y la huella MD5 de cada modelo; los modelos de UDPipe se descargan por separado y el script comprueba el modelo antes de repetir.
 5. **Revisa el banco de prompts.** Los prompts se muestran antes de copiarse, usan solo resultados vigentes y, por defecto, no incluyen extractos de documentos; si marcas esa opción, se incorporan extractos representativos. La aplicación no envía datos a ningún servicio de IA.
 6. **Verifica y registra.** Comprueba cada cifra, cada referencia y cada interpretación. Guarda el prompt, la herramienta o el modelo, la fecha y las correcciones humanas, y aplica la política de IA de tu institución y de la revista.
@@ -47,7 +43,7 @@ La fluidez de un texto asistido no sustituye su verificación. Empieza por una t
 
 **La IA no es una fuente.** Un texto asistido que cite una referencia debe comprobarse en la fuente original: no inventes referencias ni declaraciones éticas.
 
-**Qué comprobar.** Que la fecha y la versión del paquete coinciden con las de tu análisis, que el manifiesto de archivos (`manifiesto_archivos.csv`) verifica los MD5 y que el LEEME de la entrega no declara una entrega parcial.
+**Qué comprobar.** Que la fecha y la versión del paquete coinciden con las de tu análisis, que el listado `manifiesto_archivos.csv` conserva las huellas MD5 para comprobar si los archivos han cambiado y que el LEEME de la entrega no declara una entrega parcial.
 
 ## 5. Pautas para documentar y redactar tu decisión
 

@@ -22,8 +22,8 @@ model_comparison_table <- function(lda=NULL,density=NULL,pca=NULL,ca=NULL,prepar
     a<-density$assignments;out$diagnosticos_observados[2]<-paste0(sprintf("Sin asignar: %.1f %%",100*mean(a$grupo==0)),if(any(a$grupo>0))sprintf("; grado medio de pertenencia de los asignados %.3f",mean(a$membresia[a$grupo>0])) else "; no se detectan grupos", ". El grado de pertenencia al grupo no es probabilidad tem\u00e1tica; estabilidad requiere repeticiones.")
   }
   for(i in 3:4){f<-if(i==3)pca else ca;if(is.null(f))next;d<-if(i==3)pca_plane(f,"terms",pca_axes) else f$terms;axes<-if(i==3)pca_axes else c(1,2)
-    out$hallazgos[i]<-paste("Mayores contribuciones del plano:",paste(head(d$termino[order(-(d$contribucion_eje_1+d$contribucion_eje_2))],5),collapse=", "))
-    out$diagnosticos_observados[i]<-sprintf("Plano %d / %d: %.1f %% de %s; mediana cos\u00b2 de t\u00e9rminos %.3f. %d de %d ejes evaluados superan su referencia nula del 95 %%.",axes[1],axes[2],sum(f$dimensions$porcentaje[axes]),if(i==3)"varianza" else "inercia",stats::median(d$cos2_plano),sum(f$dimensions$supera_azar %in% TRUE),sum(!is.na(f$dimensions$supera_azar)))
+    out$hallazgos[i]<-paste("T\u00e9rminos con mayores aportaciones a la construcci\u00f3n de los ejes del plano:",paste(head(d$termino[order(-(d$contribucion_eje_1+d$contribucion_eje_2))],5),collapse=", "))
+    out$diagnosticos_observados[i]<-sprintf("Plano %d / %d: %.1f %% de %s; mediana cos\u00b2 de t\u00e9rminos %.3f. %d de %d ejes evaluados superan la referencia que deja por debajo el 95 %% de los resultados de las permutaciones. Esa comparaci\u00f3n no valida temas.",axes[1],axes[2],sum(f$dimensions$porcentaje[axes]),if(i==3)"varianza" else "inercia",stats::median(d$cos2_plano),sum(f$dimensions$supera_azar %in% TRUE),sum(!is.na(f$dimensions$supera_azar)))
   }
   out[c("metodo","estado","documentos_modelo","cobertura_documentos_pct","unidades_modelo","terminos_modelo","resultado","hallazgos","diagnosticos_observados","representacion","interpretacion")]
 }

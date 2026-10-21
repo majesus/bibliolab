@@ -7,21 +7,17 @@ fuentes:
 
 ## 1. Conceptos fundamentales: una agrupación es una de varias soluciones posibles
 
+**Para situarte.** La ejecución de referencia es el resultado con el que comparas las repeticiones. Asignación significa el grupo que recibe cada documento. Un documento sin asignar no cumple el criterio de agrupación del ajuste; no es un error del archivo ni una publicación de menor calidad.
+
 **Lo que quieres saber.** Si los grupos que ves en el mapa son reproducibles o dependen de una semilla o de un ajuste concreto.
 
-**Lo que se calcula realmente.** UMAP incluye azar y HDBSCAN depende de `minPts` (el tamaño mínimo para considerar un grupo): dos ejecuciones razonables pueden dar agrupaciones distintas. La comprobación repite el flujo con otras semillas (**estabilidad**) y con otros valores de vecinos y `minPts` alrededor de los elegidos (**sensibilidad**), y compara cada repetición con la ejecución de referencia mediante el **índice de Rand ajustado (ARI)**.
+**Lo que se calcula realmente.** UMAP incluye azar y HDBSCAN depende de `minPts` (que regula tanto el tamaño mínimo de grupo como la estimación de densidad, es decir, la concentración de documentos próximos): dos ejecuciones razonables pueden dar agrupaciones distintas. La comprobación repite el flujo con otras semillas (**estabilidad**) y con otros valores de vecinos y `minPts` alrededor de los elegidos (**sensibilidad**), y compara cada repetición con la ejecución de referencia mediante el **índice de Rand ajustado (ARI)**.
 
-El **ARI** compara dos agrupaciones del mismo conjunto de documentos: vale 1 si coinciden, 0 si el acuerdo es el esperable entre asignaciones al azar, y puede ser negativo. Aquí el grupo «sin asignar» cuenta como una clase más; la columna «solo asignados» ignora los documentos sin grupo en alguna de las dos agrupaciones. La **persistencia de cada grupo** es el solapamiento (Jaccard) con el grupo que más documentos comparte en cada otra semilla.
-
-> **La analogía cotidiana:**
->
-> Es como pedir a varias personas que agrupen la misma pila de fichas sin saber el criterio de las demás: si todas forman los mismos montones, el criterio es robusto; si cada una forma otros, los montones dependen de quien los hace.
->
-> **Dónde deja de servir la analogía:** las personas pueden explicar su criterio. Aquí el criterio es una densidad estimada sobre un mapa con azar, y la coincidencia entre repeticiones es lo único que indica que un grupo no es un accidente de esa ejecución.
+El **ARI** compara dos agrupaciones del mismo conjunto de documentos: vale 1 si coinciden, 0 si el acuerdo es el esperable entre asignaciones al azar, y puede ser negativo. Aquí el grupo «sin asignar» cuenta como una clase más; la columna «solo asignados» ignora los documentos sin grupo en alguna de las dos agrupaciones. La **persistencia de cada grupo** es la proporción de documentos compartidos respecto a los documentos distintos de ambos grupos (Jaccard), buscando la mejor coincidencia en cada otra semilla.
 
 ## 2. Ejemplo práctico: cinco repeticiones de un mismo mapa
 
-Los resultados se han calculado con la función de la aplicación sobre diez documentos ilustrativos. La referencia forma dos grupos de cuatro documentos y deja dos sin asignar (etiqueta 0).
+Los resultados se han calculado con la función de la aplicación sobre diez documentos ilustrativos. La referencia forma dos grupos de cuatro documentos y deja dos sin asignar (identificador 0).
 
 | Repetición | Qué ocurre | ARI | ARI solo asignados |
 |---|---|---|---|
@@ -41,12 +37,12 @@ En la repetición B, el grupo 1 de la referencia (cuatro documentos) y el grupo 
 2. **Evalúa la estabilidad.** Por defecto se repite con cuatro semillas derivadas de la elegida y con la mitad, el valor y el doble de los vecinos y de `minPts`.
 3. **Lee el resumen:** el ARI mediano y mínimo entre semillas, el ARI mediano y mínimo al variar parámetros, el rango de grupos entre repeticiones y cuántos grupos persisten.
 4. **Consulta la tabla de repeticiones,** con el ARI global, el ARI solo asignados, el número de grupos y el porcentaje sin asignar de cada una, y las repeticiones fallidas con su causa.
-5. **Consulta la persistencia de cada grupo** (Jaccard medio y mínimo): un valor medio alto indica que el grupo reaparece; valores bajos indican que probablemente es un artefacto de esa semilla.
-6. **Decide qué hacer con el resultado.** Si la estabilidad es baja, prueba otra representación (BM25), más vecinos o un `minPts` mayor, o informa solo los grupos persistentes. Documenta las repeticiones.
+5. **Consulta la persistencia de cada grupo** (Jaccard medio y mínimo): un valor medio alto indica que el grupo reaparece; valores bajos muestran que su composición cambia entre las semillas probadas. Eso no identifica por sí solo la causa ni demuestra que el contenido carezca de estructura.
+6. **Decide qué hacer con el resultado.** Si la estabilidad es baja, contrasta otra representación (por ejemplo BM25), otro número de vecinos u otro `minPts`, cambiando una decisión cada vez. Ningún sentido de cambio garantiza mejorar la estabilidad, o informa solo los grupos persistentes. Documenta las repeticiones.
 
 ## 4. Cómo leer la estabilidad sin errores de interpretación
 
-**Las bandas del ARI son una convención orientativa.** Steinley (2004) habla de acuerdo excelente por encima de 0,90, bueno desde 0,80 y moderado desde 0,65. No es un contraste de hipótesis.
+**El ARI no tiene un umbral universal de validez temática.** Compara el acuerdo entre tus ejecuciones y consulta a la vez cuántos grupos hay y cuántos documentos quedan sin asignar. Una cifra alta no sustituye la lectura de sus contenidos.
 
 **Un ARI alto no valida los temas.** Mide reproducibilidad de una agrupación, no que sus grupos tengan sentido sustantivo: lee los documentos de cada grupo.
 

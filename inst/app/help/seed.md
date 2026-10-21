@@ -7,23 +7,19 @@ fuentes:
 
 ## 1. Conceptos fundamentales: qué fija una semilla y qué no
 
+**Para situarte.** Los parámetros son las opciones del cálculo que puedes cambiar. Una semilla es un número que fija el inicio del generador de números aleatorios. No es el año de los documentos ni una puntuación de calidad: 2027 no es mejor que 2026 por ser mayor.
+
 **Lo que quieres saber.** Si, al volver a calcular, los resultados serán los mismos, y si de eso se deduce que son fiables.
 
-**Lo que se calcula realmente.** Algunos pasos del análisis usan números aleatorios: UMAP construye sus coordenadas con un proceso estocástico, y la aproximación de LSA con matrices grandes también incorpora azar. La **semilla** fija el punto de partida de esa secuencia aleatoria: con la misma semilla, los mismos datos, los mismos parámetros y las mismas versiones de paquetes, el cálculo se repite exactamente. HDBSCAN, en cambio, no es aleatorio: con las mismas coordenadas devuelve los mismos grupos.
+**Lo que se calcula realmente.** Algunos pasos del análisis usan números aleatorios: UMAP construye sus coordenadas con un proceso estocástico, y la aproximación de LSA con matrices grandes también incorpora azar. La **semilla** fija el punto de partida de esa secuencia aleatoria: con la misma semilla, los mismos datos, los mismos parámetros y las mismas versiones de paquetes, se controla el inicio aleatorio para poder repetir el cálculo dentro de ese entorno. La semilla por sí sola no asegura coincidencia entre ordenadores o versiones diferentes. HDBSCAN, en cambio, no es aleatorio: con las mismas coordenadas devuelve los mismos grupos.
 
-Esto separa dos preguntas. La **reproducibilidad** pregunta si otra persona puede obtener el mismo resultado; la semilla la garantiza. La **sensibilidad** pregunta si el resultado se mantiene cuando cambian la semilla o los parámetros; la semilla no la garantiza, y por eso una clasificación repetible puede seguir dependiendo de decisiones arbitrarias.
-
-> **La analogía cotidiana:**
->
-> Es como barajar un mazo con un orden de partida anotado: si repites el mismo reparto, obtienes la misma partida. Pero que la partida salga igual al repetirla no te dice si el juego es justo con otro reparto.
->
-> **Dónde deja de servir la analogía:** en las cartas, otro reparto cambia las manos pero no la naturaleza del juego. En un análisis, otra semilla puede cambiar la geometría del mapa y, a veces, los documentos que forman cada grupo; qué parte de ese cambio es solo apariencia y qué parte afecta a la interpretación es justo lo que hay que comprobar.
+Esto separa dos preguntas. La **reproducibilidad** pregunta si otra persona puede obtener el mismo resultado; la semilla es una condición necesaria para controlar el azar, junto con datos, decisiones y entorno de software documentados; por sí sola no la garantiza. La **sensibilidad** pregunta si el resultado se mantiene cuando cambian la semilla o los parámetros; la semilla no la garantiza, y por eso una clasificación repetible puede seguir dependiendo de decisiones arbitrarias.
 
 ## 2. Ejemplo práctico: 2026 frente a 2027
 
 Guarda una ejecución con la semilla 2026 y otra con la 2027, sin cambiar nada más. Las cifras que siguen son ilustrativas.
 
-Si en la segunda ejecución el mapa aparece girado o reflejado, pero los mismos 38 de 40 documentos siguen juntos en cada grupo, la apariencia ha cambiado y la clasificación no: la rotación y la reflexión de un mapa no alteran las asignaciones. Si, en cambio, 12 de esos 40 documentos pasan a otro grupo, esa diferencia sí afecta a la interpretación temática.
+Si en la segunda ejecución el mapa aparece girado o reflejado, pero los 40 documentos conservan exactamente la misma agrupación, aunque cambien los números que identifican los grupos, la apariencia ha cambiado y la clasificación no: la rotación y la reflexión de un mapa no alteran las asignaciones. Si, en cambio, 12 de esos 40 documentos pasan a otro grupo, esa diferencia sí afecta a la interpretación temática.
 
 ### Interpretación
 
@@ -31,7 +27,7 @@ Si distintas semillas producen grupos parecidos, has observado una señal de est
 
 ## 3. Flujo de trabajo en la aplicación: paso a paso
 
-1. **Fija una semilla para repetir.** En clase o en un informe, deja la semilla por defecto (2026) para que otra persona obtenga la misma figura.
+1. **Fija una semilla para repetir.** En clase o en un informe, deja la semilla por defecto (2026) y registra también datos, decisiones y versiones para que otra persona pueda intentar reproducir la figura.
 2. **Contrasta otras semillas.** Cambia solo la semilla y compara los grupos, leyendo los documentos que cambian de grupo.
 3. **Usa la evaluación guiada.** *Evaluar estabilidad y sensibilidad* (en UMAP con HDBSCAN) repite el flujo con otras semillas y con otros vecinos y minPts, y mide el acuerdo entre ejecuciones con el índice de Rand ajustado. En LDA, la comparación de k admite varias semillas.
 4. **Conserva las discrepancias.** Guarda las ejecuciones alternativas y no escojas solo la que confirma tu idea.

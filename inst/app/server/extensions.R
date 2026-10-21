@@ -67,7 +67,7 @@ output$plot_code_text <- renderText({
 })
 observeEvent(input$model_manager, {
   showModal(modalDialog(title = "Modelos locales / UDPipe", size = "l", easyClose = TRUE,
-    tags$p(class="modal-lead","Cada idioma necesita su propio modelo de UDPipe. La aplicación propone los modelos correspondientes a los idiomas asignados: combina los casos aceptados de CLD2, las etiquetas del archivo y tus correcciones. Antes de preparar el corpus, resuelve los textos que aún no tienen un idioma compatible."),
+    tags$p(class="modal-lead","Cada idioma necesita su propio modelo de UDPipe. La aplicaci\u00f3n propone los modelos correspondientes a los idiomas asignados: combina los casos aceptados de CLD2, los nombres o c\u00f3digos de idioma del archivo y tus correcciones. Antes de preparar el corpus, resuelve los textos que a\u00fan no tienen un idioma con modelo disponible en Bibliolab."),
     tags$p("Por ejemplo, si tu corpus reúne resúmenes españoles e ingleses, necesitas ambos modelos. Descargar solo español no prepara los textos ingleses. Pulsa Descargar todos los modelos necesarios para obtener los que faltan; si ya están guardados, la app los reutiliza. El selector individual sirve para preparar otro idioma de forma anticipada, no para cambiar la lengua de tus documentos."),
     tags$p(class="hint",model_license_notice()),
     uiOutput("models_needed"),actionButton("download_required_models","Descargar todos los modelos necesarios",class="btn-primary run-analysis"),
@@ -111,11 +111,11 @@ token_graph <- reactive({ current(); d <- rv$corpus$terms
   g + label_layer(labels, ggplot2::aes(label = termino), size = 3, seed = 2026, repel = list(max.overlaps = 20))
 })
 lda_display_documents<-reactive({f<-lda_current();validate(need(!is.null(f),"Calcula LDA para consultar documentos."));lda_document_rows(f,if(identical(input$lda_document_mode,"selected"))input$lda_documents %||% character() else NULL,input$lda_document_page %||% 1L,input$lda_document_page_size %||% 18L)})
-output$lda_document_controls<-renderUI({f<-lda_current();if(is.null(f))return(NULL);choices<-lda_document_labels(f,rv$prepared);selected<-isolate(input$lda_documents %||% head(unname(choices),1))
+output$lda_document_controls<-renderUI(model_parameter_guidance({f<-lda_current();if(is.null(f))return(NULL);choices<-lda_document_labels(f,rv$prepared);selected<-isolate(input$lda_documents %||% head(unname(choices),1))
   session$onFlushed(function()updateSelectizeInput(session,"lda_documents",choices=choices,selected=intersect(selected,unname(choices)),server=TRUE),once=TRUE)
   tagList(radioButtons("lda_document_mode","Qué documentos quieres consultar",c("Recorrer páginas / orden de la tabla"="page","Buscar y seleccionar por ID, título o DOI"="selected"),selected=isolate(input$lda_document_mode %||% "page"),inline=TRUE),
     conditionalPanel("input.lda_document_mode === 'page'",fluidRow(column(6,numericInput("lda_document_page","Página",1,1,max(1,ceiling(nrow(f$document_topics)/18)))),column(6,numericInput("lda_document_page_size","Documentos por página",18,1,100))),hint("El orden es el de la tabla del modelo. No es aleatorio ni representa importancia.")),
-    conditionalPanel("input.lda_document_mode === 'selected'",selectizeInput("lda_documents","Documentos / escribe parte del título, DOI o ID",choices=NULL,multiple=TRUE,options=modifyList(predictive_options(),list(maxItems=100)))))})
+    conditionalPanel("input.lda_document_mode === 'selected'",selectizeInput("lda_documents","Documentos / escribe parte del título, DOI o ID",choices=NULL,multiple=TRUE,options=modifyList(predictive_options(),list(maxItems=100)))))}))
 lda_heatmap_graph<-reactive({f<-lda_current();validate(need(!is.null(f),"Calcula LDA para consultar la composición de documentos."));d<-lda_display_documents();validate(need(nrow(d)>0,"Selecciona al menos un documento."));lda_composition_figure(f,rv$prepared,d)})
 observeEvent(list(lda_current(),input$lda_document_page_size),{f<-lda_current();if(is.null(f))return();pages<-max(1,ceiling(nrow(f$document_topics)/(input$lda_document_page_size %||% 18L)));updateNumericInput(session,"lda_document_page",max=pages,value=min(input$lda_document_page %||% 1L,pages))},ignoreInit=FALSE)
 output$lda_document_composition<-table_render(function(){d<-lda_display_documents();p<-rv$prepared$documents[match(d$doc_id,rv$prepared$documents$doc_id),];cbind(data.frame(ID=d$doc_id,Titulo=p$title,DOI=p$doi),d[-1])})

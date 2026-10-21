@@ -9,17 +9,13 @@ fuentes:
 
 ## 1. Conceptos fundamentales: ¿qué es importar un corpus?
 
+**Para situarte.** Un registro es una fila del archivo. Un campo es una columna, como título, resumen o año. El corpus importado es el conjunto de registros cargados; el corpus preparado es el que queda después de aplicar las decisiones de 02.
+
 **Lo que quieres saber.** Si el archivo que has subido contiene los documentos que querías estudiar y si la aplicación los ha leído tal como están.
 
-**Lo que se calcula realmente.** Importar no calcula ningún indicador: fija el **corpus**, es decir, el conjunto de documentos sobre el que se hará todo lo demás. Cada fila del archivo es un documento; cada columna es un campo (texto, título, año, autores, revista, citas, DOI). La aplicación propone qué columna cumple cada papel, y la propuesta es solo eso: la correspondencia definitiva la decides tú en 02 / Preparación.
+**Lo que se calcula realmente.** Importar carga los registros del archivo; todavía no decide el corpus final ni calcula indicadores. La selección que se utilizará después se aplica en 02. Cada fila del archivo es un documento; cada columna es un campo (texto, título, año, autores, revista, citas, DOI). La aplicación propone qué columna cumple cada papel, y la propuesta es solo eso: la correspondencia definitiva la decides tú en 02 / Preparación.
 
 Importar bien es el primer control de validez. Los resultados describen únicamente los documentos que entran en este archivo y superan después los filtros. Una búsqueda incompleta, otra base de datos o criterios de inclusión distintos cambian los resultados aunque el método sea idéntico.
-
-> **La analogía cotidiana:**
->
-> Es como el inventario de una biblioteca antes de hacer un estudio de sus fondos: si el inventario omite una estantería o mezcla libros de otra sala, cualquier recuento posterior será correcto sobre el papel y erróneo sobre la biblioteca.
->
-> **Dónde deja de servir la analogía:** un inventario se comprueba contando estantes. Aquí tampoco puedes comprobar, desde la aplicación, si tu búsqueda en la base de datos recuperó toda la literatura pertinente; eso depende de la ecuación de búsqueda, que la aplicación no ve.
 
 ## 2. Ejemplo práctico: ¿qué columna se analiza?
 
@@ -64,5 +60,5 @@ En el método puedes escribir, completando los corchetes con los datos reales de
 Es una redacción modelo, no un resultado: revísala antes de copiarla y no afirmes que el corpus es exhaustivo, porque la aplicación no puede comprobarlo. La entrega conserva la huella MD5 del archivo y, en Excel, la hoja, el lector utilizado y la relación de encabezados ajustados.
 
 +++ Nota técnica: lectura y límites
-La lectura de texto usa `data.table::fread()` con todas las columnas como cadenas de caracteres; la de Excel usa `readxl` con `col_types = "text"` y sin reparar nombres, y la aplicación repara los encabezados con `make.unique(sep = " / ")`. Los límites son `BIBLIO_LIMITS`: 100 MB, 10.000 filas, 100 columnas y 50.000 caracteres por celda. Se rechazan los archivos con bytes nulos. La correspondencia propuesta se obtiene con `guess_columns()`, que reconoce encabezados habituales de Web of Science, Scopus y exportaciones en español o inglés; en las exportaciones etiquetadas de Web of Science, la columna `ID` (Keywords Plus) no se toma como identificador y se usa `UT`. Si no reconoce ninguna columna de texto, propone la columna de prosa con mediana de al menos 40 caracteres o, en su defecto, el título.
+La lectura de texto usa `data.table::fread()` con todas las columnas como cadenas de caracteres; la de Excel usa `readxl` con `col_types = "text"` y sin reparar nombres, y la aplicación repara los encabezados con `make.unique(sep = " / ")`. Los límites son `BIBLIO_LIMITS`: 100 MB, 10.000 filas, 100 columnas y 50.000 caracteres por celda. Se rechazan los archivos con bytes nulos. La correspondencia propuesta se obtiene con `guess_columns()`, que reconoce encabezados habituales de Web of Science, Scopus y exportaciones en español o inglés; en las exportaciones con códigos de columna de dos letras de Web of Science, la columna `ID` (Keywords Plus) no se toma como identificador y se usa `UT`. Si no reconoce ninguna columna de texto, propone la columna de prosa con mediana de al menos 40 caracteres o, en su defecto, el título.
 +++

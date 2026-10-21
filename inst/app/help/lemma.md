@@ -8,17 +8,13 @@ fuentes:
 
 ## 1. Conceptos fundamentales: idioma, palabras vacías, lemas y categorías
 
+**Para situarte.** El texto que se analiza puede ser el resumen, el título u otra columna elegida en 02. Su idioma puede diferir del idioma del artículo completo. Un modelo de idioma es un archivo que permite al programa analizar palabras de una lengua; no es una traducción del texto.
+
 **Lo que quieres saber.** Si «estudiante», «estudiantes» y «estudiando» se están contando como palabras distintas, y si el análisis lingüístico es el adecuado para el idioma de cada texto.
 
 **Lo que se calcula realmente.** Un **lema** es la forma de diccionario de una palabra. **Lematizar** reúne determinadas flexiones (estudiante y estudiantes) y algunas conjugaciones bajo una misma forma, con lo que se reduce la dispersión del vocabulario. No traduce, no reúne sinónimos y no garantiza acierto en siglas, nombres propios o vocabulario especializado. La aplicación lematiza con **UDPipe**, que tokeniza, asigna a cada palabra una categoría gramatical (sustantivo, adjetivo, verbo…) y obtiene su lema con un modelo específico de cada idioma: español, inglés, francés, alemán, italiano o portugués. El análisis es local, en R; los resúmenes no se envían a ningún servidor.
 
 Las **palabras vacías** (artículos, preposiciones, conjunciones) se eliminan con la lista del idioma elegido, más las que añadas tú. La **lematización** y el **filtro de categorías gramaticales** son decisiones independientes: puedes usar una, ambas o ninguna. Con el filtro de categorías sin lematizar se conservan las formas originales de las palabras que pertenecen a las categorías elegidas.
-
-> **La analogía cotidiana:**
->
-> Es como ordenar un fichero de biblioteca por entradas de diccionario: bajo «estudiar» se agrupan «estudio», «estudiaron» o «estudiando» si el bibliotecario sabe que son formas de la misma entrada.
->
-> **Dónde deja de servir la analogía:** un bibliotecario conoce el campo y no confunde una sigla con una palabra; el modelo lingüístico se entrena con textos generales y puede analizar mal un tecnicismo. Además, el fichero de una biblioteca es de un solo idioma; aquí «calidad» y *quality* siguen siendo dos lemas distintos, porque lematizar con dos modelos no vuelve comparables las lenguas como si fueran traducciones.
 
 ## 2. Ejemplo práctico: un corpus de resúmenes en dos idiomas
 
@@ -37,7 +33,7 @@ El porcentaje de predominio de CLD2 describe la proporción del texto clasificad
 1. **Decide si lematizas.** Si solo quieres eliminar palabras vacías, no hace falta ningún modelo: elige la lista de palabras vacías del idioma de tus textos (o *Español + inglés*, o *Sin lista*). Si activas lemas o categorías, el idioma del modelo determina también la lista de palabras vacías. Si el idioma de la lista y el del modelo no coinciden, la aplicación se detiene con un aviso.
 2. **Elige el idioma.** Si todos los textos analizados están en el mismo idioma, elígelo, aunque los artículos del archivo estén escritos en varias lenguas. Si los textos analizados tienen varios idiomas, elige *Varios idiomas*.
 3. **Prepara los modelos.** *Preparar modelos necesarios* muestra qué lematizadores hacen falta y los descarga una sola vez; la descarga solo ocurre cuando tú la pides y cada ejecución registra la huella MD5 del modelo utilizado.
-4. **Resuelve los idiomas pendientes.** Abre *Revisar idiomas / solo pendientes* y resuelve los casos leyendo sus extractos. Consulta también las discrepancias y una muestra de las asignaciones automáticas. Puedes corregir varias filas a la vez. Una etiqueta de idioma reconocida del CSV se conserva, y una corrección manual tiene prioridad sobre el CSV y sobre CLD2. Si cambias el texto seleccionado, se recalculan las estimaciones y se retiran las correcciones hechas para el texto anterior.
+4. **Resuelve los idiomas pendientes.** Abre *Revisar idiomas / solo pendientes* y resuelve los casos leyendo sus extractos. Consulta también las discrepancias y una muestra de las asignaciones automáticas. Puedes corregir varias filas a la vez. Un nombre o código de idioma reconocido en el CSV se conserva, y una corrección manual tiene prioridad sobre el CSV y sobre CLD2. Si cambias el texto seleccionado, se recalculan las estimaciones y se retiran las correcciones hechas para el texto anterior.
 5. **Filtro de categorías (opcional).** Por defecto conserva sustantivos, nombres propios y adjetivos. Puede eliminar verbos o adverbios importantes para tu pregunta; compara con los originales.
 6. **Pulsa Preparar corpus** y contrasta una muestra de originales con sus lemas en el visor, que distingue el texto lematizado del limpio.
 
@@ -55,10 +51,10 @@ El porcentaje de predominio de CLD2 describe la proporción del texto clasificad
 
 ## 5. Pautas para documentar y redactar tu decisión
 
-En el método puedes escribir, completando los corchetes: «Los textos se lematizaron por documento con UDPipe (modelos [modelos y versiones]); el idioma de cada documento procedía de [etiqueta del archivo / estimación local con CLD2 revisada mediante (procedimiento) / corrección manual]. Se conservaron las categorías [categorías]».
+En el método puedes escribir, completando los corchetes: «Los textos se lematizaron por documento con UDPipe (modelos [modelos y versiones]); el idioma de cada documento procedía de [nombre o código de idioma del archivo / estimación local con CLD2 revisada mediante (procedimiento) / corrección manual]. Se conservaron las categorías [categorías]».
 
 Es una redacción modelo que debes ajustar a lo que hiciste. No escribas que el corpus se tradujo ni que sus lenguas se fusionaron: los lemas siguen perteneciendo a idiomas diferentes. La entrega conserva las estimaciones de idioma, su origen, las correcciones y los idiomas efectivamente aplicados, de modo que puedes repetir el proceso sin volver a estimar.
 
 +++ Nota técnica: reglas de asignación y de filtrado
-`estimate_language_one()` exige `min_letters = 40`, un resultado de `cld2::detect_language_mixed()` marcado como fiable, un código con modelo disponible y una proporción dominante de al menos `dominance = 0.90`. Una etiqueta del CSV reconocida por `normalize_language()` se conserva; la estimación solo completa los casos sin etiqueta, y las correcciones manuales prevalecen sobre ambas. Los modelos son `spanish-gsd`, `english-ewt`, `french-gsd`, `german-gsd`, `italian-isdt` y `portuguese-bosque`. En `normalize_annotation_one()`, la forma analizada es el lema si `lemmatize` está activo y la forma superficial si no; se descartan puntuación y símbolos, números aislados si procede, y las palabras cuya forma superficial o cuyo lema esté en la lista de palabras vacías; la longitud mínima y máxima se aplican a la forma analizada; y el filtro de categorías conserva las etiquetas universales `NOUN`, `PROPN`, `ADJ`, `VERB` y `ADV` elegidas.
+`estimate_language_one()` exige `min_letters = 40`, un resultado de `cld2::detect_language_mixed()` marcado como fiable, un código con modelo disponible y una proporción dominante de al menos `dominance = 0.90`. Un nombre o código de idioma del CSV reconocido por `normalize_language()` se conserva; la estimación solo completa los casos sin nombre o código de idioma reconocido, y las correcciones manuales prevalecen sobre ambas. Los modelos son `spanish-gsd`, `english-ewt`, `french-gsd`, `german-gsd`, `italian-isdt` y `portuguese-bosque`. En `normalize_annotation_one()`, la forma analizada es el lema si `lemmatize` está activo y la forma escrita original si no; se descartan puntuación y símbolos, números aislados si procede, y las palabras cuya forma original o cuyo lema esté en la lista de palabras vacías; la longitud mínima y máxima se aplican a la forma analizada. El filtro gramatical utiliza estos códigos: `NOUN` (sustantivo), `PROPN` (nombre propio), `ADJ` (adjetivo), `VERB` (verbo) y `ADV` (adverbio).
 +++

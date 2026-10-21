@@ -11,17 +11,13 @@ fuentes:
 
 ## 1. Conceptos fundamentales: de la palabra al documento
 
+**Para situarte.** Una ficha es una página del cuaderno de lectura. Una entrada de concepto contiene un término del vocabulario o una expresión que has definido en tu diccionario. Aquí concepto nombra esa entrada: el programa no ha demostrado que sea un concepto teórico válido. Un enlace permite abrir otra ficha.
+
 **Lo que quieres saber.** Qué palabras tienden a aparecer en las mismas fichas, qué papel cumple cada una en el conjunto y dónde puedes volver a leer el texto que respalda cada relación.
 
 **Lo que se calcula realmente.** Cada documento es una **ficha** (una página del cuaderno) con el campo de texto que elegiste. Cada palabra o **concepto** tiene su propia ficha, que lista como **backlinks** todas las fichas que lo mencionan. La red de conceptos no dibuja las fichas, sino las palabras: dos conceptos se conectan por **coaparición** cuando figuran juntos en las mismas fichas.
 
-El peso de la conexión es el **coeficiente de Jaccard**: las fichas con ambas palabras divididas entre las fichas con al menos una. Repetir una palabra dentro de una ficha no aumenta ese peso. Una coaparición se considera **significativa** cuando una prueba hipergeométrica indica que es mayor que la esperable por azar si cada palabra se repartiera independientemente entre las fichas, manteniendo fija su frecuencia documental, y se corrige por comparaciones múltiples (Benjamini–Hochberg, FDR). Después, el algoritmo de Louvain agrupa las palabras en **comunidades** y la tipología de Guimerà y Amaral asigna un **rol** a cada una (eje, puente, apoyo).
-
-> **La analogía cotidiana:**
->
-> Es como el índice de materias de un libro, donde cada término remite a las páginas en que aparece: dos términos con muchas páginas en común están relacionados en el texto, pero el índice no dice por qué ni si los autores los vinculan.
->
-> **Dónde deja de servir la analogía:** un índice es un listado fijo. Aquí la red depende de las palabras que elijas, del nivel de significación y de cuántas relaciones conserves, y cada una de esas decisiones cambia las comunidades y los roles.
+El peso de la conexión es el **coeficiente de Jaccard**: las fichas con ambas palabras divididas entre las fichas con al menos una. Repetir una palabra dentro de una ficha no aumenta ese peso. Una coaparición se considera **significativa** cuando una prueba hipergeométrica indica que es mayor que la esperable por azar si cada palabra se repartiera independientemente entre las fichas, manteniendo fija su frecuencia documental, y se corrige por comparaciones múltiples (Benjamini–Hochberg, FDR). FDR controla, bajo los supuestos del procedimiento, la proporción esperada de falsos hallazgos entre las relaciones seleccionadas. Un nivel del 5 % no significa que cada relación tenga un 5 % de probabilidad de ser falsa. Después, el algoritmo de Louvain agrupa las palabras en **comunidades** y una clasificación basada en las conexiones de cada palabra dentro y entre comunidades le asigna un **rol** (eje, puente, apoyo). Son nombres de posiciones en esa red, no funciones conceptuales demostradas.
 
 ## 2. Ejemplo práctico: siete conceptos en veinte fichas
 
@@ -39,7 +35,7 @@ Sin filtro de significación, la red conserva 14 pares con coaparición observad
 
 ### Interpretación
 
-El Jaccard describe cuánto coinciden dos palabras; la prueba responde si esa coincidencia supera lo esperable dadas sus frecuencias. Una palabra presente en casi todas las fichas se asocia con todo y aporta poca información, y por eso la aplicación avisa de las palabras presentes en más del 30 % de las fichas y permite fijar un techo de fichas para excluirlas. Con FDR al 5 %, los dos grupos forman dos comunidades (modularidad 0,50) y los seis conceptos quedan como «Apoyo exclusivo de su comunidad» (participación 0): no hay ningún puente, porque ninguna palabra reparte sus relaciones entre comunidades.
+El Jaccard describe cuánto coinciden dos palabras; la prueba responde si esa coincidencia supera lo esperable dadas sus frecuencias. Una palabra presente en casi todas las fichas coincide con numerosas palabras por su propia extensión; eso no demuestra asociaciones específicas ni falta de importancia científica, y por eso la aplicación avisa de las palabras presentes en más del 30 % de las fichas y permite fijar un techo de fichas para excluirlas. Con FDR al 5 %, los dos grupos forman dos comunidades (modularidad 0,50) y los seis conceptos quedan como «Apoyo exclusivo de su comunidad» (participación 0): no hay ningún puente, porque ninguna palabra reparte sus relaciones entre comunidades.
 
 ## 3. Flujo de trabajo en la aplicación: paso a paso
 
@@ -67,7 +63,7 @@ El Jaccard describe cuánto coinciden dos palabras; la prueba responde si esa co
 
 **La prueba condiciona a la frecuencia documental.** No modela que unas fichas sean más largas que otras, y la corrección de Benjamini–Hochberg supone independencia o ciertas formas de dependencia positiva entre contrastes. Las comunidades de Louvain son exploratorias, no temas validados.
 
-**Qué comprobar.** Que las palabras generales no dominan, que la conclusión se mantiene al variar N, el nivel de significación, las relaciones por palabra y la resolución, y que las fichas respaldan la lectura.
+**Qué comprobar.** Que las palabras generales no dominan, que la conclusión se mantiene al variar N, el nivel de significación, las relaciones por palabra y la resolución —que regula el grado de detalle de las comunidades—, y que las fichas respaldan la lectura.
 
 ## 5. Pautas para documentar y redactar tu decisión
 

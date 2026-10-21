@@ -23,8 +23,10 @@ read_biblio_excel <- function(path, sheet = NULL) {
   fmt <- biblio_file_format(path, "archivo.xlsx")
   sheets <- biblio_excel_sheets(path)
   if (!length(sheets)) abort_user("El libro Excel no contiene hojas de c\u00e1lculo.")
-  if (is.null(sheet) || !length(sheet) || !nzchar(sheet)) sheet <- sheets[1]
-  if (length(sheet) != 1L || !sheet %in% sheets) abort_user("La hoja seleccionada ya no existe. Elige una de las hojas de este libro.")
+  if (is.null(sheet) || !length(sheet)) sheet <- sheets[1]
+  if (!is.character(sheet) || length(sheet) != 1L || is.na(sheet) ||
+      !nzchar(sheet) || !sheet %in% sheets)
+    abort_user("La hoja seleccionada ya no existe. Elige una de las hojas de este libro.")
   reader <- if (fmt == "xls") readxl::read_xls else readxl::read_xlsx
   warnings <- character()
   d <- tryCatch(withCallingHandlers(reader(path, sheet = sheet, col_types = "text",
@@ -45,7 +47,8 @@ read_biblio_excel <- function(path, sheet = NULL) {
     abort_user("Una celda supera 50.000 caracteres. Usa t\u00edtulos o res\u00famenes, en lugar de textos completos.")
   attr(d, "import_info") <- list(format = fmt, sheet = sheet, sheets = sheets,
     headers = data.frame(columna = seq_along(named), encabezado_original = original,
-      nombre_importado = named, corregido = original != named, stringsAsFactors = FALSE),
+      nombre_importado = named, corregido = is.na(original) | original != named,
+      stringsAsFactors = FALSE),
     reader = "readxl", reader_version = as.character(utils::packageVersion("readxl")),
     note = "Se conserva el contenido de las celdas como texto; los formatos visuales de Excel no se convierten en datos. Una celda num\u00e9rica 1 con formato 000 no es el identificador textual 001.")
   d

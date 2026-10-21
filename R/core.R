@@ -1,5 +1,5 @@
 # Funciones puras: importacion, trazabilidad y analisis. No dependen de Shiny.
-BIBLIO_VERSION <- "5.0.3"
+BIBLIO_VERSION <- "5.0.5"
 BIBLIO_LIMITS <- list(bytes = 100 * 1024^2, rows = 10000L, columns = 100L,
                   text_chars = 50000L, units = 20000L, tokens = 1000000L)
 `%||%` <- function(x, y) if (is.null(x) || length(x) == 0L) y else x
@@ -114,7 +114,7 @@ guess_columns <- function(d) {
     source = c("source title", "source_title", "publication title", "revista", "journal", "source", "so"),
     authors = c("authors", "autores", "author", "author full names", "au"),
     citations = c("cited by", "cited_by", "times cited", "times cited, wos core", "times cited, all databases", "citas", "citations", "tc"),
-    keywords = c("author keywords", "keywords author", "authors keywords", "author_keywords", "keywords", "palabras clave", "palabras_clave", "de"), doi = c("doi", "di"), language = c("language", "idioma", "la"),
+    keywords = c("author keywords", "keywords author", "authors keywords", "author_keywords", "keywords", "palabras clave", "palabras_clave", "de"), doi = c("doi", "di"), language = c("language", "language of original document", "idioma", "la"),
     references = c("cr", "references", "cited references", "referencias", "referencias citadas"),
     translated = c("translated", "translated_text", "texto_traducido", "traduccion"))
   out <- lapply(aliases, function(a) { a <- gsub("[_ .-]+", " ", a); i <- match(a, nm); i <- i[!is.na(i)]; if (length(i)) names(d)[i[1]] else "" })
@@ -356,7 +356,7 @@ duplicate_audit <- function(docs) {
 # `deduplicar`) que dejaba el valor por defecto sin avisar.
 config_logical_options <- c("remove_stop", "remove_numbers", "remove_links", "lemmatize", "split_sentences",
   "deduplicate", "pos_filter", "remove_codes", "normalize_labels", "remove_boilerplate")
-config_known_options <- function() c(names(default_config()), "language_overrides", "language_detection", "execution")
+config_known_options <- function() c(names(default_config()), "language_overrides", "language_detection", "execution", "corpus_selection", "selection_preview")
 
 validate_config <- function(config, cfg) {
   if (!is.list(config)) abort_user("La configuraci\u00f3n debe ser una lista con nombres (ver default_config()).")
@@ -378,7 +378,7 @@ validate_config <- function(config, cfg) {
 
 #' Construye el conjunto de documentos y su auditoria
 #'
-#' Aplica, en este orden, filtro por valor, filtro temporal, deduplicacion
+#' Aplica, en este orden, filtro por valor, filtro temporal, filtros documentales opcionales, deduplicacion
 #' (DOI, titulo normalizado, texto normalizado) y muestreo con semilla. Los
 #' valores ausentes de anio o citas se conservan como `NA` (nunca como cero).
 #'
@@ -387,6 +387,13 @@ validate_config <- function(config, cfg) {
 #' @param config Lista parcial de opciones; ver [default_config()]. Se rechazan
 #'   las opciones desconocidas (suelen ser erratas) y las opciones logicas que no
 #'   sean `TRUE` o `FALSE`.
+#'   `corpus_selection` permite campos auxiliares (`fields`: `document_type`,
+#'   `abstract`, `language`, `country`, `early_access`), valores permitidos
+#'   (`types`, `sources`, `languages`, `countries`), requisitos logicos
+#'   (`doi`, `abstract`, `text`, `exclude_current_year`) y `early`
+#'   (`"all"`, `"only"`, `"exclude"`). Se aplican antes de deduplicar y muestrear.
+#'   `selection_preview = TRUE` permite describir una seleccion vacia, solo
+#'   para previsualizacion documental; no prepara vocabulario ni modelos.
 #' @details La deduplicacion no elimina un registro salvo coincidencia segura.
 #'   Dos registros son el mismo si comparten DOI. Si falta el DOI en alguno,
 #'   coinciden en titulo normalizado (o, sin titulo, en texto normalizado), no
@@ -405,6 +412,8 @@ validate_config <- function(config, cfg) {
 #'   registro conservado y los campos completados), `ambiguous` (coincidencias no eliminadas), `issues`,
 #'   `config`, `mapping` e `input_md5` (huella del archivo leido con
 #'   [read_biblio_csv()], o `NULL`).
+#'   Con `corpus_selection` se incluye `selection`: pasos, exclusiones por
+#'   fila original, resumen, distribucion anual y desgloses de metadatos.
 #' @examples
 #' d <- read_biblio_csv(system.file("extdata", "practica.csv", package = "bibliolab"), ";")
 #' p <- prepare_documents(d, guess_columns(d))
@@ -413,6 +422,8 @@ validate_config <- function(config, cfg) {
 prepare_documents <- function(d, mapping, config = default_config()) {
   cfg <- utils::modifyList(default_config(), config)
   validate_config(config, cfg)
+  if (!is.null(cfg$selection_preview) && (!is.logical(cfg$selection_preview) || length(cfg$selection_preview) != 1L || is.na(cfg$selection_preview)))
+    abort_user("selection_preview debe ser TRUE o FALSE.")
   if (!nzchar(mapping$text %||% "")) abort_user("Selecciona la columna de texto (resumen o t\u00edtulo).")
   check_number(cfg$sample_pct, "El porcentaje de muestra", 1, 100, FALSE)
   check_number(cfg$seed, "La semilla", 1, .Machine$integer.max)
@@ -431,11 +442,18 @@ prepare_documents <- function(d, mapping, config = default_config()) {
     sprintf("CSV importado: citas ausentes o no v\u00e1lidas, %d/%d (no se consideran cero).", sum(is.na(docs$citations)), nrow(docs)))
   if (anyDuplicated(docs$original_id[nzchar(docs$original_id)])) issues <- c(issues, "Hay ID originales repetidos; se han asignado ID internos \u00fanicos.")
   rows_in <- nrow(docs)
+  selection_context <- NULL; selection_log <- NULL; selection_initial <- docs
+  if (!is.null(cfg$corpus_selection)) {
+    selection_context <- selection_rules(d, mapping, cfg$corpus_selection, cfg$reference_year)
+    selection_context$doi_field <- mapping$doi %||% ""
+    selection_log <- selection_tracker(docs)
+  }
   if (nzchar(cfg$filter_col)) {
     if (!cfg$filter_col %in% names(d)) abort_user("La columna del filtro no existe.")
     docs <- docs[clean_value(d[[cfg$filter_col]]) == trimws(cfg$filter_value), , drop = FALSE]
   }
   rows_filter <- nrow(docs)
+  if (!is.null(selection_log)) selection_log$add("Filtro por valor exacto", docs, nzchar(cfg$filter_col))
   if (!is.null(cfg$year_min) || !is.null(cfg$year_max)) {
     if (!nzchar(mapping$year %||% "")) abort_user("Asigna una columna de a\u00f1o antes de aplicar el filtro temporal.")
     low <- cfg$year_min %||% 1500; high <- cfg$year_max %||% (cfg$reference_year + 1)
@@ -444,6 +462,13 @@ prepare_documents <- function(d, mapping, config = default_config()) {
     docs <- docs[!is.na(docs$year) & docs$year >= low & docs$year <= high, , drop = FALSE]
   }
   rows_year <- nrow(docs)
+  if (!is.null(selection_log)) {
+    selection_log$add("A\u00f1os de publicaci\u00f3n", docs, !is.null(cfg$year_min) || !is.null(cfg$year_max))
+    for (rule in selection_context$rules) {
+      docs <- docs[rule$mask[docs$source_row], , drop = FALSE]
+      selection_log$add(rule$label, docs, rule$active)
+    }
+  }
   dup <- duplicate_audit(docs)
   duplicates <- dup$duplicate
   duplicate_records <- docs[duplicates, , drop = FALSE]
@@ -467,8 +492,9 @@ prepare_documents <- function(d, mapping, config = default_config()) {
   ambiguous_records <- dup$ambiguous
   if (cfg$deduplicate) docs <- docs[!duplicates, , drop = FALSE]
   rows_dedup <- nrow(docs)
-  if (!nrow(docs)) abort_user("Los filtros han dejado cero documentos. Ampl\u00eda el periodo o elimina el filtro.")
-  if (cfg$sample_pct < 100) {
+  if (!is.null(selection_log)) selection_log$add("Duplicados seguros", docs, cfg$deduplicate)
+  if (!nrow(docs) && !isTRUE(cfg$selection_preview)) abort_user("Los filtros han dejado cero documentos. Ampl\u00eda el periodo o elimina el filtro.")
+  if (cfg$sample_pct < 100 && nrow(docs) > 0L) {
     n <- max(1L, floor(nrow(docs) * cfg$sample_pct / 100))
     idx <- with_seed(cfg$seed, sort(sample.int(nrow(docs), n)))
     docs <- docs[idx, , drop = FALSE]
@@ -482,8 +508,16 @@ prepare_documents <- function(d, mapping, config = default_config()) {
   issues <- c(issues, sprintf("Corpus final: %d/%d documentos con a\u00f1o v\u00e1lido; %d/%d con citas v\u00e1lidas; %d/%d con texto no vac\u00edo.",
     sum(!is.na(docs$year)), nrow(docs), sum(!is.na(docs$citations)), nrow(docs), sum(nzchar(docs$text)), nrow(docs)))
   if (!nzchar(mapping$authors %||% "")) issues <- c(issues, "No hay columna de autores asignada; no se calcular\u00e1 productividad de autores.")
-  list(documents = docs, audit = audit, duplicates = duplicate_records, ambiguous = ambiguous_records, issues = issues, config = cfg, mapping = mapping,
+  if (!is.null(selection_log)) selection_log$add("Muestra final", docs, cfg$sample_pct < 100)
+  result <- list(documents = docs, audit = audit, duplicates = duplicate_records, ambiguous = ambiguous_records, issues = issues, config = cfg, mapping = mapping,
     input_md5 = attr(d, "source_md5", exact = TRUE))
+  if (!is.null(selection_log)) {
+    result$selection <- selection_result(selection_log, docs, selection_initial, selection_context)
+    steps <- result$selection$steps
+    result$audit <- data.frame(etapa = steps$paso[steps$activo], documentos = steps$quedan[steps$activo])
+    result$audit <- rbind(result$audit, data.frame(etapa = "Corpus resultante", documentos = nrow(docs)))
+  }
+  result
 }
 tokenize_one <- function(text, cfg, stops) {
   # Forma canonica NFC antes de segmentar: "cafe" + U+0301 y "caf\u00e9" son la misma palabra.

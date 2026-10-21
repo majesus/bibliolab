@@ -134,18 +134,18 @@ expanded_ordination_ui <- function(f,kind,focus="",quadrant="all") {
   controls<-if(ca) {
     fluidRow(
       column(8,selectizeInput("expanded_ca_focus","Localizar un t\u00e9rmino",c("Plano general"="",setNames(f$terms$termino,f$terms$termino)),selected=focus)),
-      column(4,numericInput("expanded_ca_labels","M\u00e1ximo de etiquetas",min(40,nrow(f$terms)),1,nrow(f$terms))))
+      column(4,numericInput("expanded_ca_labels","M\u00e1ximo de nombres escritos en el gr\u00e1fico",min(40,nrow(f$terms)),1,nrow(f$terms))))
   } else {
     tagList(
       fluidRow(
         column(6,selectInput("expanded_pca_view","Plano ampliado",c("Documentos"="documents","Variables / correlaciones"="terms"),selected=kind)),
-        column(6,numericInput("expanded_pca_labels","M\u00e1ximo de etiquetas",min(40,nrow(f$terms)),1,min(300,max(nrow(f$terms),nrow(f$documents)))))),
+        column(6,numericInput("expanded_pca_labels","M\u00e1ximo de nombres escritos en el gr\u00e1fico",min(40,nrow(f$terms)),1,min(300,max(nrow(f$terms),nrow(f$documents)))))),
       selectInput("expanded_pca_quadrant","Cuadrante de variables",c("Plano completo"="all","Horizontal + / vertical +"="pp","Horizontal \u2212 / vertical +"="np","Horizontal \u2212 / vertical \u2212"="nn","Horizontal + / vertical \u2212"="pn"),selected=quadrant),
       selectizeInput("expanded_pca_focus","Localizar documento o t\u00e9rmino",c("Vista general"="",setNames(f$documents$doc_id,paste(f$documents$doc_id,f$documents$title)),setNames(f$terms$termino,f$terms$termino)),selected=""))
   }
   tags$div(class="ca-expanded-shell",
-    tags$details(class="ca-figure-controls",tags$summary(if(ca)"Buscar t\u00e9rminos / mostrar m\u00e1s etiquetas / interpretaci\u00f3n" else "Cambiar documentos o variables / buscar / mostrar m\u00e1s etiquetas"),
+    tags$details(class="ca-figure-controls",tags$summary(if(ca)"Buscar t\u00e9rminos / mostrar m\u00e1s nombres en el gr\u00e1fico / interpretaci\u00f3n" else "Cambiar documentos o variables / buscar / mostrar m\u00e1s nombres en el gr\u00e1fico"),
       controls,
-      hint("El m\u00e1ximo puede llegar a todos los t\u00e9rminos del modelo. Se colocan las etiquetas que caben en el espacio disponible; los dem\u00e1s puntos conservan su informaci\u00f3n al pasar el cursor. Los ejes y las coordenadas se mantienen. Usa b\u00fasqueda, cuadrante o zoom para casos densos. Cierra estos controles para dedicar el modal al gr\u00e1fico.")),
+      hint("Estos controles solo cambian la lectura. Buscar destaca un caso y el m\u00e1ximo limita los nombres dibujados, no los datos del ajuste. En ACP, Documentos muestra textos y Variables muestra t\u00e9rminos y sus correlaciones; utilizan escalas distintas; el cuadrante recorta la consulta de variables. Se colocan los nombres que caben en el espacio disponible; los dem\u00e1s puntos conservan su informaci\u00f3n al pasar el cursor. Los ejes y las coordenadas se mantienen. Usa b\u00fasqueda o zoom para casos densos. Cierra estos controles para dedicar el modal al gr\u00e1fico.")),
     plotly::plotlyOutput(if(ca)"ca_expanded" else "pca_expanded",height="100%",width="100%"))
 }
