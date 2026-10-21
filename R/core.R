@@ -1,5 +1,5 @@
 # Funciones puras: importacion, trazabilidad y analisis. No dependen de Shiny.
-BIBLIO_VERSION <- "5.0.5"
+BIBLIO_VERSION <- "5.0.6"
 BIBLIO_LIMITS <- list(bytes = 100 * 1024^2, rows = 10000L, columns = 100L,
                   text_chars = 50000L, units = 20000L, tokens = 1000000L)
 `%||%` <- function(x, y) if (is.null(x) || length(x) == 0L) y else x
@@ -80,6 +80,16 @@ read_biblio_csv <- function(path, sep = "auto", encoding = "UTF-8") {
   if (nrow(d) > BIBLIO_LIMITS$rows) abort_user("El CSV supera 10.000 filas. Usa un subconjunto de la b\u00fasqueda.")
   if (ncol(d) > BIBLIO_LIMITS$columns) abort_user("El CSV supera 100 columnas. Conserva los metadatos necesarios.")
   if (ncol(d) == 1L && grepl("[,;\\t]", names(d), perl = TRUE)) abort_user("Solo se ha detectado una columna con separadores en el encabezado. Revisa el separador del archivo.")
+  # fread rellena encabezados vacios con V1, V2, ... incluso con check.names = FALSE.
+  # Inspeccionar el registro original como datos evita aceptar nombres inventados.
+  header <- tryCatch(data.table::fread(text = txt, sep = sep, header = FALSE,
+    nrows = 1L, colClasses = "character", encoding = "UTF-8", na.strings = NULL,
+    check.names = FALSE, fill = FALSE, showProgress = FALSE),
+    error = function(e) abort_user("No se puede leer el encabezado del CSV."))
+  original_names <- as.character(unlist(header[1L, ], use.names = FALSE))
+  if (length(original_names) != ncol(d) || anyNA(original_names) || any(!nzchar(trimws(original_names))))
+    abort_user("Los encabezados deben ser \u00fanicos y no estar vac\u00edos.")
+  names(d) <- original_names
   if (any(!nzchar(trimws(names(d)))) || anyDuplicated(names(d))) abort_user("Los encabezados deben ser \u00fanicos y no estar vac\u00edos.")
   if (any(vapply(d, function(x) any(nchar(x, type = "chars") > BIBLIO_LIMITS$text_chars, na.rm = TRUE), logical(1))))
     abort_user("Una celda supera 50.000 caracteres. Usa t\u00edtulos o res\u00famenes, en lugar de textos completos.")
