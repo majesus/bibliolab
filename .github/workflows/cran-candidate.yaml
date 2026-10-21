@@ -21,7 +21,7 @@ jobs:
       OMP_NUM_THREADS: '1'
       OPENBLAS_NUM_THREADS: '1'
       MKL_NUM_THREADS: '1'
-      BIBLIOLAB_DIST: ${{ runner.temp }}/bibliolab-cran-candidate
+      BIBLIOLAB_DIST: /tmp/bibliolab-cran-candidate
     steps:
       - uses: actions/checkout@v4
       - uses: r-lib/actions/setup-pandoc@v2
