@@ -1,7 +1,7 @@
 Package: bibliolab
 Type: Package
 Title: Guided Bibliometric Analysis and Text Mining
-Version: 5.0.6
+Version: 5.0.7
 Date: 2026-10-21
 Authors@R: 
     person("Manuel J.", "Sánchez-Franco", , "majesus@us.es", role = c("aut", "cre", "cph"),
@@ -16,7 +16,12 @@ Description: A guided 'shiny' application, together with a set of functions,
     are assisted and recorded, and the analysis can be exported as a
     reproducible bundle with a methodological report, parameters, seeds and a
     replication script. It is designed for researchers without technical
-    training, and all computation is local.
+    training, and all computation is local. Methodological references include
+    Blei, Ng and Jordan (2003) <https://jmlr.org/papers/v3/blei03a.html> for
+    latent Dirichlet allocation; McInnes, Healy and Melville (2018)
+    <doi:10.48550/arXiv.1802.03426> for UMAP; Campello, Moulavi and Sander
+    (2013) <doi:10.1007/978-3-642-37456-2_14> for HDBSCAN; and Lin (1991)
+    <doi:10.1109/18.61115> for Jensen-Shannon divergence.
 License: MIT + file LICENSE
 Language: es
 Encoding: UTF-8

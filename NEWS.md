@@ -1,3 +1,11 @@
+# bibliolab 5.0.7
+
+- Añade a DESCRIPTION referencias verificadas de LDA, UMAP, HDBSCAN y
+  divergencia Jensen-Shannon, sin cambiar los cálculos.
+- Añade una construcción con R release actual y un check del mismo tarball,
+  con manual y ejemplos donttest. Conserva el archivo, su SHA256 y los
+  registros como artefacto de CI para las comprobaciones previas al envío.
+
 # bibliolab 5.0.6
 
 - Excluye los metadatos de Git, las carpetas temporales y los registros de depuración del paquete
