@@ -1,8 +1,8 @@
 Package: bibliolab
 Type: Package
 Title: Guided Bibliometric Analysis and Text Mining
-Version: 5.0.5
-Date: 2026-10-20
+Version: 5.0.6
+Date: 2026-10-21
 Authors@R: 
     person("Manuel J.", "Sánchez-Franco", , "majesus@us.es", role = c("aut", "cre", "cph"),
            comment = c(ORCID = "0000-0002-8042-3550"))

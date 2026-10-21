@@ -278,11 +278,15 @@ lda_select_k <- function(corpus, k_range = 2:8, seeds = c(2026L, 2027L, 2028L), 
     abort_user("La seleccion de k necesita los paquetes topicmodels y slam. Instalalos con install.packages(c(\"topicmodels\", \"slam\")).")
   m <- corpus$counts
   if (is.null(m) || nrow(m) < 6 || ncol(m) < 6) abort_user("La seleccion de k necesita al menos seis unidades con palabras y seis terminos.")
+  if (!is.numeric(k_range) || !length(k_range) || anyNA(k_range) ||
+      any(!is.finite(k_range) | k_range != floor(k_range) | k_range < 2 | k_range > 12))
+    abort_user("El rango de temas debe contener enteros entre 2 y 12.")
   k_range <- sort(unique(as.integer(k_range)))
-  if (!length(k_range) || any(is.na(k_range)) || any(k_range < 2L | k_range > 12L)) abort_user("El rango de temas debe estar entre 2 y 12.")
   if (max(k_range) >= min(dim(m))) abort_user("El numero maximo de temas debe ser menor que el numero de unidades y de terminos.")
+  if (!is.numeric(seeds) || !length(seeds) || anyNA(seeds) ||
+      any(!is.finite(seeds) | seeds != floor(seeds) | seeds < 1 | seeds > .Machine$integer.max))
+    abort_user("Indica al menos una semilla entera positiva dentro del rango de enteros de R.")
   seeds <- unique(as.integer(seeds))
-  if (!length(seeds) || any(is.na(seeds)) || any(seeds < 1L)) abort_user("Indica al menos una semilla entera positiva.")
   if (length(k_range) * length(seeds) > 60L) abort_user("Se piden demasiados ajustes (maximo 60). Reduce el rango de temas o las semillas.")
   check_number(iterations, "Las iteraciones", 100, 2000)
   check_number(holdout, "La fraccion reservada", 0, 0.5, FALSE)

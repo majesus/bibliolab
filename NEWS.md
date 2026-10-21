@@ -1,3 +1,16 @@
+# bibliolab 5.0.6
+
+- Excluye los metadatos de Git, las carpetas temporales y los registros de depuración del paquete
+  fuente para impedir que se distribuyan perfiles de navegador y otros
+  artefactos locales ajenos a la aplicación.
+- Rechaza encabezados CSV vacíos antes de que el lector les asigne nombres
+  artificiales y conserva encabezados válidos como `NA` sin interpretarlos
+  como valores ausentes.
+- Valida los enteros de `k_range` y `seeds` antes de convertirlos en la
+  selección LDA, evitando la truncación silenciosa de valores fraccionarios.
+- Añade pruebas de regresión para estas validaciones. Mantiene las fórmulas
+  de los análisis y las configuraciones enteras válidas.
+
 # bibliolab 5.0.5
 
 - Revisa la claridad de las 32 guías, las ayudas contextuales y las lecturas
