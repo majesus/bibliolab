@@ -5,7 +5,7 @@
 <!-- badges: end -->
 
 Análisis bibliométrico y de minería de textos, **guiado** para personas sin formación
-técnica y **reproducible** para su uso en investigación. Versión 5.0.6.
+técnica y **reproducible** para su uso en investigación. Versión 5.0.7.
 
 > **Aviso de integridad académica.** bibliolab y sus skills asisten el trabajo del investigador; no sustituyen su criterio ni asumen autoría. Toda salida requiere verificación humana contra las fuentes originales, el uso de IA generativa debe declararse según exijan la institución y la revista, y los resultados son descriptivos o exploratorios, no confirmatorios. Las exportaciones de bases de datos con licencia (Web of Science, Scopus) se rigen por sus términos. El aviso completo, que tiene en cuenta el Reglamento (UE) 2024/1689 (Ley de IA), el RGPD y las orientaciones de la Comisión Europea sobre ética e integridad en la investigación, está en [`inst/skills/INTEGRIDAD_ACADEMICA.md`](inst/skills/INTEGRIDAD_ACADEMICA.md).
 

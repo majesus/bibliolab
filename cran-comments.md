@@ -1,4 +1,21 @@
-## Test environment for bibliolab 5.0.6
+## Validation of bibliolab 5.0.7
+
+This version adds methodological references to DESCRIPTION and a reproducible
+source-package workflow. The only change to R code is the version constant.
+The numerical implementations and regression tests audited in 5.0.6 are unchanged.
+
+The full local suite also passed on 5.0.7: 190 tests, 1,263 expectations,
+with no failures, warnings or skips, using the isolated installed 5.0.7 package.
+
+The CRAN candidate workflow builds with the current R release, checks that
+exact tarball with --as-cran --run-donttest (including the PDF manual), and
+retains the checked archive, SHA256 checksum, build environment and check logs.
+Results are available at:
+https://github.com/majesus/bibliolab/actions/workflows/cran-candidate.yaml
+
+Win-builder results are not claimed until the returned report is available.
+
+## Previous local validation (bibliolab 5.0.6)
 
 * Windows 11, R 4.4.1 (UCRT), UTF-8 locale, 21 October 2026.
 * The source tarball was built with R CMD build and checked with
