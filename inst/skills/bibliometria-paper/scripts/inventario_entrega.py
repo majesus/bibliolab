@@ -31,9 +31,11 @@ class Fuente:
             if nombres and all(n.startswith(nombres[0].split("/")[0] + "/") for n in nombres) and "/" in nombres[0]:
                 raiz = nombres[0].split("/")[0] + "/"
             self.raiz = raiz
+            self.todos = [n[len(raiz):] for n in nombres]
             self.archivos = sorted(n[len(raiz):] for n in nombres if "/" not in n[len(raiz):])
         else:
             self.dir = p
+            self.todos = [f.relative_to(p).as_posix() for f in p.rglob("*") if f.is_file()]
             self.archivos = sorted(f.name for f in p.iterdir() if f.is_file())
 
     def texto(self, nombre):
@@ -89,7 +91,9 @@ def main():
         if t:
             sospechosas += len(re.findall(r'(^|;)"?\'[=+@\-]', t, flags=re.M))
     salida["celdas_neutralizadas_con_apostrofo"] = sospechosas
-    salida["carpeta_skills_incluida"] = any(n.startswith("skills") for n in f.archivos)
+    salida["carpeta_skills_incluida"] = any(n.startswith("skills/") for n in f.todos)
+    if f.zip:
+        f.zip.close()
     if "--json" in sys.argv:
         print(json.dumps(salida, ensure_ascii=False, indent=2, default=str))
         return

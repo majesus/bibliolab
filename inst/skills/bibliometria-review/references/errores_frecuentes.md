@@ -8,7 +8,7 @@
 - **Etiquetas como hechos.** «Tema validado», «tema de innovación» sin lectura de documentos representativos (`lda_documentos_representativos.csv`) ni descripción de quién etiquetó.
 - **Estabilidad sin evidencia.** Una sola semilla; sin `lda_seleccion_k.csv` ni `umap_hdbscan_sensibilidad.csv`.
 - **Ejes sin superar el azar.** Interpretar ejes de ACP o CA con `supera_azar` falso; confundir varianza de ACP con inercia de CA; comparar distancias entre planos de objetos distintos.
-- **JSD mal leída.** Causalidad o «significativa» sin referencia nula (`jsd_incertidumbre.csv`); ignorar que el p alto indica que la diferencia puede ser ruido de muestreo; JSD cero entendida como equivalencia semántica total.
+- **JSD mal leída.** Causalidad o «significativa» sin referencia nula (`jsd_incertidumbre.csv`); interpretar un p alto como prueba de igualdad o un p bajo como causalidad; JSD cero entendida como equivalencia semántica total.
 - **Citas como calidad; centralidad como liderazgo.** El contrato no autoriza esas equivalencias.
 - **Prevalencia LDA como pertenencia exclusiva.** `lda_prevalencia.csv` es una media de mezclas; el tema dominante usado en JSD es una simplificación.
 - **Grupo 0 de HDBSCAN.** Es «no asignado», no un grupo temático.

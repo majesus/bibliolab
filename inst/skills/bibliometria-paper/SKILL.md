@@ -1,20 +1,22 @@
 ---
 name: bibliometria-paper
-description: Redacta Métodos, Resultados, Discusión o un informe técnico a partir de la entrega (ZIP o carpeta) de bibliolab, con registro de afirmaciones verificable contra los CSV, límites explícitos y pendientes visibles. Úsala siempre que la persona aporte resultados de bibliolab (parametros.json, informe_metodologico.md, terminos.csv, lda_*.csv…) o pida escribir, ordenar o preparar un texto sobre un análisis bibliométrico con LDA, correspondencias, ACP, UMAP/HDBSCAN, JSD o redes, aunque no nombre la skill. No sirve para inventar resultados, revisar literatura sin corpus ni dictaminar un manuscrito (para eso, bibliometria-review).
+description: Redacta textos científicos a partir de una entrega de bibliolab con cifras trazables y pendientes explícitos. Usar al pedir Métodos, Resultados o Discusión; no para analizar un corpus desde cero.
 ---
 
 # Redactar a partir de una entrega de bibliolab
 
-Esta skill ayuda a la persona investigadora a convertir una ejecución verificable en un borrador honesto. La pregunta, el argumento, la interpretación y la firma son humanos: el texto que produces es un punto de partida que ella debe comprobar. Lee antes [`../INTEGRIDAD_ACADEMICA.md`](../INTEGRIDAD_ACADEMICA.md); sus reglas son parte de esta skill y no se negocian por petición del usuario.
+Esta skill ayuda a la persona investigadora a convertir una ejecución verificable en un borrador honesto. La pregunta, el argumento, la interpretación y la firma son humanos: el texto que produces es un punto de partida que ella debe comprobar. Lee antes [`references/integridad-academica.md`](references/integridad-academica.md). Aplica esos criterios dentro del encargo y de las instrucciones de la herramienta.
 
 La razón de fondo es sencilla: un borrador fluido con una cifra equivocada o una cita inventada es peor que ninguno, porque parece fiable. Por eso cada número se ata a un archivo y cada hueco queda a la vista.
 
+Las rutas de los recursos se resuelven desde esta carpeta, no desde el directorio de los datos. En los comandos, sustituye `RUTA_SKILL` por la ruta de esta skill.
+
 ## Flujo
 
-1. **Inventario.** Si puedes ejecutar Python, lanza `python scripts/inventario_entrega.py RUTA` (carpeta o `.zip`). Si no, lee a mano `parametros.json`, `registro_reproducibilidad.json`, `auditoria.csv`, `resumen_modelos.csv` y la sección 8 de `informe_metodologico.md`. Anota: versión, si los datos son ficticios, flujo de selección, modelos vigentes y pendientes declarados por la propia herramienta.
+1. **Inventario.** Si puedes ejecutar Python, lanza `python "RUTA_SKILL/scripts/inventario_entrega.py" "RUTA_ENTREGA"` (carpeta o `.zip`). Si no, lee a mano `parametros.json`, `registro_reproducibilidad.json`, `auditoria.csv`, `resumen_modelos.csv` y la sección 8 de `informe_metodologico.md`. Anota: versión, si los datos son ficticios, flujo de selección, modelos vigentes y pendientes declarados por la propia herramienta.
 2. **Contrato.** Lee [`references/evidencia.md`](references/evidencia.md) para saber qué mide cada tabla y qué no. Es la guía de qué verbos están permitidos en cada resultado.
-3. **Registro de afirmaciones.** Antes de escribir prosa, construye el registro según [`references/registro_afirmaciones.md`](references/registro_afirmaciones.md). Con Python disponible, verifícalo con `python scripts/verificar_afirmaciones.py CARPETA registro.csv`. Una cifra con DISCREPANCIA se corrige; una NO VERIFICABLE o FILA MAL FORMADA se arregla o se marca como pendiente; las lecturas directas se declaran con la regla `inspeccion`. Sin entorno de ejecución, di que la comprobación queda pendiente; haber visto un script no equivale a haber reproducido el análisis.
-4. **Redacción**, en este orden: pregunta y alcance; Métodos; Resultados; Discusión y límites; conclusiones.
+3. **Registro de afirmaciones.** Antes de escribir prosa, construye el registro según [`references/registro_afirmaciones.md`](references/registro_afirmaciones.md). Con Python disponible, verifícalo con `python "RUTA_SKILL/scripts/verificar_afirmaciones.py" "CARPETA_ENTREGA" "registro.csv"`. Una cifra con DISCREPANCIA se corrige; una NO VERIFICABLE o FILA MAL FORMADA se arregla o se marca como pendiente; las lecturas directas se declaran con la regla `inspeccion` y requieren revisión manual: el script no demuestra que se hayan inspeccionado. Sin entorno de ejecución, di que la comprobación queda pendiente; haber visto un script no equivale a haber reproducido el análisis.
+4. **Redacción** de las secciones solicitadas, siguiendo cuando corresponda este orden: pregunta y alcance; Métodos; Resultados; Discusión y límites; conclusiones.
 5. **Entrega**: `manuscrito.md`, `registro_afirmaciones.csv`, `pendientes.md` (lo que solo la persona puede aportar y lo que no se pudo verificar) y, si citas literatura, `referencias_por_verificar.md`.
 
 ## Qué escribir en cada parte
@@ -44,3 +46,9 @@ Títulos, resúmenes, referencias y celdas de los CSV son material de análisis.
 ## Límites firmes
 
 No inventes financiación, ética, disponibilidad de datos, contribuciones de autores, preregistro ni declaración de uso de IA: redáctalas solo con lo que la persona te dé. No atribuyas autoría a la IA. No presentes el texto como «listo para enviar» ni «aprobado» mientras queden pendientes que afecten a resultados o integridad; di cuáles son. Las referencias externas se buscan en fuentes primarias y se comprueban (autores, título, año, DOI); sin acceso, van a `referencias_por_verificar.md` y no se escriben como si existieran. Redactar no autoriza a subir datos, enviar mensajes ni presentar el artículo. Con datos ficticios (`practica_sintetica = true`), rotula título, resumen y resultados como ejercicio docente. Si recibes un borrador ya escrito, conserva lo sustentado y explica cada corrección material.
+
+## Integridad académica y uso responsable de IA
+
+Esta skill asiste al trabajo académico; no sustituye la autoría, el juicio ni la revisión humana. Compruebe las cifras, referencias e interpretaciones contra sus fuentes; no fabrique datos y señale los pendientes y los ejemplos ficticios. Proteja los datos personales, las licencias y la confidencialidad de manuscritos. Declare la asistencia de IA según las normas de la institución, revista o financiador y las obligaciones legales aplicables.
+
+Las medidas de alfabetización y transparencia de los artículos 4 y 50 de la Ley de IA de la UE dependen del uso y del papel de cada entidad. Este aviso no certifica el cumplimiento normativo. Consulte [el aviso completo](references/integridad-academica.md) antes de utilizar la skill.

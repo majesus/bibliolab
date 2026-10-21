@@ -1,120 +1,153 @@
 #!/usr/bin/env python3
-"""Recalcula afirmaciones numericas contra los CSV completos de una entrega.
-
-Uso: python verificar_afirmaciones.py CARPETA afirmaciones.csv [--tol 0.005]
-
-afirmaciones.csv (UTF-8, separador ';') admite estas columnas:
-  id;archivo;columna;regla;filtro_columna;filtro_valor;valor_declarado
-Reglas: n_filas, suma, media, mediana, max, min, n_unicos, celda, proporcion
-  - celda: exige que el filtro seleccione una sola fila y devuelve su columna.
-  - proporcion: filas que cumplen el filtro / filas totales (0-1).
-  - inspeccion: la cifra o lectura se tomo directamente de un archivo o es una
-    interpretacion; no se recalcula. Se informa como INSPECCIONADA, sin contarse
-    como fallo. Pon el detalle en una columna `nota` (sin punto y coma).
-Estado resultante: OK, DISCREPANCIA, INSPECCIONADA o NO VERIFICABLE (con el motivo).
-Una fila con distinto numero de columnas que la cabecera (tipicamente por un punto y
-coma dentro de un texto sin comillas) se informa como FILA MAL FORMADA y no se calcula.
-Solo lee; biblioteca estandar unicamente. La tolerancia es relativa.
+"""Verifica cifras contra CSV UTF-8 con separador ';', sin modificar archivos.
+Uso: python verificar_afirmaciones.py CARPETA registro.csv [--tol 0.005]
+El conteo de filas y únicos es exacto; las demás cifras usan tolerancia relativa.
+'inspeccion' requiere revisión humana y nunca se cuenta como cálculo verificado.
 """
-import csv, statistics, sys
+import argparse
+import csv
+import math
+import re
+import statistics
+import sys
 from pathlib import Path
 
+AUSENTES = {"", "NA", "NAN", "NULL", "N/A"}
+REGLAS = {"n_filas", "suma", "media", "mediana", "max", "min", "n_unicos", "celda", "proporcion", "inspeccion"}
 
-def numero(x):
-    x = str(x).strip().lstrip("'").replace("%", "")
-    if not x or x.upper() in {"NA", "NAN", "NULL"}:
+def numero(valor):
+    texto = str(valor).strip()
+    if texto.startswith("'"):
+        texto = texto[1:]
+    if texto.upper() in AUSENTES:
         return None
-    if "," in x and "." not in x:
-        x = x.replace(",", ".")
+    porcentaje = texto.endswith("%")
+    if porcentaje:
+        texto = texto[:-1].strip()
+    if "," in texto and "." in texto:
+        raise ValueError("numero ambiguo: no se infieren separadores de miles")
     try:
-        return float(x)
+        n = float(texto.replace(",", "."))
     except ValueError:
-        return None
+        raise ValueError("valor no numerico")
+    if not math.isfinite(n):
+        raise ValueError("numero no finito")
+    return n / 100 if porcentaje else n
 
+def leer_csv(ruta):
+    with open(ruta, encoding="utf-8-sig", newline="") as fh:
+        lector = csv.DictReader(fh, delimiter=";", restkey="_exceso")
+        campos = lector.fieldnames
+        if not campos or len(campos) != len(set(campos)) or any(not c for c in campos):
+            raise ValueError("cabecera vacia o duplicada")
+        filas = list(lector)
+    if any("_exceso" in f or any(v is None for v in f.values()) for f in filas):
+        raise ValueError("columnas distintas de la cabecera; entrecomille los ';' del texto")
+    return campos, filas
 
-def leer(carpeta, archivo, cache={}):
-    clave = (str(carpeta), archivo)
-    if clave not in cache:
-        p = Path(carpeta) / archivo
-        if not p.exists():
-            cache[clave] = None
-        else:
-            with open(p, encoding="utf-8-sig", newline="") as fh:
-                cache[clave] = list(csv.DictReader(fh, delimiter=";"))
-    return cache[clave]
+def archivo_seguro(carpeta, archivo):
+    if not archivo or Path(archivo).is_absolute():
+        raise ValueError("archivo debe ser una ruta relativa dentro de la entrega")
+    raiz = Path(carpeta).resolve()
+    ruta = (raiz / archivo).resolve()
+    try:
+        ruta.relative_to(raiz)
+    except ValueError:
+        raise ValueError("archivo fuera de la entrega")
+    if ruta.suffix.lower() != ".csv":
+        raise ValueError("el recalculo requiere un archivo CSV")
+    return ruta
 
-
-def calcular(filas, r):
-    col, regla = r.get("columna", ""), r.get("regla", "").strip()
+def calcular(campos, filas, r):
+    regla = r.get("regla", "").strip()
+    if regla not in REGLAS - {"inspeccion"}:
+        raise ValueError("regla desconocida")
+    col = r.get("columna", "")
     fc, fv = r.get("filtro_columna", ""), r.get("filtro_valor", "")
-    if fc:
-        if fc not in filas[0]:
-            raise KeyError(f"columna de filtro inexistente: {fc}")
-        sel = [x for x in filas if str(x[fc]).lstrip("'") == fv]
-    else:
-        sel = filas
+    if fc and fc not in campos:
+        raise ValueError("columna de filtro inexistente: " + fc)
+    seleccion = [f for f in filas if str(f[fc]).removeprefix("'") == fv] if fc else filas
     if regla == "n_filas":
-        return float(len(sel))
+        return len(seleccion)
     if regla == "proporcion":
-        return len(sel) / len(filas) if filas else None
-    if col not in filas[0]:
-        raise KeyError(f"columna inexistente: {col}")
-    if regla == "celda":
-        if len(sel) != 1:
-            raise ValueError(f"el filtro selecciona {len(sel)} filas, se esperaba 1")
-        v = numero(sel[0][col])
-        return v if v is not None else sel[0][col]
+        if not fc:
+            raise ValueError("proporcion requiere filtro y denominador de todas las filas")
+        if not filas:
+            raise ValueError("proporcion con denominador cero")
+        return len(seleccion) / len(filas)
+    if col not in campos:
+        raise ValueError("columna inexistente: " + col)
     if regla == "n_unicos":
-        return float(len({str(x[col]) for x in sel if str(x[col]).strip()}))
-    vals = [numero(x[col]) for x in sel]
-    vals = [v for v in vals if v is not None]
-    if not vals:
-        raise ValueError("sin valores numericos validos")
-    return {"suma": sum, "media": statistics.fmean, "mediana": statistics.median, "max": max, "min": min}[regla](vals)
+        return len({f[col].removeprefix("'") for f in seleccion if f[col].strip().upper() not in AUSENTES})
+    if regla == "celda":
+        if len(seleccion) != 1:
+            raise ValueError("celda requiere exactamente una fila")
+        valor = seleccion[0][col]
+        if valor.strip().upper() in AUSENTES:
+            raise ValueError("celda con dato ausente")
+        try:
+            return numero(valor)
+        except ValueError:
+            # Non-finite numbers are not accepted as ordinary text.
+            if re.match(r"^[+-]?(?:\d|\.\d)", valor.strip()) or valor.strip().lower() in {"inf", "+inf", "-inf", "infinity", "+infinity", "-infinity"}:
+                raise
+            return valor.removeprefix("'")
+    valores = [numero(f[col]) for f in seleccion]
+    validos = [v for v in valores if v is not None]
+    if not validos:
+        raise ValueError("sin valores numericos validos; los ausentes no son ceros")
+    return {"suma": sum, "media": statistics.fmean, "mediana": statistics.median,
+            "max": max, "min": min}[regla](validos)
 
-
-def main():
-    if len(sys.argv) < 3:
-        sys.exit(__doc__)
-    carpeta, af = sys.argv[1], sys.argv[2]
-    tol = float(sys.argv[sys.argv.index("--tol") + 1]) if "--tol" in sys.argv else 0.005
-    with open(af, encoding="utf-8-sig", newline="") as fh:
-        reclamos = list(csv.DictReader(fh, delimiter=";", restkey="_exceso"))
-    malos = 0
-    print("id;estado;declarado;recalculado;detalle")
+def main(argv=None):
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("carpeta")
+    parser.add_argument("registro")
+    parser.add_argument("--tol", type=float, default=0.005)
+    args = parser.parse_args(argv)
+    if not math.isfinite(args.tol) or args.tol < 0:
+        parser.error("--tol debe ser finita y no negativa")
+    try:
+        campos, reclamos = leer_csv(args.registro)
+        requeridos = {"id", "archivo", "columna", "regla", "valor_declarado"}
+        if not requeridos.issubset(campos):
+            raise ValueError("faltan columnas: " + ", ".join(sorted(requeridos-set(campos))))
+        if not reclamos:
+            raise ValueError("registro sin afirmaciones")
+    except (OSError, ValueError, csv.Error) as exc:
+        print("Registro no valido: " + str(exc), file=sys.stderr)
+        return 2
+    salida = csv.writer(sys.stdout, delimiter=";", lineterminator="\n")
+    salida.writerow(["id", "estado", "declarado", "recalculado", "detalle"])
+    cache, problemas, manuales, correctas = {}, 0, 0, 0
     for r in reclamos:
-        rid, decl = r.get("id", "?"), r.get("valor_declarado") or ""
-        if "_exceso" in r or any(v is None for v in r.values()):
-            malos += 1
-            print(f"{rid};FILA MAL FORMADA;;;columnas distintas de la cabecera: entrecomilla o elimina los ';' internos")
+        declarado, regla = r["valor_declarado"], r["regla"].strip()
+        if regla == "inspeccion":
+            manuales += 1
+            salida.writerow([r["id"], "REVISION MANUAL", declarado, "", "no recalculada ni inspeccionada por este script"])
             continue
-        if (r.get("regla") or "").strip() == "inspeccion":
-            print(f"{rid};INSPECCIONADA;{decl};;no recalculada")
-            continue
-        filas = leer(carpeta, r.get("archivo", ""))
-        if filas is None:
-            estado, rec, det = "NO VERIFICABLE", "", f"archivo ausente: {r.get('archivo')}"
-        elif not filas:
-            estado, rec, det = "NO VERIFICABLE", "", "archivo sin filas"
-        else:
-            try:
-                rec = calcular(filas, r)
-                d = numero(decl)
-                if isinstance(rec, str) or d is None:
-                    estado, det = ("OK", "") if str(rec).strip() == decl.strip() else ("DISCREPANCIA", "texto distinto")
-                else:
-                    ok = abs(rec - d) <= tol * max(abs(d), abs(rec), 1e-12) or abs(rec - d) < 1e-9
-                    estado, det = ("OK", "") if ok else ("DISCREPANCIA", f"diferencia {rec - d:+.6g}")
-            except Exception as e:  # el motivo se informa, no se oculta
-                estado, rec, det = "NO VERIFICABLE", "", f"{type(e).__name__}: {e}"
-        if estado != "OK":
-            malos += 1
-        rec_txt = f"{rec:.6g}" if isinstance(rec, float) else rec
-        print(f"{rid};{estado};{decl};{rec_txt};{det}")
-    n_insp = sum(1 for r in reclamos if (r.get("regla") or "").strip() == "inspeccion")
-    print(f"\n{len(reclamos) - malos - n_insp}/{len(reclamos)} recalculadas sin discrepancia; {n_insp} inspeccionadas; {malos} con problema", file=sys.stderr)
-    sys.exit(1 if malos else 0)
-
+        rec = ""
+        try:
+            ruta = archivo_seguro(args.carpeta, r["archivo"])
+            if ruta not in cache:
+                cache[ruta] = leer_csv(ruta)
+            rec = calcular(*cache[ruta], r)
+            if isinstance(rec, str):
+                ok = rec.strip() == declarado.strip()
+            else:
+                d = numero(declarado)
+                if d is None:
+                    raise ValueError("valor declarado ausente")
+                ok = (rec == d) if regla in {"n_filas", "n_unicos"} else math.isclose(rec, d, rel_tol=args.tol, abs_tol=1e-9)
+            estado = "OK" if ok else "DISCREPANCIA"
+            detalle = "" if ok else "no coincide con la cifra declarada"
+        except (OSError, ValueError, csv.Error, KeyError) as exc:
+            estado, detalle = "NO VERIFICABLE", str(exc)
+        correctas += estado == "OK"
+        problemas += estado != "OK"
+        salida.writerow([r["id"], estado, declarado, rec, detalle])
+    print(f"{correctas}/{len(reclamos)} recalculadas sin discrepancia; {manuales} requieren revision manual; {problemas} con problema. Tolerancia relativa: {args.tol}; conteos exactos.", file=sys.stderr)
+    return 1 if problemas else 0
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())
