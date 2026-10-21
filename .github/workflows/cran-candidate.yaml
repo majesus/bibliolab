@@ -30,13 +30,15 @@ jobs:
           r-version: release
           use-public-rspm: true
       - uses: r-lib/actions/setup-tinytex@v2
-      - name: Install manual font
+      - name: Install documentation validators
         run: |
+          sudo apt-get update -qq
+          sudo apt-get install --yes tidy
           tlmgr update --self
           tlmgr install inconsolata
       - uses: r-lib/actions/setup-r-dependencies@v2
         with:
-          extra-packages: any::rcmdcheck
+          extra-packages: any::rcmdcheck, any::V8
           needs: check
           dependencies: '"all"'
       - name: Build source package with current R

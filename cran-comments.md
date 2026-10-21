@@ -4,6 +4,9 @@ This version adds methodological references to DESCRIPTION and a reproducible
 source-package workflow. The only change to R code is the version constant.
 The numerical implementations and regression tests audited in 5.0.6 are unchanged.
 
+The full local suite also passed on 5.0.7: 190 tests, 1,263 expectations,
+with no failures, warnings or skips, using the isolated installed 5.0.7 package.
+
 The CRAN candidate workflow builds with the current R release, checks that
 exact tarball with --as-cran --run-donttest (including the PDF manual), and
 retains the checked archive, SHA256 checksum, build environment and check logs.
