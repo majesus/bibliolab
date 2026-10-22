@@ -6,6 +6,42 @@
   con manual y ejemplos donttest. Conserva el archivo, su SHA256 y los
   registros como artefacto de CI para las comprobaciones previas al envío.
 
+## Correcciones de la auditoría del 22/10/2026 (BL-01 a BL-08, BL-17, 19, 20, 25, 32, 35, 40, 44)
+
+- Duplicados: dos obras con igual título largo y año pero autores sin ninguno en
+  común dejan de fusionarse y se listan como ambiguas («Autores distintos»); un
+  DOI idéntico sigue siendo decisivo. El resultado no depende del orden de las filas.
+- Duplicados: la fila conservada completa los campos que le faltan (año, DOI, texto,
+  título, autores, fuente, palabras clave, referencias) con los del duplicado,
+  sin contradicción, y lo registra en `campos_completados`. Las citas no se combinan.
+- LDA: la tabla de calidad usa la misma prevalencia documental que la tabla
+  principal, también cuando el texto se divide en frases.
+- Palabras vacías: `prepare_corpus()` devuelve `language_check` y avisa, sin cambiar
+  la elección, si otra lengua encaja claramente mejor que la lista elegida.
+- Referencias: las variantes de una misma referencia con el mismo DOI forman una
+  entidad en cocitación y acoplamiento.
+- Entrega: incluye el mapa temático vigente (parámetros, semilla, lectura,
+  cobertura, tablas, figuras y guion) en el informe, el informe metodológico, la
+  evidencia para IA y el manifiesto; si las figuras no pueden escribirse se deja constancia.
+- Reproducibilidad: el registro incluye la huella del código instalado y el guion
+  la comprueba como aviso antes de calcular. `reproducir_diagnosticos.R` termina con
+  error si una reproducción difiere o no ejecuta ninguna comparación, y escribe
+  `verificacion_diagnosticos.json`.
+- Selección de k: el número de palabras principales se recorta al vocabulario
+  (se registra `top_n_pedido`), y la recomendación señala soluciones empatadas y
+  estabilidad o vocabulario poco informativos. El botón pasa a «Usar este k en el
+  modelo LDA» y avisa de que el modelo final aún no está calculado. La ayuda aclara
+  el alcance de la reserva.
+- Comparación JSD: advierte de que los grupos procedentes de LDA o UMAP + HDBSCAN
+  son endógenos; las ayudas explican la unidad de remuestreo y los límites del nulo
+  de las líneas base de ejes.
+- Importación: el aviso de celdas de más de 50.000 caracteres nombra la columna, y
+  los avisos de tamaño explican qué análisis se pierden al quitar las referencias.
+- Interfaz: el estado «resultados vigentes» pasa a «resultados calculados con las
+  opciones actuales» y aclara que no certifica validez metodológica.
+- Lanzador: no instala `pkgload` sin consentimiento explícito.
+- Los hallazgos de mayor alcance se documentan en `dev/HOJA_DE_RUTA_AUDITORIA.md`.
+
 # bibliolab 5.0.6
 
 - Excluye los metadatos de Git, las carpetas temporales y los registros de depuración del paquete

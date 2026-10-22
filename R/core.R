@@ -4,6 +4,16 @@ BIBLIO_LIMITS <- list(bytes = 100 * 1024^2, rows = 10000L, columns = 100L,
                   text_chars = 50000L, units = 20000L, tokens = 1000000L)
 `%||%` <- function(x, y) if (is.null(x) || length(x) == 0L) y else x
 abort_user <- function(message) stop(shiny::safeError(message))
+# Mensaje de celdas demasiado largas: nombra las columnas afectadas y lo que implica reducirlas. Una lista de
+# referencias muy larga es legitima en estudios de cocitacion; el limite se mantiene, pero se explica.
+oversize_cells_message <- function(d) {
+  big <- names(d)[vapply(d, function(x) any(nchar(x, type = "chars") > BIBLIO_LIMITS$text_chars, na.rm = TRUE), logical(1))]
+  refs <- grepl("^(cr|references|cited references|referencias|referencias citadas)$", tolower(trimws(big)))
+  paste0("Una celda supera 50.000 caracteres (columna", if (length(big) > 1L) "s" else "", ": ", paste(big, collapse = ", "), "). ",
+    if (any(refs)) "Si es la lista de referencias citadas, no la elimines si necesitas cocitaci\u00f3n o acoplamiento bibliogr\u00e1fico: reexporta el conjunto por periodos para que cada celda quepa en el l\u00edmite. "
+    else "Usa t\u00edtulos o res\u00famenes, en lugar de textos completos. ")
+}
+
 # Tamano maximo de archivo importado: 100 MB por defecto; run_app(max_upload_mb =) lo ajusta (1-500 MB).
 biblio_max_bytes <- function() {
   v <- getOption("bibliolab.max_upload_bytes", BIBLIO_LIMITS$bytes)
@@ -59,7 +69,7 @@ normalize_key <- function(x) tolower(gsub("\\s+", " ", clean_value(x), perl = TR
 read_biblio_csv <- function(path, sep = "auto", encoding = "UTF-8") {
   size <- file.info(path)$size
   if (is.na(size) || size == 0) abort_user("El archivo est\u00e1 vac\u00edo o no se puede leer.")
-  if (size > biblio_max_bytes()) abort_user(paste0("El CSV supera ", biblio_max_mb(), " MB. Divide el archivo o elimina columnas que no necesites (por ejemplo, las referencias citadas) antes de cargarlo."))
+  if (size > biblio_max_bytes()) abort_user(paste0("El CSV supera ", biblio_max_mb(), " MB. Divide el archivo o elimina columnas que no necesites antes de cargarlo. Eliminar las referencias citadas (CR) inutiliza la cocitaci\u00f3n, el acoplamiento bibliogr\u00e1fico y el an\u00e1lisis de referencias: si los necesitas, conserva esa columna y divide el archivo por periodos."))
   if (!sep %in% c("auto", ",", ";", "\t")) abort_user("Separador no admitido.")
   if (!encoding %in% c("UTF-8", "Latin-1")) abort_user("Codificaci\u00f3n no admitida.")
   # Convertir explicitamente antes de leer; no eliminar silenciosamente caracteres.
@@ -92,7 +102,7 @@ read_biblio_csv <- function(path, sep = "auto", encoding = "UTF-8") {
   names(d) <- original_names
   if (any(!nzchar(trimws(names(d)))) || anyDuplicated(names(d))) abort_user("Los encabezados deben ser \u00fanicos y no estar vac\u00edos.")
   if (any(vapply(d, function(x) any(nchar(x, type = "chars") > BIBLIO_LIMITS$text_chars, na.rm = TRUE), logical(1))))
-    abort_user("Una celda supera 50.000 caracteres. Usa t\u00edtulos o res\u00famenes, en lugar de textos completos.")
+    abort_user(oversize_cells_message(d))
   attr(d, "source_md5") <- unname(tools::md5sum(path))
   d
 }
@@ -250,15 +260,26 @@ parse_numeric <- function(x, type = "citations", reference_year = as.integer(for
   else val[val < 0 | val != floor(val)] <- NA_real_
   val
 }
+# Palabras de los nombres de autor, sin acentos ni mayusculas, para comparar listas de autores sin
+# depender del formato ("Smith, J." y "J Smith" comparten "smith"). Se descartan las iniciales (menos de
+# tres caracteres) salvo en escrituras no ASCII, donde un nombre completo puede tener dos caracteres.
+author_tokens <- function(x) {
+  k <- label_key(x, "author")
+  lapply(strsplit(k, "[^\\p{L}\\p{N}]+", perl = TRUE), function(t) {
+    t <- t[nzchar(t)]
+    unique(t[nchar(t) >= 3L | (nchar(t) >= 2L & !grepl("^[a-z0-9]+$", t))])
+  })
+}
 # Auditoria de duplicados. Un registro solo se marca como duplicado cuando la coincidencia es
-# segura: mismo DOI, o mismo titulo (o texto, si falta el titulo) sin evidencia contradictoria. Los
+# segura: mismo DOI, o mismo titulo (o texto, si falta el titulo) sin evidencia contradictoria
+# (DOI, anio o autores distintos). Los
 # homonimos, las versiones con otro anio y las coincidencias con varios candidatos se conservan y se
 # describen en `ambiguous`.
 #
 # La decision de identidad no depende del orden de las filas: se toma sobre el conjunto completo de
 # candidatas. (1) Los registros con el mismo DOI forman una entidad. (2) Dentro de cada grupo de
 # entidades con la misma clave de titulo (o texto) se construye el grafo de compatibilidad (ningun
-# DOI ni anio contradictorio; con titulo generico, mismo anio y mismos autores o texto). (3) Solo se
+# DOI, anio ni autores contradictorios; con titulo generico, mismo anio y mismos autores o texto). (3) Solo se
 # fusionan las entidades que tienen exactamente los mismos candidatos compatibles (gemelas del grafo):
 # si una entidad podria corresponder a varias obras incompatibles entre si, no se resuelve y se
 # conserva como ambigua. (4) La fila conservada de cada grupo es la primera del archivo; eso decide
@@ -269,6 +290,7 @@ duplicate_audit <- function(docs) {
   if (!n) return(list(duplicate = logical(), kept = integer(), criterion = character(), ambiguous = empty_amb))
   doi <- normalize_key(sub("^(https?://(dx\\.)?doi\\.org/|doi:\\s*)", "", docs$doi, ignore.case = TRUE, perl = TRUE))
   tkey <- label_key(docs$title, "keyword"); xkey <- label_key(docs$text, "keyword"); akey <- label_key(docs$authors, "author")
+  atok <- author_tokens(docs$authors)
   year <- docs$year
   pool_key <- ifelse(nzchar(tkey), paste0("t:", tkey), ifelse(nzchar(xkey), paste0("x:", xkey), ""))
   words <- lengths(strsplit(sub("^[tx]:", "", pool_key), " ", fixed = TRUE)) * nzchar(pool_key)
@@ -282,12 +304,15 @@ duplicate_audit <- function(docs) {
   ent_year <- lapply(members, function(ix) unique(year[ix][!is.na(year[ix])]))
   ent_auth <- lapply(members, set_of, values = akey)
   ent_text <- lapply(members, set_of, values = xkey)
+  ent_tok <- lapply(members, function(ix) unique(unlist(atok[ix], use.names = FALSE)))
   pos <- function(e) match(e, ents)
   reason <- function(a, b, generic) {
     pa <- pos(a); pb <- pos(b)
     if (ent_has_doi[[pa]] && ent_has_doi[[pb]]) return("DOI distinto")
     ya <- ent_year[[pa]]; yb <- ent_year[[pb]]
     if (length(ya) && length(yb) && !length(intersect(ya, yb))) return("A\u00f1o distinto")
+    ta <- ent_tok[[pa]]; tb <- ent_tok[[pb]]
+    if (length(ta) && length(tb) && !length(intersect(ta, tb))) return("Autores distintos")
     if (generic) {
       same_year <- length(intersect(ya, yb)) > 0L
       same_authors <- length(intersect(ent_auth[[pa]], ent_auth[[pb]])) > 0L
@@ -315,13 +340,18 @@ duplicate_audit <- function(docs) {
     generic <- words[pe[1L]] < 4L
     hasD <- ent_has_doi[pos(pe)]
     hasY <- lengths(ent_year[pos(pe)]) > 0L
-    Y <- incidence(ent_year, pe); A <- incidence(ent_auth, pe); X <- incidence(ent_text, pe)
+    hasT <- lengths(ent_tok[pos(pe)]) > 0L
+    Y <- incidence(ent_year, pe); A <- incidence(ent_auth, pe); X <- incidence(ent_text, pe); S <- incidence(ent_tok, pe)
     nb <- vector("list", m); edges <- 0; overflow <- FALSE
     step <- max(1L, as.integer(floor(4e6 / m)))
     for (start in seq.int(1L, m, by = step)) {
       rows <- start:min(m, start + step - 1L)
       oy <- overlap(Y, rows, m)
-      ok <- !outer(hasD[rows], hasD, "&") & !(outer(hasY[rows], hasY, "&") & !oy)
+      # Autores contradictorios (ambos registros los declaran y no comparten ninguno) son evidencia en
+      # contra de la identidad, igual que un anio o un DOI distintos: la misma obra puede aparecer con
+      # otro formato de nombres, pero no sin ningun autor en comun.
+      os <- overlap(S, rows, m)
+      ok <- !outer(hasD[rows], hasD, "&") & !(outer(hasY[rows], hasY, "&") & !oy) & !(outer(hasT[rows], hasT, "&") & !os)
       if (generic) ok <- ok & oy & (overlap(A, rows, m) | overlap(X, rows, m))
       ok[cbind(seq_along(rows), rows)] <- FALSE
       for (r in seq_along(rows)) nb[[rows[r]]] <- which(ok[r, ])
@@ -407,15 +437,19 @@ validate_config <- function(config, cfg) {
 #' @details La deduplicacion no elimina un registro salvo coincidencia segura.
 #'   Dos registros son el mismo si comparten DOI. Si falta el DOI en alguno,
 #'   coinciden en titulo normalizado (o, sin titulo, en texto normalizado), no
-#'   tienen DOI distintos ni anios distintos y, cuando el titulo tiene menos de
+#'   tienen DOI distintos, anios distintos ni autores sin ninguno en comun (si
+#'   ambos los declaran) y, cuando el titulo tiene menos de
 #'   cuatro palabras (por ejemplo `Editorial`), coinciden ademas en anio y en
 #'   autores o texto. La identidad se decide sobre el conjunto completo de
 #'   candidatos, no fila a fila: un registro sin DOI que podria corresponder a
 #'   varias obras incompatibles entre si no se fusiona con ninguna y se lista en
 #'   `ambiguous`, de modo que permutar el orden del archivo no cambia las obras
 #'   analizadas. De cada grupo se conserva la primera fila del archivo; si le
-#'   faltan el anio o el DOI y un duplicado los aporta sin contradiccion, se
-#'   completan y se registran en la columna `campos_completados` de `duplicates`.
+#'   faltan el anio, el DOI, el texto, el titulo, los autores, la fuente, las
+#'   palabras clave o las referencias y un duplicado los aporta sin
+#'   contradiccion, se completan y se registran en la columna
+#'   `campos_completados` de `duplicates`. Un campo informado nunca se
+#'   sobrescribe y las citas no se combinan entre registros.
 #'   Las coincidencias con evidencia contradictoria o con varios candidatos se
 #'   conservan y se listan en `ambiguous`.
 #' @return Lista con `documents`, `audit`, `duplicates` (con el criterio, el
@@ -488,13 +522,20 @@ prepare_documents <- function(d, mapping, config = default_config()) {
     duplicate_records$conservado_doc_id <- docs$doc_id[dup$kept[duplicates]]
     duplicate_records$conservado_fila <- docs$source_row[dup$kept[duplicates]]
     # El registro conservado se elige por su posicion en el archivo, no por ser el mas completo: si le
-    # faltan el anio o el DOI y el registro retirado los tiene (sin contradiccion posible, porque solo se
-    # fusionan registros sin valores distintos), se completan y se deja constancia.
+    # faltan campos y el registro retirado los tiene (sin contradiccion posible respecto al anio, el DOI y
+    # los autores, porque solo se fusionan registros compatibles), se completan campo a campo y se deja
+    # constancia. Un campo ya informado nunca se sobrescribe y las citas no se tocan: dependen de la base
+    # y de la fecha de extraccion, de modo que no se suman ni se sustituyen entre registros.
     duplicate_records$campos_completados <- ""
+    fill_fields <- c(year = "a\u00f1o", doi = "doi", text = "texto", title = "t\u00edtulo", authors = "autores",
+      source = "fuente", keywords = "palabras clave", references = "referencias")
     if (cfg$deduplicate) for (j in seq_len(nrow(duplicate_records))) {
       i <- which(duplicates)[j]; r <- dup$kept[i]; added <- character()
-      if (is.na(docs$year[r]) && !is.na(docs$year[i])) { docs$year[r] <- docs$year[i]; added <- c(added, "a\u00f1o") }
-      if (!nzchar(docs$doi[r]) && nzchar(docs$doi[i])) { docs$doi[r] <- docs$doi[i]; added <- c(added, "doi") }
+      for (f in names(fill_fields)) {
+        empty_kept <- if (f == "year") is.na(docs$year[r]) else !nzchar(docs[[f]][r])
+        has_dup <- if (f == "year") !is.na(docs$year[i]) else nzchar(docs[[f]][i])
+        if (empty_kept && has_dup) { docs[[f]][r] <- docs[[f]][i]; added <- c(added, fill_fields[[f]]) }
+      }
       duplicate_records$campos_completados[j] <- paste(added, collapse = "; ")
       completed_fields <- completed_fields + length(added)
     }
@@ -512,8 +553,8 @@ prepare_documents <- function(d, mapping, config = default_config()) {
   }
   audit <- data.frame(etapa = c("Importaci\u00f3n", "Filtro por valor", "Filtro temporal", "Deduplicaci\u00f3n", "Muestra final"),
     documentos = c(rows_in, rows_filter, rows_year, rows_dedup, nrow(docs)))
-  issues <- c(issues, sprintf("Duplicados detectados tras los filtros: %d. Criterio: DOI id\u00e9ntico; sin DOI en alguno de los registros, t\u00edtulo normalizado (sin acentos, may\u00fasculas ni puntuaci\u00f3n) o, si falta el t\u00edtulo, texto normalizado, siempre que no haya DOI ni a\u00f1o contradictorios y que los t\u00edtulos gen\u00e9ricos (menos de cuatro palabras) coincidan tambi\u00e9n en a\u00f1o y en autores o texto. Cada duplicado remite al registro conservado.", sum(duplicates)))
-  if (completed_fields > 0L) issues <- c(issues, sprintf("Campos completados en registros conservados a partir de duplicados (a\u00f1o o DOI ausentes en el conservado): %d. Constan en la columna campos_completados de la tabla de duplicados.", completed_fields))
+  issues <- c(issues, sprintf("Duplicados detectados tras los filtros: %d. Criterio: DOI id\u00e9ntico; sin DOI en alguno de los registros, t\u00edtulo normalizado (sin acentos, may\u00fasculas ni puntuaci\u00f3n) o, si falta el t\u00edtulo, texto normalizado, siempre que no haya DOI, a\u00f1o ni autores contradictorios y que los t\u00edtulos gen\u00e9ricos (menos de cuatro palabras) coincidan tambi\u00e9n en a\u00f1o y en autores o texto. Cada duplicado remite al registro conservado.", sum(duplicates)))
+  if (completed_fields > 0L) issues <- c(issues, sprintf("Campos completados en registros conservados a partir de duplicados (campos ausentes en el conservado, p. ej. a\u00f1o, DOI o resumen; las citas no se combinan): %d. Constan en la columna campos_completados de la tabla de duplicados.", completed_fields))
   if (nrow(ambiguous_records)) issues <- c(issues, sprintf("Coincidencias de t\u00edtulo o texto no tratadas como duplicado seguro: %d registros (DOI o a\u00f1o distintos, t\u00edtulo gen\u00e9rico sin corroboraci\u00f3n o varias coincidencias posibles). Se conservan; revisa `ambiguous`.", nrow(ambiguous_records)))
   issues <- c(issues, sprintf("Corpus final: %d/%d documentos con a\u00f1o v\u00e1lido; %d/%d con citas v\u00e1lidas; %d/%d con texto no vac\u00edo.",
     sum(!is.na(docs$year)), nrow(docs), sum(!is.na(docs$citations)), nrow(docs), sum(nzchar(docs$text)), nrow(docs)))
@@ -580,6 +621,9 @@ vocabulary_selection <- function(term_table, cfg, n_docs) {
 #'   `tokens_in_model` (palabras dentro del vocabulario de los modelos),
 #'   `n_active` (unidades con palabras tras la limpieza) y `units_in_model`
 #'   (unidades de la matriz `counts`, tras retirar las que se quedan sin vocabulario).
+#'   `language_check` resume la comprobacion de la lista de palabras vacias frente al
+#'   texto (proporcion de palabras vacias de cada lengua en una muestra; `mismatch`
+#'   indica que otra lengua encaja claramente mejor). Es un aviso: no cambia la eleccion.
 #' @examples
 #' d <- read_biblio_csv(system.file("extdata", "practica.csv", package = "bibliolab"), ";")
 #' cp <- prepare_corpus(prepare_documents(d, guess_columns(d)))
@@ -623,6 +667,8 @@ prepare_corpus <- function(prepared,progress=NULL) {
     langs <- unique(lexical_language[!is.na(lexical_language)])
     lexical_stops <- stats::setNames(lapply(langs, function(l) unique(c(stopwords::stopwords(l, source = "snowball"), custom[nzchar(custom)]))), langs)
   }
+  # Comprobacion previa de la lengua de las palabras vacias: avisa, no corrige (BL-04).
+  language_check <- if (isTRUE(cfg$remove_stop)) stopword_language_check(docs$text, cfg$language) else stopword_language_check(character(), "none")
   pool<-new.env(parent=emptyenv());pool$cluster<-NULL;pool$log<-NULL
   on.exit({processing_close(pool);if(!is.null(pool$log)) unlink(pool$log)},add=TRUE)
   # Avisos finales de derechos de autor: se retiran solo del texto que se tokeniza; documents$text conserva el original.
@@ -700,11 +746,12 @@ prepare_corpus <- function(prepared,progress=NULL) {
     sprintf("Vocabulario de modelos: %d de %d t\u00e9rminos elegibles; orden: %s.", length(vocab), length(eligible), cfg$term_order),
     sprintf("Palabras tras la limpieza: %d; dentro del vocabulario de los modelos: %d (%.1f %%). Unidades con palabras: %d; unidades en la matriz de los modelos: %d.",
       total_tokens, as.integer(round(sum(counts))), 100 * sum(counts) / max(1, total_tokens), sum(active), nrow(counts)))
+  if (isTRUE(language_check$mismatch)) issues <- c(issues, paste("AVISO DE IDIOMA:", language_check$message))
   if (boilerplate_removed > 0L) issues <- c(issues, sprintf("Avisos finales de derechos de autor retirados del texto analizado en %d documentos (el original se conserva).", boilerplate_removed))
   ngrams <- ngram_summary(all_sequences, units$doc_id, nrow(docs))
   list(units = units, counts = counts, terms = term_table, bigrams = bigrams, ngrams = ngrams, issues = issues,
     n_active = sum(active), total_tokens = total_tokens, tokens_in_model = as.integer(round(sum(counts))), units_in_model = nrow(counts), vocabulary = vocab, annotation = annotation,
-    models = model_info, filter_audit = filter_audit,processing=processing_audit)
+    models = model_info, filter_audit = filter_audit,processing=processing_audit, language_check = language_check)
 }
 count_metadata <- function(x, sep = NULL, n_docs = length(x), kind = NULL) {
   # kind = NULL: conteo literal (V3). kind = "keyword"/"author"/"source": unifica variantes de
@@ -833,7 +880,8 @@ run_lda <- function(corpus, k = 4L, seed = 2026L, iterations = 500L, alpha = NUL
     data.frame(tema = t, doc_id = weights$doc_id[ord], proporcion = weights[[t + 1]][ord])
   }))
   loglik <- gf$loglik
-  diagnostics <- lda_diagnostics(post$terms, post$topics, document_term_counts(m, corpus$units), loglik)
+  diagnostics <- lda_diagnostics(post$terms, post$topics, document_term_counts(m, corpus$units), loglik,
+    prevalence = prevalence$proporcion_media)
   list(top = top, gamma = gamma, document_topics = weights, prevalence = prevalence, examples = examples,
     diagnostics = diagnostics, loglik = loglik,
     params = list(k = k, seed = seed, iterations = iterations, method = "Gibbs", burnin = burnin, thin = gf$thin, alpha = alpha, delta = delta,
@@ -962,11 +1010,34 @@ ngram_summary <- function(sequences, doc_ids, n_docs, orders = 1:3) {
   d <- do.call(rbind,out); rownames(d)<-NULL
   d[order(d$n,-d$documentos,-d$frecuencia,d$expresion),]
 }
+# DOI canonico de una cadena bibliografica (minusculas, sin prefijo URL ni puntuacion final), o "" si no
+# contiene ninguno. Reconoce el DOI incrustado en una referencia completa ("... DOI 10.1000/abc.") y el que
+# viene como URL. No intenta emparejar referencias sin DOI.
+reference_doi <- function(x) {
+  x <- tolower(clean_value(x))
+  hit <- regmatches(x, regexpr("10\\.[0-9]{4,9}/[^[:space:]\"<>]+", x, perl = TRUE))
+  out <- rep("", length(x)); out[regexpr("10\\.[0-9]{4,9}/[^[:space:]\"<>]+", x, perl = TRUE) > 0L] <- hit
+  sub("[.,;:)\\]]+$", "", out, perl = TRUE)
+}
+# Conjuntos de referencias por documento. Dos cadenas con el mismo DOI son la misma referencia: se
+# representan por la variante mas citada (empate: orden alfabetico), de modo que la etiqueta mostrada sigue
+# siendo una cadena real del corpus. Sin DOI, la identidad es la cadena normalizada exacta (limite
+# declarado: no se emparejan referencias aproximadas).
 reference_sets <- function(prepared) {
   x <- prepared$documents$references %||% rep("",nrow(prepared$documents))
-  lapply(strsplit(clean_value(x), prepared$config$metadata_sep, fixed=TRUE), function(z) {
+  sets <- lapply(strsplit(clean_value(x), prepared$config$metadata_sep, fixed=TRUE), function(z) {
     z <- normalize_key(z); sort(unique(z[nzchar(z)]))
   })
+  all_refs <- unlist(sets, use.names = FALSE)
+  if (!length(all_refs)) return(sets)
+  tab <- table(all_refs); uniq <- names(tab); doi <- reference_doi(uniq)
+  withdoi <- nzchar(doi)
+  if (!any(withdoi)) return(sets)
+  rep_of <- stats::setNames(uniq, uniq)
+  d <- data.frame(ref = uniq[withdoi], doi = doi[withdoi], n = as.integer(tab[withdoi]), stringsAsFactors = FALSE)
+  d <- d[order(d$doi, -d$n, d$ref), , drop = FALSE]
+  rep_of[d$ref] <- d$ref[match(d$doi, d$doi)]
+  lapply(sets, function(z) sort(unique(unname(rep_of[z]))))
 }
 bibliography_extensions <- function(prepared) {
   d<-prepared$documents; sets<-reference_sets(prepared)

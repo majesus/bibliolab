@@ -61,10 +61,20 @@ script_preamble <- function() c(
   "if (.Platform$OS.type == 'windows' && !isTRUE(l10n_info()[['UTF-8']])) try(Sys.setlocale('LC_CTYPE', '.UTF-8'), silent = TRUE)",
   "# Funciones del paquete (exportadas e internas) disponibles en esta sesion.",
   "list2env(as.list(asNamespace('bibliolab')), envir = environment())")
+# Aviso, antes de calcular, si el codigo instalado no tiene la huella registrada en la entrega. Es un aviso:
+# otra version de R puede reescribir el mismo codigo de otra forma (ver code_fingerprint()).
+code_check_line <- function(record) {
+  fp <- record$software$codigo$huella_funciones
+  if (is.null(fp) || is.na(fp) || !nzchar(fp)) return(NULL)
+  paste0("local({ esperada <- '", fp, "'; actual <- tryCatch(code_fingerprint()$huella, error = function(e) NA_character_); ",
+    "if (!identical(actual, esperada)) warning('El codigo de bibliolab cargado no tiene la huella registrada en la entrega (', if (is.na(actual)) 'no se pudo calcular' else 'distinta', '). Puede deberse a otra version de R o a una copia de bibliolab modificada con el mismo numero de version; reinstala la version registrada (', '",
+    BIBLIO_VERSION, "', ') antes de tomar la reproduccion como exacta.', call. = FALSE) })")
+}
 reproduction_script <- function(prepared, lda = NULL, ca = NULL, density = NULL, network = NULL, comparison = NULL, pca = NULL, subgraph=NULL, record = NULL, corpus = NULL, fingerprints = NULL) {
   lines <- c(paste("# bibliolab", BIBLIO_VERSION, "/ Reproduccion de esta ejecucion"), "# Descomprime el ZIP y ejecuta este archivo desde esa carpeta.",
     "# Los datos exactos estan en entrada_original.rds; los CSV neutralizan formulas para Excel.",
     script_preamble(),
+    code_check_line(record),
     "options(bibliolab.model_dir = if (dir.exists('models')) normalizePath('models') else getOption('bibliolab.model_dir'))", "datos <- readRDS('entrada_original.rds')",
     if (!is.null(fingerprints$entrada)) paste0("verify_reproduction(raw_fingerprint(datos), '", fingerprints$entrada, "', 'el contenido de entrada_original.rds (no es el archivo analizado)')"),
     paste0("mapping <- ", r_literal(prepared$mapping)), paste0("cfg <- ", r_literal(prepared$config)),
@@ -122,7 +132,8 @@ diagnostics_script <- function(lda_selection = NULL, density_sens = NULL, densit
   lines <- c(paste("# bibliolab", BIBLIO_VERSION, "/ Reproduccion opcional de los diagnosticos de decision"),
     "# Ejecuta primero reproducir_analisis.R: este guion lee resultados_reproducidos.rds y diagnosticos_decision.rds.",
     script_preamble(), "r <- readRDS('resultados_reproducidos.rds')", "guardado <- readRDS('diagnosticos_decision.rds')",
-    "corpus <- r$corpus; preparado <- r$preparado", "comparar <- function(nuevo, previo, nombre) { ok <- isTRUE(all.equal(nuevo, previo, tolerance = 1e-6, check.attributes = FALSE)); message(nombre, ': ', if (ok) 'coincide con la entrega' else 'DIFIERE de la entrega'); ok }")
+    "corpus <- r$corpus; preparado <- r$preparado", "resultados <- logical()",
+    "comparar <- function(nuevo, previo, nombre) { ok <- isTRUE(all.equal(nuevo, previo, tolerance = 1e-6, check.attributes = FALSE)); resultados[nombre] <<- ok; message(nombre, ': ', if (ok) 'coincide con la entrega' else 'DIFIERE de la entrega'); invisible(ok) }")
   if (!is.null(lda_selection)) {
     p <- lda_selection$params
     lines <- c(lines, sprintf("seleccion <- lda_select_k(corpus, k_range = %s, seeds = %s, iterations = %s, alpha = %s, delta = %s, holdout = %s, top_n = %s)",
@@ -139,6 +150,12 @@ diagnostics_script <- function(lda_selection = NULL, density_sens = NULL, densit
         r_literal(as.integer(p$seeds)), r_literal(as.integer(p$neighbors)), r_literal(as.integer(p$min_pts))),
       "comparar(sensibilidad$runs[c('grupos', 'ari')], guardado$density_sens$runs[c('grupos', 'ari')], 'Sensibilidad de UMAP + HDBSCAN')")
   }
+  # Una diferencia termina el proceso con error y deja un estado legible por maquina: un guion que
+  # imprime DIFIERE y finaliza con codigo 0 no es una comprobacion.
+  lines <- c(lines,
+    "jsonlite::write_json(list(coinciden = length(resultados) > 0L && all(resultados), comparaciones = as.list(resultados)), 'verificacion_diagnosticos.json', auto_unbox = TRUE, pretty = TRUE)",
+    "if (!length(resultados)) stop('Este guion no ejecuto ninguna comparacion de diagnosticos: no hay nada que verificar.', call. = FALSE)",
+    "if (!all(resultados)) stop(sprintf('La reproduccion de los diagnosticos difiere de la entrega en: %s. Comprueba la version de bibliolab y de R registradas antes de usar estos resultados.', paste(names(resultados)[!resultados], collapse = ', ')), call. = FALSE)")
   paste(c(lines, ""), collapse = "\n")
 }
 

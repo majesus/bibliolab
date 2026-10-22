@@ -22,7 +22,8 @@ export_bundle(
   reader = NULL,
   record = NULL,
   lda_selection = NULL,
-  density_sens = NULL
+  density_sens = NULL,
+  thematic = NULL
 )
 }
 \arguments{
@@ -47,6 +48,9 @@ registra en \code{parametros.json} (\code{entrega}) y en \code{LEEME.txt}, y se 
 \item{reader}{Cuaderno de lectura enlazada (opcional).}
 
 \item{record}{Registro de reproducibilidad; se calcula si es \code{NULL}.}
+
+\item{thematic}{Resultado de \code{\link[=run_thematic_map]{run_thematic_map()}} (opcional). Se entrega en la subcarpeta
+\code{mapa_tematico/} y consta en el informe, el informe metodologico, la evidencia para IA y el registro.}
 
 \item{lda_selection, density_sens}{Resultados de \code{\link[=lda_select_k]{lda_select_k()}} y \code{\link[=density_sensitivity]{density_sensitivity()}}.}
 }

@@ -16,7 +16,8 @@ methods_report(
   comparison = NULL,
   record = NULL,
   lda_selection = NULL,
-  density_sensitivity = NULL
+  density_sensitivity = NULL,
+  thematic = NULL
 )
 }
 \arguments{
@@ -30,6 +31,8 @@ methods_report(
 \item{lda_selection}{Salida de \code{\link[=lda_select_k]{lda_select_k()}} (opcional).}
 
 \item{density_sensitivity}{Salida de \code{\link[=density_sensitivity]{density_sensitivity()}} (opcional).}
+
+\item{thematic}{Resultado de \code{\link[=run_thematic_map]{run_thematic_map()}} (opcional).}
 }
 \value{
 Cadena de texto en Markdown.

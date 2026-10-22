@@ -66,11 +66,12 @@ indicadores$overview
 
 `prepare_documents()` conserva los valores ausentes como `NA`: una cita ausente no es
 una cita cero. Un DOI idéntico identifica un duplicado. Sin DOI, el título (o el texto)
-normalizado, sin acentos, mayúsculas ni puntuación, solo basta si ningún DOI ni año
-contradice la coincidencia y, con títulos de menos de cuatro palabras (por ejemplo,
+normalizado, sin acentos, mayúsculas ni puntuación, solo basta si ningún DOI, año ni
+autores contradicen la coincidencia y, con títulos de menos de cuatro palabras (por ejemplo,
 «Editorial»), si coinciden además el año y los autores o el texto. Las coincidencias
 dudosas se conservan y se listan en `preparado$ambiguous` para su revisión; el registro
-de duplicados (`preparado$duplicates`) indica el criterio y el registro conservado.
+de duplicados (`preparado$duplicates`) indica el criterio, el registro conservado y los
+campos que se completaron desde el duplicado (por ejemplo, un resumen ausente).
 
 ## Decisiones metodológicas asistidas
 

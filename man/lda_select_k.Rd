@@ -33,7 +33,7 @@ entrega los reproduce aunque la funcion dependa de variables de su entorno.}
 
 \item{holdout}{Fraccion de documentos reservada para la perplejidad (0 la desactiva). Se reserva por documento: todas las frases de un documento reservado quedan fuera del entrenamiento. Solo se activa con 20 o mas documentos.}
 
-\item{top_n}{Palabras principales por tema usadas en coherencia, diversidad y estabilidad.}
+\item{top_n}{Palabras principales por tema usadas en coherencia, diversidad y estabilidad; se recorta al tamano del vocabulario (consta como \code{top_n_pedido} el valor pedido).}
 
 \item{progress}{Funcion opcional \verb{function(i, total)} para informar del avance.}
 }

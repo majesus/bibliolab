@@ -7,7 +7,7 @@ html_table <- function(d, max_rows = 30L, show_note = TRUE) {
   paste0(if(show_note) paste0("<p class='muted'>Se muestran ", nrow(a), " de ", nrow(d), " filas; consulta el CSV para la tabla completa.</p>"), "<div class='scroll'><table><thead><tr>",
     paste0("<th>", escape_html(names(a)), "</th>", collapse = ""), "</tr></thead><tbody>", paste(rows, collapse = ""), "</tbody></table></div>")
 }
-report_html <- function(prepared, corpus, bibliography, lda = NULL, ca = NULL, density = NULL, network = NULL, comparison = NULL, pca = NULL, subgraph=NULL) {
+report_html <- function(prepared, corpus, bibliography, lda = NULL, ca = NULL, density = NULL, network = NULL, comparison = NULL, pca = NULL, subgraph=NULL, thematic = NULL) {
   part <- function(title, text, d = NULL) paste0("<section><h2>", title, "</h2><p>", text, "</p>", if (!is.null(d)) html_table(d), "</section>")
   cfg <- prepared$config
   params <- data.frame(parametro = names(cfg), valor = vapply(cfg, function(x) paste(x, collapse = ", "), ""))
@@ -77,6 +77,9 @@ report_html <- function(prepared, corpus, bibliography, lda = NULL, ca = NULL, d
   if(!is.null(lda) && exists("lda_yearly",mode="function")) sections<-c(sections,part("LDA / prevalencia anual de temas fijos","Media de mezclas de documentos con a\u00f1o v\u00e1lido; no modelo din\u00e1mico ni asignaci\u00f3n exclusiva.",lda_yearly(lda,prepared)))
   if(!is.null(density) && exists("density_yearly",mode="function")) sections<-c(sections,part("Grupos fijos / proporciones por a\u00f1o","Denominador: asignaciones del modelo con a\u00f1o, incluido sin asignar. No estacionalidad.",density_yearly(density)))
   if(!is.null(density$temporal_spline)) sections<-c(sections,part("Spline penalizada / lectura y diagn\u00f3sticos",escape_html(density$temporal_spline$note),density$temporal_spline$diagnostics))
+  if (!is.null(thematic)) sections <- c(sections,
+    part("Mapa tem\u00e1tico / m\u00e9todo y lectura", escape_html(paste(thematic$method, thematic_reading(thematic))), thematic$themes),
+    part("Mapa tem\u00e1tico / cobertura y selecci\u00f3n", "Los temas son comunidades de t\u00e9rminos; un documento puede aparecer en varios. Tablas, entrada y guion de reproducci\u00f3n en mapa_tematico/.", thematic$coverage))
   if(!is.null(subgraph)) sections<-c(sections,part("Subgrafo / selecci\u00f3n",escape_html(subgraph$note),subgraph$audit),part("Subgrafo / indicadores recalculados","Compara con el universo de la red de origen.",subgraph$summary))
   paste0("<!doctype html><html lang='es'><head><meta charset='utf-8'><meta name='viewport' content='width=device-width, initial-scale=1'><title>Informe \u00b7 Bibliometr\u00eda ",BIBLIO_VERSION,"</title><style>",
     "body{font:16px/1.6 Helvetica,Arial,sans-serif;max-width:1100px;margin:40px auto;padding:0 24px;color:#161616;background:white}h1,h2{line-height:1.2}h1{font-size:44px;border-top:5px solid #d52b1e;padding-top:20px}h2{font-size:24px}section{margin:28px 0;padding:20px 0;background:white;border-top:1px solid #222}.muted{color:#555;font-size:13px}.scroll{overflow:auto}table{border-collapse:collapse;width:100%;font-size:13px}th,td{text-align:left;padding:8px;border-bottom:1px solid #ddd;max-width:360px;overflow-wrap:anywhere}th{background:#f2f2f2}pre{white-space:pre-wrap}@media print{body{margin:0;background:white}section{break-inside:auto}.scroll{overflow:visible}h2{break-after:avoid}}",
@@ -97,7 +100,7 @@ report_html <- function(prepared, corpus, bibliography, lda = NULL, ca = NULL, d
 #'   ejecuciones distintas ni queda una entrega a medias. Una carpeta con contenido
 #'   se rechaza sin modificarla.
 #' @param prepared,corpus,bibliography Resultados de la preparacion.
-#' @param lda,ca,density,network,comparison,pca,subgraph Resultados opcionales.
+#' @param lda,ca,density,network,comparison,pca,subgraph,thematic Resultados opcionales.
 #' @param prompt Texto de prompt a guardar (opcional).
 #' @param raw `data.frame` importado original; se guarda como RDS para reproducir.
 #'   Sin `raw` la entrega es **parcial**: no se escribe `reproducir_analisis.R`, se
@@ -105,6 +108,8 @@ report_html <- function(prepared, corpus, bibliography, lda = NULL, ca = NULL, d
 #' @param module_dir Ignorado (compatibilidad con V3).
 #' @param reader Cuaderno de lectura enlazada (opcional).
 #' @param record Registro de reproducibilidad; se calcula si es `NULL`.
+#' @param thematic Resultado de [run_thematic_map()] (opcional). Se entrega en la subcarpeta
+#'   `mapa_tematico/` y consta en el informe, el informe metodologico, la evidencia para IA y el registro.
 #' @param lda_selection,density_sens Resultados de [lda_select_k()] y [density_sensitivity()].
 #' @details Cada archivo queda registrado con su tamano y MD5 en
 #'   `manifiesto_archivos.csv`, que puede verificarse con [verify_bundle()].
@@ -141,7 +146,7 @@ report_html <- function(prepared, corpus, bibliography, lda = NULL, ca = NULL, d
 #'   valores ausentes se escriben como celdas vacias, no como cero.
 #' @return `directory`, de forma invisible.
 #' @export
-export_bundle <- function(directory, prepared, corpus, bibliography, lda = NULL, ca = NULL, prompt = NULL, density = NULL, raw = NULL, module_dir = NULL, network = NULL, comparison = NULL, pca = NULL, subgraph=NULL,reader=NULL, record = NULL, lda_selection = NULL, density_sens = NULL) {
+export_bundle <- function(directory, prepared, corpus, bibliography, lda = NULL, ca = NULL, prompt = NULL, density = NULL, raw = NULL, module_dir = NULL, network = NULL, comparison = NULL, pca = NULL, subgraph=NULL,reader=NULL, record = NULL, lda_selection = NULL, density_sens = NULL, thematic = NULL) {
   if (!is.character(directory) || length(directory) != 1L || is.na(directory) || !nzchar(directory)) abort_user("Indica una carpeta de destino.")
   final <- directory
   if (file.exists(final) && !dir.exists(final)) abort_user("El destino existe y no es una carpeta. Elige una carpeta nueva.")
@@ -219,7 +224,8 @@ export_bundle <- function(directory, prepared, corpus, bibliography, lda = NULL,
     columnas = prepared$mapping, advertencias = c(prepared$issues, corpus$issues),
     vocabulario_modelos = corpus$vocabulary, lda = if (!is.null(lda)) lda$params, ca = if (!is.null(ca)) ca$params,
     acp = if (!is.null(pca)) pca$params, jsd = if (!is.null(comparison)) list(parametros=comparison$params, origen_modelo=comparison$origin, jsd_bits=comparison$jsd, distancia=comparison$distancia, advertencias=comparison$issues),
-    red = if (!is.null(network)) list(parametros = network$params, definicion = network$note), modelos_idioma = corpus$models, densidad = if (!is.null(density)) list(parametros = density$params, representacion = density$representation, advertencias = density$issues),
+    red = if (!is.null(network)) list(parametros = network$params, definicion = network$note),
+    mapa_tematico = if (!is.null(thematic)) list(parametros = thematic$params, cortes = thematic$cuts, metodo = thematic$method, subcarpeta = "mapa_tematico"), modelos_idioma = corpus$models, densidad = if (!is.null(density)) list(parametros = density$params, representacion = density$representation, advertencias = density$issues),
     subgrafo=if(!is.null(subgraph)) subgraph$extraction, spline=if(!is.null(density$temporal_spline)) list(parametros=density$temporal_spline$params,lectura=density$temporal_spline$note),vista_terminos=corpus$term_view %||% NULL,
     vista_acp=corpus$pca_view %||% NULL,vista_ngramas=corpus$gram_view %||% NULL,vista_lda_temporal=corpus$lda_time_view %||% NULL,vista_lda_documentos=corpus$lda_document_view %||% NULL,
     entrega = list(reproducible = reproducible, insumos_faltantes = as.list(missing_inputs), comprobaciones_omitidas = as.list(omitted), huellas = fingerprints),
@@ -234,14 +240,16 @@ export_bundle <- function(directory, prepared, corpus, bibliography, lda = NULL,
     writeLines(c("# Ejecutar primero reproducir_analisis.R desde esta carpeta.",script_preamble(),"r <- readRDS('resultados_reproducidos.rds')","s <- readRDS('cuaderno_obsidian/cuaderno.rds')","p <- r$preparado; entrada <- readRDS('entrada_original.rds'); campo <- s$index$params$text_field %||% p$mapping$text", "p$documents$text <- clean_value(entrada[[campo]][p$documents$source_row]); p$mapping$text <- campo", "cuaderno <- build_wiki_index(p,r$corpus,s$index$params$mode,s$index$params$dictionary,s$index$params$source_key,text_source=s$index$params$text_source %||% 'prepared')","cuaderno <- wiki_attach_metadata(cuaderno,entrada)","stopifnot(isTRUE(all.equal(cuaderno$counts,s$index$counts)),identical(cuaderno$documents$text,s$index$documents$text))","graph <- if(is.null(s$view)) NULL else do.call(wiki_local_graph,c(list(index=cuaderno,node=s$view$node,notes=s$notes),s$view$params))","if(!is.null(graph))stopifnot(identical(graph$nodes,s$graph$nodes),identical(graph$edges,s$graph$edges))","export_wiki_vault('cuaderno_reproducido',cuaderno,s$notes,graph,s$view)","saveRDS(list(index=cuaderno,notes=s$notes,graph=graph,view=s$view),'cuaderno_reproducido.rds')"),file.path(directory,"reproducir_cuaderno.R"),useBytes=TRUE)
   }
   jsonlite::write_json(evidence_bundle(prepared, corpus, bibliography, lda, ca, density = density, network = network, comparison = comparison, pca = pca,subgraph=subgraph,
-    lda_selection = lda_selection, density_sens = density_sens), file.path(directory, "evidencia_ia.json"), pretty = TRUE, auto_unbox = TRUE, na = "null", digits = NA)
-  writeLines(enc2utf8(report_html(prepared, corpus, bibliography, lda, ca, density, network, comparison, pca, subgraph)), file.path(directory, "informe.html"), useBytes = TRUE)
+    lda_selection = lda_selection, density_sens = density_sens, thematic = thematic), file.path(directory, "evidencia_ia.json"), pretty = TRUE, auto_unbox = TRUE, na = "null", digits = NA)
+  writeLines(enc2utf8(report_html(prepared, corpus, bibliography, lda, ca, density, network, comparison, pca, subgraph, thematic)), file.path(directory, "informe.html"), useBytes = TRUE)
   if (!is.null(comparison$grouping)) saveRDS(comparison$grouping, file.path(directory,"grupos_jsd.rds"))
   if(!is.null(subgraph)) saveRDS(subgraph$extraction,file.path(directory,"seleccion_subgrafo.rds"))
   if (!is.null(raw)) saveRDS(raw, file.path(directory, "entrada_original.rds"))
   if(!is.null(prepared$language_audit)) saveRDS(prepared$language_audit,file.path(directory,"idiomas_asignacion.rds"))
   if (!is.null(density$input_vectors)) saveRDS(density$input_vectors, file.path(directory, "vectores_entrada.rds"))
-  if (reproducible) writeLines(enc2utf8(reproduction_script(prepared, lda, ca, density, network, comparison, pca, subgraph, corpus = corpus, fingerprints = fingerprints)), file.path(directory, "reproducir_analisis.R"), useBytes = TRUE)
+  # El registro se calcula antes del guion: este comprueba la huella del codigo registrada.
+  if (is.null(record)) record <- reproducibility_record(prepared, corpus, lda = lda, ca = ca, density = density, network = network, comparison = comparison, pca = pca, thematic = thematic)
+  if (reproducible) writeLines(enc2utf8(reproduction_script(prepared, lda, ca, density, network, comparison, pca, subgraph, record = record, corpus = corpus, fingerprints = fingerprints)), file.path(directory, "reproducir_analisis.R"), useBytes = TRUE)
   if (exists("graphics_script",mode="function")) writeLines(enc2utf8(graphics_script()),file.path(directory,"reconstruir_graficos.R"),useBytes=TRUE)
   skills_dir <- system.file("skills", package = "bibliolab")
   if (nzchar(skills_dir) && dir.exists(skills_dir)) {
@@ -251,10 +259,10 @@ export_bundle <- function(directory, prepared, corpus, bibliography, lda = NULL,
     }
   }
   # Registro de reproducibilidad e informe metodologico (nuevo en 4.0).
-  if (is.null(record)) record <- reproducibility_record(prepared, corpus, lda = lda, ca = ca, density = density, network = network, comparison = comparison, pca = pca)
+  if (is.null(record)) record <- reproducibility_record(prepared, corpus, lda = lda, ca = ca, density = density, network = network, comparison = comparison, pca = pca, thematic = thematic)
   jsonlite::write_json(record, file.path(directory, "registro_reproducibilidad.json"), pretty = TRUE, auto_unbox = TRUE, na = "null", digits = NA)
   md <- methods_report(prepared, corpus, bibliography, lda = lda, ca = ca, density = density, network = network, comparison = comparison, pca = pca,
-    record = record, lda_selection = lda_selection, density_sensitivity = density_sens)
+    record = record, lda_selection = lda_selection, density_sensitivity = density_sens, thematic = thematic)
   writeLines(enc2utf8(md), file.path(directory, "informe_metodologico.md"), useBytes = TRUE)
   writeLines(enc2utf8(methods_report_html(md)), file.path(directory, "informe_metodologico.html"), useBytes = TRUE)
   if (!is.null(lda_selection)) {
@@ -271,6 +279,9 @@ export_bundle <- function(directory, prepared, corpus, bibliography, lda = NULL,
     saveRDS(list(lda_selection = lda_selection, density_sens = density_sens), file.path(directory, "diagnosticos_decision.rds"))
     if (reproducible) writeLines(enc2utf8(diagnostics_script(lda_selection, density_sens, density)), file.path(directory, "reproducir_diagnosticos.R"), useBytes = TRUE)
   }
+  # El mapa tematico se escribe dentro de la entrega, antes del manifiesto de archivos: su carpeta queda en el
+  # inventario con tamano y MD5 y el informe principal lo documenta.
+  if (!is.null(thematic)) write_thematic_bundle(file.path(directory, "mapa_tematico"), thematic)
   write_prompt_bank(file.path(directory, "banco_prompts.md"))
   if (!is.null(prompt)) writeLines(enc2utf8(prompt), file.path(directory, "prompt_seleccionado.txt"), useBytes = TRUE)
   writeLines(capture.output(sessionInfo()), file.path(directory, "entorno_R.txt"))
@@ -278,6 +289,7 @@ export_bundle <- function(directory, prepared, corpus, bibliography, lda = NULL,
     "parametros.json conserva decisiones; entorno_R.txt registra las versiones de R y paquetes.",
     "documentos.csv y unidades_textuales.csv contienen texto original: revisa la privacidad antes de compartir el ZIP.",
     "evidencia_ia.json contiene tablas limitadas a 25 filas por ranking y excluye extractos originales.",
+    if (!is.null(thematic)) "mapa_tematico/ contiene el mapa tem\u00e1tico (tablas, entrada, figuras y reproducir_mapa.R); sus par\u00e1metros y resultados constan tambi\u00e9n en informe.html, informe_metodologico.md y parametros.json.",
     "Las tablas de LDA, CA, subgrafo y UMAP/HDBSCAN solo se incluyen si sus resultados est\u00e1n vigentes. La spline requiere un ajuste v\u00e1lido; no se inventa si falta cobertura.",
     if (reproducible) "reproducir_analisis.R se ejecuta desde esta carpeta, usa entrada_original.rds y requiere el paquete bibliolab instalado (version registrada en registro_reproducibilidad.json)."
     else paste0("ENTREGA PARCIAL: no incluye reproducir_analisis.R porque faltan insumos de reproduccion: ", paste(missing_inputs, collapse = "; "), "."),

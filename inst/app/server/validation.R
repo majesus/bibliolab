@@ -27,6 +27,7 @@ output$kselect_state <- renderUI({
   tagList(tags$p(class = "chart-caption", r$text),
     tags$p(class = "hint", sprintf("%d soluciones ajustadas (%d valores de k × %d semillas); %d unidades de %d documentos y %d términos; %d documentos (%d unidades) reservados para la perplejidad.",
       nrow(f$runs), length(f$params$k_range), length(f$params$seeds), f$params$units, f$params$documents %||% f$params$units, f$params$terms, f$params$holdout_documents %||% f$params$holdout_units, f$params$holdout_units)),
+    tags$p(class = "hint", "Alcance: la reserva se hace por documento, pero el vocabulario y los filtros se aprendieron antes con el corpus completo, y la coherencia se calcula con todos los documentos. Es un diagn\u00f3stico interno condicionado al vocabulario, no una validaci\u00f3n externa de todo el flujo."),
     DT::DTOutput("kselect_best"))
 })
 output$kselect_best <- table_render(function() { f <- kselect_current(); validate(need(!is.null(f), "Compara soluciones para ver los mejores valores."))
@@ -57,10 +58,13 @@ output$kselect_use <- renderUI(model_parameter_guidance({
   ks <- f$params$k_range; sel <- f$recommendation$compromise; if (!is.finite(sel)) sel <- ks[1]
   tags$div(class = "row control-row",
     column(5, selectInput("kselect_choice", "Número de temas que quieres probar", ks, selected = sel)),
-    column(7, actionButton("use_k", "Fijar este k y volver a calcular LDA", class = "btn-primary"),
+    column(7, actionButton("use_k", "Usar este k en el modelo LDA", class = "btn-primary"),
       hint("Se actualiza el número de temas de arriba; pulsa Calcular LDA para ajustar el modelo final.")))
 }))
-observeEvent(input$use_k, { req(input$kselect_choice); updateNumericInput(session, "k", value = as.integer(input$kselect_choice)) })
+observeEvent(input$use_k, {
+  req(input$kselect_choice); updateNumericInput(session, "k", value = as.integer(input$kselect_choice))
+  showNotification(paste0("Se ha asignado k = ", input$kselect_choice, " al control de temas. El modelo final todav\u00eda no est\u00e1 calculado: pulsa Calcular LDA."), type = "message", duration = 8)
+})
 observeEvent(input$help_kselect, open_help("kselect"))
 
 # ---- Calidad del LDA ajustado -------------------------------------------------
@@ -76,7 +80,7 @@ output$lda_quality_state <- renderUI({
 output$lda_diagnostics_table <- table_render(function() { f <- lda_current(); validate(need(!is.null(f), "Calcula LDA con parámetros vigentes."))
   d <- f$diagnostics$overview; names(d) <- c("Indicador", "Valor"); d })
 output$lda_topic_quality <- table_render(function() { f <- lda_current(); validate(need(!is.null(f), "Calcula LDA con parámetros vigentes."))
-  d <- f$diagnostics$topics; names(d) <- c("Tema", "Prevalencia (%)", "Coherencia UMass", "Coherencia NPMI", "Palabras principales", "Pares NPMI informativos"); d })
+  d <- f$diagnostics$topics; names(d) <- c("Tema", "Prevalencia documental (%)", "Coherencia UMass", "Coherencia NPMI", "Palabras principales", "Pares NPMI informativos"); d })
 output$lda_quality_reading<-table_render(function(){f<-lda_current();validate(need(!is.null(f),"Calcula LDA para interpretar sus indicadores."));d<-lda_quality_reading(f);names(d)<-c("Aspecto","Cómo leer esta ejecución","Qué comprobar después");d})
 output$lda_quality_results<-renderUI({if(is.null(lda_current()))return(NULL)
   tagList(tags$section(class="lda-quality-block",DT::DTOutput("lda_diagnostics_table")),
@@ -146,7 +150,7 @@ observeEvent(input$apply_vocab_suggestion, {
 methods_text <- function() {
   p <- current()
   methods_report(p, rv$corpus, rv$bib, lda = lda_current(), ca = ca_current(), pca = pca_current(), density = density_export_current(),
-    network = network_current(), comparison = comparison_current(), lda_selection = kselect_current(), density_sensitivity = dsens_current())
+    network = network_current(), comparison = comparison_current(), lda_selection = kselect_current(), density_sensitivity = dsens_current(), thematic = thematic_current())
 }
 output$download_methods <- downloadHandler(filename = "informe_metodologico_bibliolab.html", contentType = "text/html",
   content = function(file) writeLines(enc2utf8(methods_report_html(methods_text())), file, useBytes = TRUE))

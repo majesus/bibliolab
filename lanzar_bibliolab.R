@@ -20,8 +20,16 @@ local({
   if (length(falta)) stop("Faltan archivos de la interfaz en ", www, ": ", paste(falta, collapse = ", "), call. = FALSE)
   legible <- tryCatch({ readLines(file.path(www, "style.css"), n = 1L, warn = FALSE); TRUE }, error = function(e) FALSE, warning = function(w) FALSE)
   if (!legible) stop("No se puede leer style.css. Si la carpeta esta en OneDrive, haga clic derecho en ella y elija 'Mantener siempre en este dispositivo'; espere a que termine la descarga.", call. = FALSE)
-  if (!requireNamespace("pkgload", quietly = TRUE)) utils::install.packages("pkgload", repos = "https://cloud.r-project.org")
+  if (!requireNamespace("pkgload", quietly = TRUE)) {
+    # No se modifica la biblioteca de R sin consentimiento: el paquete pkgload carga bibliolab desde estas fuentes.
+    aviso <- paste0("Para abrir bibliolab desde la carpeta de codigo hace falta el paquete 'pkgload', que no esta instalado.\n",
+      "Instalelo usted con install.packages('pkgload') o instale bibliolab como paquete (devtools::install('", root, "')).")
+    if (!interactive()) stop(aviso, call. = FALSE)
+    ok <- utils::askYesNo(paste0(aviso, "\n\u00bfInstalar 'pkgload' ahora desde CRAN?"), default = FALSE)
+    if (!isTRUE(ok)) stop("No se ha instalado 'pkgload' y bibliolab no se ha abierto. ", aviso, call. = FALSE)
+    utils::install.packages("pkgload", repos = "https://cloud.r-project.org")
+  }
   pkgload::load_all(root, export_all = FALSE, quiet = TRUE)
-  cat("bibliolab ", as.character(utils::packageVersion("bibliolab")), " cargado desde ", root, "\n", sep = "")
+  cat("bibliolab ", as.character(utils::packageVersion("bibliolab")), " cargado desde ", root, " (codigo de desarrollo, no el paquete instalado)\n", sep = "")
   bibliolab::run_app(launch.browser = !"--no-browser" %in% commandArgs(trailingOnly = TRUE))
 })

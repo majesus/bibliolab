@@ -177,9 +177,14 @@ loglik_convergence <- function(loglik) {
   list(relative_change = rel, converged = abs(rel) < 0.01, n = length(ll))
 }
 
-lda_diagnostics <- function(beta, theta, counts, loglik = NULL, top_n = 10L) {
+# `prevalence` es la prevalencia documental (media de las mezclas de cada documento, con el mismo peso por
+# documento aunque tenga mas o menos frases). Si no se indica, se promedian las unidades de `theta`, que
+# solo coincide con la documental cuando cada documento aporta una unidad. La columna `prevalencia_pct`
+# y la fila "Tema menos prevalente" usan siempre el mismo estimando que la tabla `prevalence` de run_lda().
+lda_diagnostics <- function(beta, theta, counts, loglik = NULL, top_n = 10L, prevalence = NULL) {
   coh <- topic_coherence(beta, counts, top_n)
-  prevalence <- colMeans(theta)
+  if (is.null(prevalence)) prevalence <- colMeans(theta)
+  stopifnot(length(prevalence) == nrow(beta))
   top_terms <- vapply(seq_len(nrow(beta)), function(t) paste(colnames(beta)[order(beta[t, ], decreasing = TRUE)[seq_len(min(5L, ncol(beta)))]], collapse = ", "), "")
   conv <- loglik_convergence(loglik)
   topics <- data.frame(tema = seq_len(nrow(beta)), prevalencia_pct = 100 * prevalence, coherencia_umass = coh$umass,
@@ -251,7 +256,7 @@ dtm_from_counts <- function(counts, rows = NULL) {
 #'   entrega los reproduce aunque la funcion dependa de variables de su entorno.
 #' @param delta Prior de palabras por tema.
 #' @param holdout Fraccion de documentos reservada para la perplejidad (0 la desactiva). Se reserva por documento: todas las frases de un documento reservado quedan fuera del entrenamiento. Solo se activa con 20 o mas documentos.
-#' @param top_n Palabras principales por tema usadas en coherencia, diversidad y estabilidad.
+#' @param top_n Palabras principales por tema usadas en coherencia, diversidad y estabilidad; se recorta al tamano del vocabulario (`top_n_pedido` conserva el valor pedido).
 #' @param progress Funcion opcional `function(i, total)` para informar del avance.
 #'
 #' @return Lista con `table` (resumen por k), `runs` (un ajuste por fila),
@@ -293,6 +298,10 @@ lda_select_k <- function(corpus, k_range = 2:8, seeds = c(2026L, 2027L, 2028L), 
   check_number(top_n, "Las palabras principales", 5, 20)
   model_resource_check(m, "LDA")
   n <- nrow(m)
+  # Con vocabularios pequenos el numero pedido de palabras principales puede exceder el vocabulario: se recorta
+  # (y se registra) para que las listas comparadas entre semillas no contengan NA.
+  top_n_pedido <- as.integer(top_n)
+  top_n <- min(top_n_pedido, ncol(m))
   # La reserva se hace por documento: todas las unidades (frases) de un documento reservado
   # quedan fuera del entrenamiento, de modo que la perplejidad se mide en documentos nuevos.
   unit_doc <- if (is.null(corpus$units)) rownames(m) else corpus$units$doc_id[match(rownames(m), corpus$units$unit_id)]
@@ -357,19 +366,19 @@ lda_select_k <- function(corpus, k_range = 2:8, seeds = c(2026L, 2027L, 2028L), 
       estabilidad = stability[i], tema_minimo_pct = mean(r$tema_minimo_pct), stringsAsFactors = FALSE)
   }))
   rownames(summ) <- NULL
-  rec <- lda_k_recommendation(summ)
+  rec <- lda_k_recommendation(summ, terms = ncol(m), top_n = top_n, top_n_pedido = top_n_pedido)
   list(table = summ, runs = runs, recommendation = rec,
     params = list(k_range = k_range, seeds = seeds, iterations = as.integer(iterations),
       alpha = if (is.null(alpha)) "1/k" else if (is.function(alpha)) paste(deparse(body(alpha)), collapse = " ") else alpha,
       alpha_regla = if (is.null(alpha)) "1/k" else if (is.function(alpha)) "funcion" else "constante", alpha_por_k = alpha_by_k,
       delta = delta, holdout_units = n_test, holdout_documents = length(test_docs), holdout_doc_ids = test_docs,
       holdout_fraction = holdout, holdout_unit = "documento", coherence_unit = "documento",
-      units = n, documents = n_docs, terms = ncol(m), top_n = as.integer(top_n)),
+      units = n, documents = n_docs, terms = ncol(m), top_n = as.integer(top_n), top_n_pedido = top_n_pedido),
     ran_at = format(Sys.time(), "%Y-%m-%d %H:%M:%S %Z"))
 }
 
 # Resume por criterio, detecta conflictos y propone un compromiso maximin.
-lda_k_recommendation <- function(summ) {
+lda_k_recommendation <- function(summ, terms = NA_integer_, top_n = NA_integer_, top_n_pedido = top_n) {
   best <- function(col, decreasing = TRUE) {
     x <- summ[[col]]
     if (!any(is.finite(x))) return(NA_integer_)
@@ -403,8 +412,18 @@ lda_k_recommendation <- function(summ) {
     if (!is.na(compromise)) paste0("Valor de compromiso (busca la mejor puntuaci\u00f3n del criterio peor situado, entre coherencia de palabras, estabilidad y diversidad): k = ", compromise, ". ") else "",
     if (conflict) "Los criterios apuntan a valores de k distintos: no hay un k dominante; decide leyendo los temas de las soluciones candidatas. " else "Los criterios principales coinciden de forma aproximada, pero confirma el resultado leyendo los temas. ",
     "La perplejidad se muestra a titulo informativo: suele mejorar al aumentar k y no equivale a interpretabilidad (Chang et al., 2009).")
+  # Soluciones proximas: con una parrilla discreta y pocas semillas, diferencias menores de 0.05 en la
+  # puntuacion de compromiso no distinguen un k de otro.
+  near <- if (is.na(compromise)) integer() else summ$k[is.finite(score) & score >= max(score, na.rm = TRUE) - 0.05]
+  notes <- character()
+  if (length(near) > 1L) notes <- c(notes, paste0("Las soluciones k = ", paste(near, collapse = ", "), " quedan a menos de 0.05 de la puntuaci\u00f3n de compromiso: no se distinguen con estos datos; el k final debe justificarse leyendo los temas."))
+  stab <- summ$estabilidad[is.finite(summ$estabilidad)]
+  if (length(stab) > 1L && diff(range(stab)) < 0.05) notes <- c(notes, "La estabilidad entre semillas apenas var\u00eda entre los k evaluados: no discrimina entre ellos.")
+  if (!is.na(terms) && !is.na(top_n) && top_n >= 0.5 * terms) notes <- c(notes, paste0("Las listas de ", top_n, " palabras principales abarcan al menos la mitad del vocabulario (", terms, " t\u00e9rminos): la estabilidad y la diversidad de las listas son poco informativas con un vocabulario tan reducido."))
+  if (!is.na(top_n_pedido) && !is.na(top_n) && top_n_pedido > top_n) notes <- c(notes, paste0("Se pidieron ", top_n_pedido, " palabras principales, pero el vocabulario solo permite ", top_n, ": se us\u00f3 ese n\u00famero."))
+  if (length(notes)) text <- paste(c(text, notes), collapse = " ")
   summary <- criteria[c("criterio", "k_mejor", "valor")]
-  list(summary = summary, scores = summ_score, compromise = compromise, conflict = conflict, text = text)
+  list(summary = summary, scores = summ_score, compromise = compromise, near = near, notes = notes, conflict = conflict, text = text)
 }
 
 # ---- Estabilidad y sensibilidad de UMAP + HDBSCAN ---------------------------

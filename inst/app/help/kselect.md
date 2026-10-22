@@ -15,6 +15,10 @@ fuentes:
 
 El **valor de compromiso** es el k que maximiza el peor de los tres primeros criterios (coherencia NPMI, estabilidad y diversidad) tras reescalarlos entre 0 y 1 dentro del intervalo comparado: 0 representa el menor valor observado y 1 el mayor de cada criterio, cuando hay variación. Ampliar el intervalo puede cambiar esas puntuaciones y la propuesta. La perplejidad no entra en él.
 
+**Alcance de la reserva.** La perplejidad se mide sobre documentos completos que no participan en el entrenamiento, pero el vocabulario, los filtros de frecuencia y la coherencia NPMI se calcularon con el corpus completo. Por eso la comparación es un diagnóstico interno condicionado al vocabulario: sirve para seleccionar y revisar k, no para afirmar capacidad predictiva fuera de muestra del flujo completo. Si necesitas esa afirmación, aprende el vocabulario solo con el entrenamiento, aplícalo al reservado y documenta los términos fuera de vocabulario en un diseño separado.
+
+**Cuándo la comparación no discrimina.** Si el vocabulario es muy pequeño, las listas de palabras principales de todos los k contienen casi los mismos términos y la estabilidad y la diversidad apenas cambian; si varios k quedan a menos de 0.05 del compromiso, no se distinguen con estos datos. La aplicación lo indica bajo la recomendación. En ambos casos la elección final debe apoyarse en la lectura de los temas y quedar justificada en el informe.
+
 ## 2. Ejemplo práctico: dos escenarios
 
 Las cifras de los criterios de estos escenarios son ilustrativas (no proceden de un corpus real); el valor de compromiso y la detección de conflicto se han calculado con la función de recomendación de la aplicación.
@@ -34,7 +38,7 @@ El compromiso es un resumen, no una elección: en el segundo escenario ningún c
 3. **Lee la tabla de mejores valores** por criterio y la figura de cada indicador con su dispersión entre semillas.
 4. **Mira el valor de compromiso y el aviso de conflicto.** Si los criterios señalan valores de k distintos, no hay un k dominante.
 5. **Elige dos o tres valores candidatos,** ajusta cada uno y lee los documentos más representativos de cada tema.
-6. **Fija el k elegido** con *Fijar este k y volver a calcular LDA* (actualiza el control de temas) y pulsa *Calcular LDA* para ajustar el modelo final.
+6. **Fija el k elegido** con *Usar este k en el modelo LDA* (actualiza el control de temas) y pulsa *Calcular LDA* para ajustar el modelo final.
 7. **Documenta** el rango comparado, los criterios y la razón de la elección; el informe metodológico lo registra.
 
 ## 4. Cómo leer la comparación sin errores de interpretación

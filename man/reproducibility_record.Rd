@@ -13,7 +13,8 @@ reproducibility_record(
   network = NULL,
   comparison = NULL,
   pca = NULL,
-  input_md5 = NULL
+  input_md5 = NULL,
+  thematic = NULL
 )
 }
 \arguments{
@@ -21,7 +22,7 @@ reproducibility_record(
 
 \item{corpus}{Resultado de \code{\link[=prepare_corpus]{prepare_corpus()}} (opcional).}
 
-\item{lda, ca, pca, density, network, comparison}{Resultados de los modelos, si existen.}
+\item{lda, ca, pca, density, network, comparison, thematic}{Resultados de los modelos, si existen.}
 
 \item{input_md5}{Huella MD5 del archivo importado, si se conoce.}
 }

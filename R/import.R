@@ -2,7 +2,7 @@
 biblio_file_format <- function(path, name = basename(path)) {
   size <- file.info(path)$size
   if (is.na(size) || size == 0) abort_user("El archivo est\u00e1 vac\u00edo o no se puede leer.")
-  if (size > biblio_max_bytes()) abort_user(paste0("El archivo supera ", biblio_max_mb(), " MB. Divide la exportaci\u00f3n o elimina columnas que no necesites (por ejemplo, las referencias citadas) antes de cargarla."))
+  if (size > biblio_max_bytes()) abort_user(paste0("El archivo supera ", biblio_max_mb(), " MB. Divide la exportaci\u00f3n o elimina columnas que no necesites antes de cargarla. Eliminar las referencias citadas (CR) inutiliza la cocitaci\u00f3n, el acoplamiento bibliogr\u00e1fico y el an\u00e1lisis de referencias: si los necesitas, conserva esa columna y divide la exportaci\u00f3n por periodos."))
   sig <- readBin(path, "raw", n = 8L)
   if (identical(sig, as.raw(c(208,207,17,224,161,177,26,225)))) return("xls")
   if (length(sig) >= 4 && identical(sig[1:4], as.raw(c(80,75,3,4)))) return("xlsx")
@@ -44,7 +44,7 @@ read_biblio_excel <- function(path, sheet = NULL) {
   names(d) <- named
   d <- as.data.frame(d, stringsAsFactors = FALSE, check.names = FALSE)
   if (any(vapply(d, function(x) any(nchar(x, type = "chars") > BIBLIO_LIMITS$text_chars, na.rm = TRUE), logical(1))))
-    abort_user("Una celda supera 50.000 caracteres. Usa t\u00edtulos o res\u00famenes, en lugar de textos completos.")
+    abort_user(oversize_cells_message(d))
   attr(d, "import_info") <- list(format = fmt, sheet = sheet, sheets = sheets,
     headers = data.frame(columna = seq_along(named), encabezado_original = original,
       nombre_importado = named, corregido = is.na(original) | original != named,
