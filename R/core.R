@@ -1,5 +1,5 @@
 # Funciones puras: importacion, trazabilidad y analisis. No dependen de Shiny.
-BIBLIO_VERSION <- "5.0.7"
+BIBLIO_VERSION <- "5.0.8"
 BIBLIO_LIMITS <- list(bytes = 100 * 1024^2, rows = 10000L, columns = 100L,
                   text_chars = 50000L, units = 20000L, tokens = 1000000L)
 `%||%` <- function(x, y) if (is.null(x) || length(x) == 0L) y else x

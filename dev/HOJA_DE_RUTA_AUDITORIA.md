@@ -1,6 +1,6 @@
 # Hoja de ruta derivada de la auditoría del 22/10/2026
 
-Estado de los 46 hallazgos (BL-01 a BL-46) sobre bibliolab 5.0.5; los cambios se han integrado después sobre la versión 5.0.7 de `main`. Esta hoja registra qué se corrigió, qué se
+Estado de los 46 hallazgos (BL-01 a BL-46) sobre bibliolab 5.0.5; los cambios se integraron sobre `main` (5.0.7) y se publican como la versión 5.0.8. Esta hoja registra qué se corrigió, qué se
 mitigó con texto o avisos y qué se difiere, con el motivo. No se difiere nada por comodidad: cada hallazgo
 diferido exige un diseño o una validación que no puede improvisarse sin riesgo de degradar la aplicación antes de
 la entrega a CRAN.
@@ -56,5 +56,5 @@ la entrega a CRAN.
 ## Antes de enviar a CRAN
 
 1. Repetir `R CMD check --as-cran` en Windows con R 4.6.1 y actualizar `cran-comments.md`: las cifras que contiene proceden del chequeo previo a estos cambios.
-2. Ejecutar la interfaz en un navegador real (los cambios de texto y de estado de la barra superior no se han visto renderizados).
-3. Decidir si estos cambios justifican elevar la versión (por ejemplo, a 5.0.8): no se ha modificado `BIBLIO_VERSION`, de modo que el código difiere del tarball 5.0.7 ya comprobado en CI. La huella del código del registro de reproducibilidad (BL-06) permite distinguirlos.
+2. Revisar la interfaz en un navegador real con la persona usuaria: se hizo una prueba de humo automatizada en Chromium (carga, ejemplo, preparación, aviso de idioma), pero no una validación visual completa ni de accesibilidad (BL-37 a BL-39).
+3. Verificar que la versión 5.0.8 es la que se envía: el código difiere del tarball 5.0.7 comprobado en CI.

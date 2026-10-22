@@ -1,4 +1,24 @@
-## Validation of bibliolab 5.0.7
+## Validation of bibliolab 5.0.8
+
+Unlike 5.0.7, this version changes R code: it applies the corrections of the
+22 October 2026 audit (see NEWS.md and dev/HOJA_DE_RUTA_AUDITORIA.md). It adds
+regression tests in tests/testthat/test-auditoria-506.R.
+
+Checks run before submission preparation:
+
+* Linux, R 4.4.3: the full testthat suite passed (213 test blocks, 0 failures)
+  with sources loaded and, for the process-based reproduction tests, with the
+  package installed in a temporary library. R CMD check of the tarball
+  (--no-manual, vignettes not built) reported no WARNINGs or ERRORs; its one NOTE
+  was the optional package cld2 not being installed in that environment.
+* The GitHub Actions workflows (R-CMD-check on Linux, macOS and Windows with R
+  release, oldrel, devel and 4.1.0, and the source tarball) passed on the
+  integration branch before merging.
+
+Pending before submission: the local R CMD check --as-cran --run-donttest on
+Windows with the final tarball, and the Win-builder report. Neither is claimed here.
+
+## Validation of bibliolab 5.0.7 (previous)
 
 This version adds methodological references to DESCRIPTION and a reproducible
 source-package workflow. The only change to R code is the version constant.

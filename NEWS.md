@@ -1,12 +1,6 @@
-# bibliolab 5.0.7
+# bibliolab 5.0.8
 
-- Añade a DESCRIPTION referencias verificadas de LDA, UMAP, HDBSCAN y
-  divergencia Jensen-Shannon, sin cambiar los cálculos.
-- Añade una construcción con R release actual y un check del mismo tarball,
-  con manual y ejemplos donttest. Conserva el archivo, su SHA256 y los
-  registros como artefacto de CI para las comprobaciones previas al envío.
-
-## Correcciones de la auditoría del 22/10/2026 (BL-01 a BL-08, BL-17, 19, 20, 25, 32, 35, 40, 44)
+Correcciones de la auditoría del 22/10/2026 (BL-01 a BL-08, BL-17, 19, 20, 25, 32, 35, 40 y 44). A diferencia de 5.0.7, esta versión modifica código R y puede cambiar resultados en corpus con duplicados, en la prevalencia LDA por frases y en la entrega reproducible.
 
 - Duplicados: dos obras con igual título largo y año pero autores sin ninguno en
   común dejan de fusionarse y se listan como ambiguas («Autores distintos»); un
@@ -41,6 +35,14 @@
   opciones actuales» y aclara que no certifica validez metodológica.
 - Lanzador: no instala `pkgload` sin consentimiento explícito.
 - Los hallazgos de mayor alcance se documentan en `dev/HOJA_DE_RUTA_AUDITORIA.md`.
+
+# bibliolab 5.0.7
+
+- Añade a DESCRIPTION referencias verificadas de LDA, UMAP, HDBSCAN y
+  divergencia Jensen-Shannon, sin cambiar los cálculos.
+- Añade una construcción con R release actual y un check del mismo tarball,
+  con manual y ejemplos donttest. Conserva el archivo, su SHA256 y los
+  registros como artefacto de CI para las comprobaciones previas al envío.
 
 # bibliolab 5.0.6
 
