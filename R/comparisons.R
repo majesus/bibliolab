@@ -148,6 +148,11 @@ run_comparison <- function(corpus, prepared, params = list(), grouping = NULL) {
     "Se usa vocabulario retenido com\u00fan y Shannon base 2, con mezcla 50/50; JSD en bits y distancia sqrt(JSD) son magnitudes distintas.",
     if (p$weighting == "tokens") "Tokens agrupados: documentos largos aportan m\u00e1s apariciones." else "Cada documento aporta una distribuci\u00f3n normalizada; todos los documentos con vocabulario tienen el mismo peso dentro de su grupo.",
     "La matriz compara categor\u00edas del corpus completo vigente; la comparaci\u00f3n principal usa solamente A y B.")
+  # Grupos construidos con el mismo vocabulario que ahora se compara: la separacion es en parte circular.
+  if (p$mode %in% c("density", "lda")) issues <- c(issues, paste0(
+    "Grupos end\u00f3genos: ", if (p$mode == "lda") "los temas LDA" else "los grupos UMAP + HDBSCAN",
+    " se formaron con diferencias l\u00e9xicas del mismo vocabulario que ahora se compara. La JSD y su permutaci\u00f3n caracterizan el ajuste del modelo; una p peque\u00f1a no valida los grupos como categor\u00edas cient\u00edficas independientes. Para una confirmaci\u00f3n externa hacen falta etiquetas ajenas al modelo (por ejemplo, revista, periodo o disciplina)",
+    if (p$mode == "lda") ". Cada documento se asigna a su tema dominante, de modo que se pierde la mezcla de temas del documento." else "."))
   if (sum(ia) < 5 || sum(ib) < 5) issues <- c(issues, "Hay menos de cinco documentos en al menos un grupo: interpreta con especial cautela la cobertura; no es un umbral de validez inferencial.")
   if (length(eligible) > length(selected)) issues <- c(issues, paste("Matriz limitada a", length(selected), "categor\u00edas. La trayectoria anual conserva todos los a\u00f1os observados; consulta cobertura."))
   if (fit$jsd < 1e-12) issues <- c(issues, "Las distribuciones son iguales o num\u00e9ricamente indistinguibles; no hay un cambio l\u00e9xico que atribuir a t\u00e9rminos.")

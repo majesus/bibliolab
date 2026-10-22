@@ -8,7 +8,7 @@
 #'
 #' @param prepared Resultado de [prepare_documents()].
 #' @param corpus Resultado de [prepare_corpus()] (opcional).
-#' @param lda,ca,pca,density,network,comparison Resultados de los modelos, si existen.
+#' @param lda,ca,pca,density,network,comparison,thematic Resultados de los modelos, si existen.
 #' @param input_md5 Huella MD5 del archivo importado, si se conoce.
 #'
 #' @return Lista serializable a JSON con `software`, `entorno`, `semillas`,
@@ -20,7 +20,7 @@
 #' rec$software$bibliolab
 #' @export
 reproducibility_record <- function(prepared, corpus = NULL, lda = NULL, ca = NULL, density = NULL, network = NULL,
-                                   comparison = NULL, pca = NULL, input_md5 = NULL) {
+                                   comparison = NULL, pca = NULL, input_md5 = NULL, thematic = NULL) {
   pk <- c("shiny", "Matrix", "data.table", "igraph", "topicmodels", "slam", "udpipe", "cld2", "uwot", "dbscan", "irlba",
           "mgcv", "ggplot2", "readxl", "stopwords", "jsonlite", "DT", "plotly", "visNetwork", "zip")
   ver <- function(p) tryCatch(as.character(utils::packageVersion(p)), error = function(e) NA_character_)
@@ -29,13 +29,14 @@ reproducibility_record <- function(prepared, corpus = NULL, lda = NULL, ca = NUL
   cfg <- prepared$config
   seeds <- list(muestra = if (isTRUE(cfg$sample_pct < 100)) cfg$seed else NULL,
     lda = lda$params$seed, correspondencias_linea_base = ca$params$baseline$seed, acp_linea_base = pca$params$baseline$seed,
-    umap_hdbscan = density$params$seed, red = network$params$seed, jsd = comparison$params$seed)
+    umap_hdbscan = density$params$seed, red = network$params$seed, jsd = comparison$params$seed, mapa_tematico = thematic$params$seed)
   models <- Filter(Negate(is.null), list(
     lda = if (!is.null(lda)) lda$params, correspondencias = if (!is.null(ca)) ca$params, acp = if (!is.null(pca)) pca$params,
     umap_hdbscan = if (!is.null(density)) density$params, red = if (!is.null(network)) network$params,
-    jsd = if (!is.null(comparison)) comparison$params))
+    jsd = if (!is.null(comparison)) comparison$params, mapa_tematico = if (!is.null(thematic)) thematic$params))
   list(
-    software = list(bibliolab = BIBLIO_VERSION, R = R.version.string, paquetes = as.list(versions[!is.na(versions)])),
+    software = list(bibliolab = BIBLIO_VERSION, R = R.version.string, paquetes = as.list(versions[!is.na(versions)]),
+      codigo = installed_code_record()),
     entorno = list(plataforma = R.version$platform, sistema = unname(info[["sysname"]]), version_sistema = unname(info[["release"]]),
       ruta_bibliolab = tryCatch(find.package("bibliolab"), error = function(e) NA_character_), locale = Sys.getlocale("LC_CTYPE"), zona_horaria = Sys.timezone(), blas = unname(extSoftVersion()[["BLAS"]])),
     semillas = Filter(Negate(is.null), seeds),
@@ -47,6 +48,17 @@ reproducibility_record <- function(prepared, corpus = NULL, lda = NULL, ca = NUL
     modelos_idioma = if (!is.null(corpus)) corpus$models else list(),
     modelos = models,
     generado_en = format(Sys.time(), "%Y-%m-%d %H:%M:%S %Z"))
+}
+
+# Identidad del codigo instalado: huella de las funciones, fecha de compilacion y, si el paquete se
+# instalo desde GitHub, el commit. Una huella ausente (NA) indica que no pudo calcularse.
+installed_code_record <- function() {
+  fp <- tryCatch(code_fingerprint(), error = function(e) list(huella = NA_character_, funciones = NA_integer_))
+  desc <- tryCatch(utils::packageDescription("bibliolab"), error = function(e) NULL)
+  field <- function(f) { v <- if (is.list(desc) || is.character(desc)) desc[[f]] else NULL; if (is.null(v) || is.na(v)) NA_character_ else as.character(v) }
+  list(huella_funciones = fp$huella, funciones = fp$funciones,
+    metodo = "MD5 del nombre y del codigo (deparse, no ASCII escapado) de las funciones del espacio de nombres",
+    compilado = field("Built"), origen = field("RemoteType"), commit = field("RemoteSha"), version_r_huella = R.version.string)
 }
 
 fmt_value <- function(x, digits = 4) {
@@ -78,6 +90,7 @@ kv_table <- function(keys, values) md_table(data.frame(campo = keys, valor = vap
 #' @param record Salida de [reproducibility_record()]; se calcula si es `NULL`.
 #' @param lda_selection Salida de [lda_select_k()] (opcional).
 #' @param density_sensitivity Salida de [density_sensitivity()] (opcional).
+#' @param thematic Resultado de [run_thematic_map()] (opcional).
 #'
 #' @return Cadena de texto en Markdown.
 #' @examples
@@ -87,7 +100,7 @@ kv_table <- function(keys, values) md_table(data.frame(campo = keys, valor = vap
 #' cat(substr(methods_report(p, cp, biblio_summary(p)), 1, 400))
 #' @export
 methods_report <- function(prepared, corpus, bibliography, lda = NULL, ca = NULL, pca = NULL, density = NULL,
-                           network = NULL, comparison = NULL, record = NULL, lda_selection = NULL, density_sensitivity = NULL) {
+                           network = NULL, comparison = NULL, record = NULL, lda_selection = NULL, density_sensitivity = NULL, thematic = NULL) {
   if (is.null(record)) record <- reproducibility_record(prepared, corpus, lda = lda, ca = ca, density = density, network = network, comparison = comparison, pca = pca)
   cfg <- prepared$config; prov <- prepared$provenance %||% list()
   L <- character()
@@ -122,7 +135,7 @@ methods_report <- function(prepared, corpus, bibliography, lda = NULL, ca = NULL
   if (!is.null(nv) && nrow(nv)) add(paste0("Se unificaron variantes de escritura en ", length(unique(paste(nv$campo, nv$elemento))), " etiquetas (", nrow(nv), " variantes). La tabla completa est\u00e1 en bibliografia_normalizacion.csv. No se resuelven hom\u00f3nimos ni abreviaturas distintas de una misma revista."), "")
   # 4. Modelos
   add("## 4. Modelos y an\u00e1lisis ejecutados", "")
-  if (is.null(lda) && is.null(ca) && is.null(pca) && is.null(density) && is.null(network) && is.null(comparison)) add("No se ha ejecutado ning\u00fan modelo en esta sesi\u00f3n.", "")
+  if (is.null(lda) && is.null(ca) && is.null(pca) && is.null(density) && is.null(network) && is.null(comparison) && is.null(thematic)) add("No se ha ejecutado ning\u00fan modelo en esta sesi\u00f3n.", "")
   if (!is.null(lda)) {
     pr <- lda$params
     add("### 4.1 LDA (Latent Dirichlet Allocation)", "",
@@ -150,6 +163,14 @@ methods_report <- function(prepared, corpus, bibliography, lda = NULL, ca = NULL
   }
   if (!is.null(network)) {
     add("### 4.6 Red", "", network$note, "", md_table(network$summary), "")
+  }
+  if (!is.null(thematic)) {
+    tp <- thematic$params
+    add("### 4.7 Mapa tem\u00e1tico (centralidad y densidad de Callon)", "",
+      paste0("Origen de los t\u00e9rminos: ", tp$field, "; presencia m\u00ednima = ", tp$min_presence, "; m\u00e1ximo de t\u00e9rminos = ", tp$max_terms,
+        "; copresencias m\u00ednimas = ", tp$min_shared, "; resoluci\u00f3n = ", tp$resolution, "; semilla = ", tp$seed, "."), "",
+      thematic$method, "", thematic_reading(thematic), "", md_table(thematic$themes), "", "Cobertura y selecci\u00f3n:", "", md_table(thematic$coverage), "",
+      "Los temas son comunidades de t\u00e9rminos, no categor\u00edas exclusivas de documentos. Los resultados completos y su guion de reproducci\u00f3n est\u00e1n en la subcarpeta mapa_tematico/.", "")
   }
   # 5. Validacion
   add("## 5. Validaci\u00f3n y robustez", "")

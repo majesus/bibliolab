@@ -117,7 +117,7 @@ model_parameter_catalog <- function() {
     "Fija cu\u00e1ntas distribuciones de palabras estimar\u00e1 el modelo. Un documento puede combinar esos temas en proporciones diferentes.",
     "4 en el ajuste final. El selector de la comparaci\u00f3n propone un candidato, que puedes sustituir.",
     "Un k menor puede reunir contenidos distintos; uno mayor puede separar subtemas o generar temas redundantes. El resultado depende del vocabulario y del corpus.",
-    c("Consulta la comparaci\u00f3n de n\u00fameros de temas o documenta una raz\u00f3n previa para elegir k.", "Si usas el selector de comparaci\u00f3n, pulsa Fijar este k y despu\u00e9s Calcular LDA: el selector no ajusta el modelo final.", "Lee palabras y documentos por tema; contrasta un k cercano antes de nombrarlos."),
+    c("Consulta la comparaci\u00f3n de n\u00fameros de temas o documenta una raz\u00f3n previa para elegir k.", "Si usas el selector de comparaci\u00f3n, pulsa Usar este k en el modelo LDA y despu\u00e9s Calcular LDA: el selector no ajusta el modelo final.", "Lee palabras y documentos por tema; contrasta un k cercano antes de nombrarlos."),
     "Los identificadores de tema no se corresponden autom\u00e1ticamente entre ajustes. M\u00e1s temas no implica mayor calidad.", sources = lda)
   add("lda_seed", "LDA / semilla del ajuste",
     "Empieza con 2026 y contrasta otra semilla con el mismo k; el n\u00famero mayor no significa mejor ajuste.",

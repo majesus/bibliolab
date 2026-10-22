@@ -25,6 +25,10 @@ Los cálculos de este apartado se han ejecutado con la función de la aplicació
 
 **Repartos sin nada en común.** Si A solo usa «hospital» y B solo usa «escuela», la JSD es 1 y cada palabra explica la mitad de la diferencia (50 %). En el gráfico, «hospital» se coloca a la izquierda porque pesa más en A, y «escuela» a la derecha porque pesa más en B. La dirección ayuda a leer; ninguna aportación a la diferencia es negativa.
 
+**Grupos formados por el propio modelo.** Si comparas temas LDA o grupos UMAP + HDBSCAN, esos grupos se construyeron a partir de diferencias léxicas del mismo vocabulario que ahora se compara. La JSD y su referencia por permutación describen cuánto se separan los grupos que el modelo produjo (caracterización interna del ajuste); no confirman que sean categorías científicas, porque la separación estaba garantizada en parte por construcción. Para una confirmación externa hacen falta etiquetas independientes del modelo, como revista, periodo o disciplina. Con temas LDA, además, cada documento se asigna a su tema dominante y se pierde su mezcla de temas.
+
+**Unidad de remuestreo.** La permutación y el bootstrap reordenan documentos completos como si fueran intercambiables. Si varios documentos comparten autores, revista o periodo, no lo son del todo: el intervalo y la p describen la variación condicional al corpus preparado, no la incertidumbre de toda la búsqueda bibliográfica, y no corrigen la dependencia entre documentos ni la multiplicidad cuando se interpretan muchas comparaciones.
+
 **El ruido de muestreo.** Con conteos finitos, la JSD calculada es sesgada al alza: dos muestras extraídas del mismo reparto pueden mostrar una JSD positiva por las fluctuaciones de sus recuentos. En una simulación (200 términos con frecuencias decrecientes tipo Zipf, 300 repeticiones, semilla 1) la JSD media entre dos mitades del mismo reparto fue la siguiente.
 
 | Palabras por conjunto | JSD media (bits) | Percentil 95 |

@@ -18,6 +18,9 @@ Lista con \code{units}, \code{counts}, \code{terms}, \code{ngrams}, \code{bigram
 \code{tokens_in_model} (palabras dentro del vocabulario de los modelos),
 \code{n_active} (unidades con palabras tras la limpieza) y \code{units_in_model}
 (unidades de la matriz \code{counts}, tras retirar las que se quedan sin vocabulario).
+\code{language_check} resume la comprobacion de la lista de palabras vacias frente al
+texto (proporcion de palabras vacias de cada lengua en una muestra; \code{mismatch}
+indica que otra lengua encaja claramente mejor). Es un aviso: no cambia la eleccion.
 }
 \description{
 Tokeniza el texto (puntuacion como frontera), aplica palabras vacias, lemas

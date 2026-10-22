@@ -207,9 +207,18 @@ write_thematic_bundle <- function(directory, fit, figures = TRUE) {
     "Cobo et al. (2012). SciMAT. DOI: 10.1002/asi.22688. La normalizaci\u00f3n y Louvain se documentan expl\u00edcitamente; no se presupone igualdad con otras aplicaciones.")),
     file.path(directory, "LEEME.txt"), useBytes = TRUE)
   if (figures) {
-    graph <- thematic_plot(fit)
-    ggplot2::ggsave(file.path(directory, "mapa_tematico.png"), graph, width = 12, height = 9, dpi = 150)
-    ggplot2::ggsave(file.path(directory, "mapa_tematico.pdf"), graph, width = 12, height = 9, device = grDevices::cairo_pdf)
+    # Una figura que no se puede escribir (por ejemplo, sin cairo) no impide entregar tablas, entrada y guion:
+    # se deja constancia en lugar de omitirla en silencio.
+    ok <- tryCatch({
+      graph <- thematic_plot(fit)
+      ggplot2::ggsave(file.path(directory, "mapa_tematico.png"), graph, width = 12, height = 9, dpi = 150)
+      ggplot2::ggsave(file.path(directory, "mapa_tematico.pdf"), graph, width = 12, height = 9, device = grDevices::cairo_pdf)
+      TRUE
+    }, error = function(e) {
+      writeLines(enc2utf8(paste0("No se pudieron escribir las figuras del mapa tem\u00e1tico: ", conditionMessage(e),
+        ". Las tablas, la entrada y reproducir_mapa.R est\u00e1n completos.")), file.path(directory, "FIGURAS_NO_GENERADAS.txt"), useBytes = TRUE)
+      FALSE
+    })
   }
   invisible(directory)
 }

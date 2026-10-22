@@ -234,3 +234,32 @@ language_diagnostics <- function(d,mapping,overrides=character()) {
     idioma_declarado=raw,idioma_reconocido=ifelse(is.na(codes),"Sin identificar",unname(language_labels()[codes])),codigo=ifelse(is.na(codes),"",codes),
     texto_ejemplo=substr(mapped(d,mapping,"text"),1,160),stringsAsFactors=FALSE)
 }
+
+# Comprobacion previa de la lista de palabras vacias frente al texto. Compara, sobre una muestra de documentos,
+# la proporcion de palabras que son vacias en cada lengua con lista snowball. No sustituye a un detector de
+# idioma (no clasifica documentos ni reconoce lenguas sin lista) y nunca cambia la eleccion: solo senala que la
+# lista elegida cubre mucho menos texto que otra, para que la persona confirme o corrija antes de interpretar.
+stopword_language_check <- function(text, language, max_docs = 400L, min_tokens = 100L) {
+  langs <- c("es", "en", "fr", "de", "it", "pt")
+  chosen <- if (identical(language, "both")) c("es", "en") else language
+  out <- list(applicable = FALSE, chosen = language, shares = stats::setNames(rep(NA_real_, length(langs)), langs),
+    chosen_share = NA_real_, best = NA_character_, best_share = NA_real_, tokens = 0L, mismatch = FALSE, message = "")
+  if (!length(chosen) || !all(chosen %in% langs)) return(out)
+  text <- clean_value(text); text <- text[nzchar(text)]
+  if (!length(text)) return(out)
+  if (length(text) > max_docs) text <- text[unique(round(seq(1, length(text), length.out = max_docs)))]
+  words <- unlist(strsplit(tolower(normalize_unicode(text)), "[^\\p{L}]+", perl = TRUE), use.names = FALSE)
+  words <- words[nchar(words) >= 1L]
+  if (length(words) < min_tokens) return(out)
+  lists <- lapply(stats::setNames(langs, langs), function(l) unique(stopwords::stopwords(l, source = "snowball")))
+  shares <- vapply(lists, function(s) mean(words %in% s), 0)
+  chosen_share <- mean(words %in% unique(unlist(lists[chosen], use.names = FALSE)))
+  best <- names(which.max(shares)); best_share <- unname(shares[best])
+  names_es <- c(es = "espa\u00f1ol", en = "ingl\u00e9s", fr = "franc\u00e9s", de = "alem\u00e1n", it = "italiano", pt = "portugu\u00e9s", both = "espa\u00f1ol + ingl\u00e9s")
+  mismatch <- !best %in% chosen && best_share - chosen_share >= 0.05 && chosen_share < 0.8 * best_share
+  out[c("applicable", "shares", "chosen_share", "best", "best_share", "tokens", "mismatch")] <-
+    list(TRUE, shares, chosen_share, best, best_share, length(words), mismatch)
+  if (mismatch) out$message <- sprintf("La lista de palabras vac\u00edas elegida (%s) cubre el %.0f %% de las palabras de una muestra del texto, y la de %s el %.0f %%. Es probable que el texto est\u00e9 en %s: confirma el idioma antes de interpretar los resultados. La aplicaci\u00f3n no cambia tu elecci\u00f3n.",
+    names_es[[language]], 100 * chosen_share, names_es[[best]], 100 * best_share, names_es[[best]])
+  out
+}

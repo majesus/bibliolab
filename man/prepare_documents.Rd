@@ -39,15 +39,19 @@ valores ausentes de anio o citas se conservan como \code{NA} (nunca como cero).
 La deduplicacion no elimina un registro salvo coincidencia segura.
 Dos registros son el mismo si comparten DOI. Si falta el DOI en alguno,
 coinciden en titulo normalizado (o, sin titulo, en texto normalizado), no
-tienen DOI distintos ni anios distintos y, cuando el titulo tiene menos de
+tienen DOI distintos, anios distintos ni autores sin ninguno en comun (si
+ambos los declaran) y, cuando el titulo tiene menos de
 cuatro palabras (por ejemplo \code{Editorial}), coinciden ademas en anio y en
 autores o texto. La identidad se decide sobre el conjunto completo de
 candidatos, no fila a fila: un registro sin DOI que podria corresponder a
 varias obras incompatibles entre si no se fusiona con ninguna y se lista en
 \code{ambiguous}, de modo que permutar el orden del archivo no cambia las obras
 analizadas. De cada grupo se conserva la primera fila del archivo; si le
-faltan el anio o el DOI y un duplicado los aporta sin contradiccion, se
-completan y se registran en la columna \code{campos_completados} de \code{duplicates}.
+faltan el anio, el DOI, el texto, el titulo, los autores, la fuente, las
+palabras clave o las referencias y un duplicado los aporta sin
+contradiccion, se completan y se registran en la columna
+\code{campos_completados} de \code{duplicates}. Un campo informado nunca se
+sobrescribe y las citas no se combinan entre registros.
 Las coincidencias con evidencia contradictoria o con varios candidatos se
 conservan y se listan en \code{ambiguous}.
 }

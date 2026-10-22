@@ -79,7 +79,7 @@ prompt_rules <- function() paste(
   "Ejemplo ficticio de estilo (NO es evidencia de este estudio): 'La tabla anual registra 12 documentos en 2020 y 18 en 2021; el aumento del 50% describe este corpus y no demuestra crecimiento de todo el campo'.",
   "Revisa el borrador antes de entregarlo y elimina afirmaciones que no se sostengan con la evidencia. La revisi\u00f3n por IA no sustituye comprobaci\u00f3n humana.", sep = "\n")
 evidence_bundle <- function(prepared, corpus, bibliography, lda = NULL, ca = NULL, include_text = FALSE, density = NULL, network = NULL, comparison = NULL, pca = NULL, subgraph=NULL,
-                            lda_selection = NULL, density_sens = NULL) {
+                            lda_selection = NULL, density_sens = NULL, thematic = NULL) {
   top_n <- 25L
   pack <- function(d) list(filas_totales = nrow(d), filas_incluidas = min(top_n, nrow(d)), datos = head(d, top_n))
   evidence <- list(version = BIBLIO_VERSION, fuente = prepared$source_name %||% "CSV local",
@@ -132,6 +132,9 @@ evidence_bundle <- function(prepared, corpus, bibliography, lda = NULL, ca = NUL
   if (!is.null(density_sens)) evidence$sensibilidad_densidad <- list(parametros = density_sens$params, resumen = density_sens$summary,
     persistencia_grupos = density_sens$cluster_stability, ejecuciones = density_sens$runs, lectura = density_sens$reading)
   if(exists("model_comparison_table",mode="function")) evidence$resumen_modelos<-model_comparison_table(lda,density,pca,ca)
+  if (!is.null(thematic)) evidence$mapa_tematico <- list(parametros = thematic$params, metodo = thematic$method, lectura = thematic_reading(thematic),
+    temas = pack(thematic$themes), cobertura = thematic$coverage,
+    nota = "Los temas son comunidades de t\u00e9rminos por copresencia documental; un documento puede aparecer en varios. El mapa no determina direcci\u00f3n temporal ni valida nombres de temas.")
   if(!is.null(subgraph)) evidence$subgrafo<-list(seleccion=subgraph$extraction,definicion=subgraph$note,indicadores=subgraph$summary,nodos=pack(subgraph$nodes),conexiones=pack(subgraph$edges))
   if(!is.null(lda) && exists("lda_yearly",mode="function")) evidence$lda$prevalencia_anual<-pack(lda_yearly(lda,prepared))
   if(!is.null(density) && exists("density_yearly",mode="function")) evidence$densidad$proporciones_anuales<-pack(density_yearly(density))
@@ -144,7 +147,7 @@ build_prompt <- function(key, question, evidence, extra = "") {
   # Mantener el contexto de metodo, pero enviar tablas pertinentes a la tarea.
   common <- c("version", "fuente", "practica_sintetica", "pregunta", "unidad_textual", "nota_cobertura",
     "procedencia_documentada", "modelos_idioma", "idiomas_asignados", "ejecucion_preprocesamiento", "auditoria_vocabulario", "parametros_preparacion", "columnas", "auditoria", "advertencias", "indicadores", "privacidad")
-  specific <- switch(key, calidad = character(), metodo = c("lda", "ca", "densidad", "red", "jsd", "acp"), produccion = "anos",
+  specific <- switch(key, calidad = character(), metodo = c("lda", "ca", "densidad", "red", "jsd", "acp", "mapa_tematico"), produccion = "anos",
     fuentes = c("fuentes", "autores", "bibliografia_complementaria"), citas = c("documentos_citados","bibliografia_complementaria"), palabras = "terminos", bigramas = c("bigramas","ngramas"),
     lda = "lda", documentos = "lda", mapa = "ca", densidad = "densidad", redes = c("red","subgrafo"), jsd = "jsd", acp = "acp", filtros = "terminos", names(evidence))
   evidence <- evidence[intersect(unique(c(common, specific)), names(evidence))]

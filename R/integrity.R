@@ -109,3 +109,30 @@ verify_reproduction <- function(actual, expected, what) {
     stop(sprintf("La reproducci\u00f3n no coincide con la entrega: %s. Comprueba que entrada_original.rds, la versi\u00f3n de bibliolab y los modelos de idioma son los registrados.", what), call. = FALSE)
   invisible(TRUE)
 }
+
+# ---- Huella del codigo instalado -----------------------------------------------
+# El numero de version no identifica por si solo el codigo que se ejecuta: una copia de desarrollo puede
+# conservar la version y cambiar el contenido. La huella resume las funciones del espacio de nombres
+# (nombre y codigo reescrito por `deparse`, con los caracteres no ASCII escritos como \u para que no dependa
+# del locale). Compara dos instalaciones de la misma version de R; con otra version de R, `deparse` puede
+# reformatear el mismo codigo, de modo que una diferencia es un aviso para revisar, no una prueba de cambio.
+ascii_escape <- function(x) {
+  x <- enc2utf8(x)
+  vapply(x, function(s) {
+    if (!grepl("[^\\x01-\\x7f]", s, perl = TRUE)) return(s)
+    cp <- utf8ToInt(s)
+    paste0(vapply(cp, function(c) if (c < 128L) intToUtf8(c) else if (c < 65536L) sprintf("\\u%04x", c) else sprintf("\\U%08x", c), ""), collapse = "")
+  }, "", USE.NAMES = FALSE)
+}
+.code_fingerprint_cache <- new.env(parent = emptyenv())
+code_fingerprint <- function(package = "bibliolab") {
+  key <- paste(package, R.version.string)
+  if (!is.null(.code_fingerprint_cache[[key]])) return(.code_fingerprint_cache[[key]])
+  env <- asNamespace(package)
+  nm <- sort(ls(env, all.names = TRUE), method = "radix")
+  nm <- nm[vapply(nm, function(n) is.function(get(n, envir = env, inherits = FALSE)), TRUE)]
+  code <- vapply(nm, function(n) ascii_escape(paste(deparse(get(n, envir = env, inherits = FALSE), control = c("keepNA", "keepInteger", "niceNames")), collapse = "\n")), "")
+  out <- list(huella = content_digest(list(nombres = nm, codigo = unname(code))), funciones = length(nm))
+  .code_fingerprint_cache[[key]] <- out
+  out
+}

@@ -150,8 +150,9 @@ app_server <- function(input, output, session) {
     showNotification("Mapa calculado. Comprueba la inercia y el cos\u00b2 antes de interpretarlo.", type = "message", duration = 6)
   }))
   output$session_status <- renderUI({
-    status <- if (is.null(rv$raw)) "Sin datos \u00b7 carga un archivo o prueba el ejemplo" else if (is.null(rv$prepared)) "Datos cargados \u00b7 prepara el corpus en el paso 2" else if (stale()) "Cambios pendientes \u00b7 vuelve a preparar el corpus" else "Corpus preparado \u00b7 resultados vigentes"
+    status <- if (is.null(rv$raw)) "Sin datos \u00b7 carga un archivo o prueba el ejemplo" else if (is.null(rv$prepared)) "Datos cargados \u00b7 prepara el corpus en el paso 2" else if (stale()) "Cambios pendientes \u00b7 vuelve a preparar el corpus" else "Corpus preparado \u00b7 resultados calculados con las opciones actuales"
     tags$div(class = paste("status-bar", if (stale()) "warning" else ""), role = "status", `aria-live` = "polite",
+      title = "Este estado informa del avance t\u00e9cnico y de si los resultados coinciden con las opciones actuales. No certifica la calidad de los datos, la justificaci\u00f3n de las decisiones, la sensibilidad de los resultados ni la validez de su interpretaci\u00f3n: esas revisiones corresponden al equipo investigador.",
       tags$strong(status), tags$span(if (!is.null(rv$raw)) paste(nrow(rv$raw), "filas \u00b7", rv$source_name) else "Todo empieza con una fila por documento"),
       if (rv$is_demo) tags$span(class = "demo-badge", "PR\u00c1CTICA FICTICIA"))
   })
@@ -198,13 +199,24 @@ app_server <- function(input, output, session) {
     }
     widget
   }, server = TRUE)
+  # Aviso previo (BL-04): el idioma de las palabras vacias se compara con el texto elegido, sin cambiarlo.
+  output$stopword_language_hint <- renderUI({
+    req(rv$raw, nzchar(input$col_text %||% ""))
+    if (!isTRUE(input$remove_stop)) return(NULL)
+    linguistic <- isTRUE(input$lemmatize) || isTRUE(input$pos_filter)
+    lang <- if (linguistic) input$lemma_language %||% "es" else input$language %||% "es"
+    chk <- tryCatch(stopword_language_check(mapped(rv$raw, list(text = input$col_text), "text"), lang), error = function(e) NULL)
+    if (is.null(chk) || !isTRUE(chk$mismatch)) return(NULL)
+    tags$div(class = "status-bar warning", role = "status", tags$strong("Revisa el idioma del texto. "), chk$message)
+  })
   output$preparation_summary <- renderUI({
     if (is.null(rv$prepared)) return(empty_help("Todav\u00eda no has preparado el corpus. Asigna el texto, revisa las opciones y pulsa Preparar corpus. Este aviso desaparece cuando finaliza el c\u00e1lculo."))
     if (stale()) return(tags$div(class="status-bar warning",role="status","Opciones modificadas. Los resultados anteriores requieren una nueva preparaci\u00f3n. Pulsa Preparar corpus."))
     tags$div(class = "preparation-summary status-success", role="status",
-    tags$strong("\u2713 Corpus preparado correctamente. Resultados vigentes."), tags$br(),
+    tags$strong("\u2713 Corpus preparado correctamente. Resultados calculados con las opciones actuales."), tags$br(),
     tags$strong(paste(nrow(rv$prepared$documents), "documentos /", length(rv$corpus$vocabulary), "t\u00e9rminos en el vocabulario de los modelos /", rv$corpus$units_in_model %||% rv$corpus$n_active, "unidades en la matriz de los modelos")),
-    hint("Consulta auditor\u00eda, cobertura y razones de exclusi\u00f3n en las tablas. Los originales y versiones de texto se encuentran en el visor \u00fanico.")) })
+    if (isTRUE(rv$corpus$language_check$mismatch)) tags$div(class = "status-bar warning", role = "status", tags$strong("Revisa el idioma. "), rv$corpus$language_check$message),
+    hint("Consulta auditor\u00eda, cobertura y razones de exclusi\u00f3n en las tablas. Los originales y versiones de texto se encuentran en el visor \u00fanico. Este estado no certifica la calidad de los datos ni la validez de la interpretaci\u00f3n.")) })
   output$metrics <- renderUI({
     p <- current(); d <- p$documents; yr <- d$year[!is.na(d$year)]; ct <- d$citations[!is.na(d$citations)]
     metric <- function(value, label, detail) tags$div(class = "metric", tags$span(class = "metric-value", value), tags$strong(label), tags$small(detail))
@@ -263,7 +275,7 @@ app_server <- function(input, output, session) {
   output$lda_plot <- renderPlot(lda_graph(), height = function() { fit <- lda_current(); if (is.null(fit)) 480 else max(480, ceiling(fit$params$k / 2) * 250) }, res = 96)
   output$ca_plot <- renderPlot(ca_graph(), res = 110)
   evidence <- reactive({ p <- current(); evidence_bundle(p, rv$corpus, rv$bib, lda_current(), ca_current(), isTRUE(input$include_text), density = density_export_current(), network = network_current(), comparison = comparison_current(), pca = pca_current(),subgraph=subgraph_current(),
-    lda_selection = kselect_current(), density_sens = dsens_current()) })
+    lda_selection = kselect_current(), density_sens = dsens_current(), thematic = thematic_current()) })
   prompt_ready <- reactive({
     entry <- prompt_catalog()[[input$prompt_key %||% "inicio"]]
     current()
@@ -288,7 +300,7 @@ app_server <- function(input, output, session) {
   output$download_prompt <- downloadHandler(filename = function() paste0("prompt_", input$prompt_key, ".txt"),
     content = function(file) writeLines(enc2utf8(prompt_ready()), file, useBytes = TRUE))
   output$download_report <- downloadHandler(filename = "informe_bibliometria_v5.html", contentType = "text/html",
-    content = function(file) { p <- current(); writeLines(enc2utf8(report_html(p, rv$corpus, rv$bib, lda_current(), ca_current(), density_export_current(), network_current(), comparison_current(), pca_current(),subgraph_current())), file, useBytes = TRUE) })
+    content = function(file) { p <- current(); writeLines(enc2utf8(report_html(p, rv$corpus, rv$bib, lda_current(), ca_current(), density_export_current(), network_current(), comparison_current(), pca_current(),subgraph_current(), thematic_current())), file, useBytes = TRUE) })
   output$download_zip <- downloadHandler(filename = "resultados_bibliometria_v5.zip", contentType = "application/zip", content = function(file) {
     p <- current(); lda <- lda_current(); ca <- ca_current(); density <- density_export_current(); network <- network_current(); comparison <- comparison_current(); pca <- pca_current();subgraph<-subgraph_current()
     dir <- tempfile("bibliometria_")
@@ -298,9 +310,7 @@ app_server <- function(input, output, session) {
     export_corpus$pca_view<-list(axes=pca_axes());export_corpus$lda_time_view<-list(spline=isTRUE(input$lda_time_spline),metodo="Interpolaci\u00f3n Hermite c\u00fabica por tramos / tangentes cero / sin extrapolaci\u00f3n ni relleno de huecos")
     export_corpus$lda_document_view<-if(!is.null(lda))list(ids=lda_display_documents()$doc_id,criterio=if(identical(input$lda_document_mode,"selected"))"Selecci\u00f3n expl\u00edcita por ID, t\u00edtulo o DOI" else "P\u00e1gina / orden de la tabla del modelo") else NULL
     export_bundle(dir, p, export_corpus, rv$bib, lda, ca, prompt, density = density, raw = rv$raw, network = network, comparison = comparison, pca = pca,subgraph=subgraph,reader=wiki_export_current(),
-      lda_selection = kselect_current(), density_sens = dsens_current())
-    thematic <- thematic_current()
-    if (!is.null(thematic)) write_thematic_bundle(file.path(dir, "mapa_tematico"), thematic)
+      lda_selection = kselect_current(), density_sens = dsens_current(), thematic = thematic_current())
     graphs <- list(); omitted <- data.frame(grafico = character(), motivo = character(), stringsAsFactors = FALSE)
     why <- function(e) if (inherits(e, "shiny.silent.error") || !nzchar(conditionMessage(e))) "No disponible con el estado actual de la aplicaci\u00f3n." else conditionMessage(e)
     note_omitted <- function(name, reason) omitted <<- rbind(omitted, data.frame(grafico = name, motivo = reason, stringsAsFactors = FALSE))
